@@ -11,7 +11,7 @@ use apex;
 #[test]
 fn coordinate_range() {
     let mut x: apex::Coordinate = 2147483647;
-    assert_eq!(x, 2147483647);
+    assert_eq!(x, 2147483647, "We need to be able to store at least this coordinate.");
     x = x.wrapping_add(1);
-    assert_eq!(x, -2147483648);
+    assert_eq!(x, -2147483648, "It needs to overflow to the lowest coordinate.");
 }
