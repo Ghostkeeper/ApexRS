@@ -6,10 +6,15 @@
  * You should have received a copy of the GNU Affero General Public License along with this library. If not, see <https://gnu.org/licenses/>.
  */
 
-//! Importing this module imports all of Apex, making it available for use in your project.
+//! Defines the Shape2D trait.
 
-pub mod coordinate;
-pub use coordinate::*;
+use crate::Area;
 
-pub mod shape2d;
-pub use shape2d::*;
+/// A trait for finitely-bounded shapes in a 2D space.
+pub trait Shape2D {
+	/// Get the surface area of this shape.
+	///
+	/// It is possible that this area is negative. Shapes can be negative shapes, representing holes
+	/// in other shapes.
+	fn area(&self) -> Area;
+}
