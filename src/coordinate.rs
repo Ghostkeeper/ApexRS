@@ -6,4 +6,14 @@
  * You should have received a copy of the GNU Affero General Public License along with this library. If not, see <https://gnu.org/licenses/>.
  */
 
+//! These are the types used to represent coordinate and related data in Apex.
+
+/// The type used to store coordinates in space.
+///
+/// This type is an integer type rather than a floating point type, so no partial unit coordinates
+/// are possible. This is intended to make rounding errors more predictable so that they can be
+/// accounted for in geometric algorithms, to minimise their effect.
+///
+/// The type is 32-bits to allow for single-width entries in graphics card integer processors.
+/// Anything else kills performance.
 pub type Coordinate = i32;

@@ -6,9 +6,12 @@
  * You should have received a copy of the GNU Affero General Public License along with this library. If not, see <https://gnu.org/licenses/>.
  */
 
+//! Test the coordinate types of Apex.
+
 use apex;
 
 #[test]
+/// Test whether the possible range of `Coordinate` is as expected.
 fn coordinate_range() {
     let mut x: apex::Coordinate = 2147483647;
     assert_eq!(x, 2147483647, "We need to be able to store at least this coordinate.");

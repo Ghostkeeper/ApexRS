@@ -6,5 +6,7 @@
  * You should have received a copy of the GNU Affero General Public License along with this library. If not, see <https://gnu.org/licenses/>.
  */
 
+//! Importing this module imports all of Apex, making it available for use in your project.
+
 pub mod coordinate;
 pub use coordinate::*;
