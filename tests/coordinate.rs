@@ -18,3 +18,12 @@ fn coordinate_range() {
     x = x.wrapping_add(1);
     assert_eq!(x, -0x80000000, "It needs to overflow to the lowest coordinate.");
 }
+
+#[test]
+/// Test whether the possible range of `Area` is as expected.
+fn area_range() {
+    let mut area: apex::Area = 0x7FFFFFFFFFFFFFFF;
+    assert_eq!(area, 0x7FFFFFFFFFFFFFFF, "We need to be able to store at least this area.");
+    area = area.wrapping_add(1);
+    assert_eq!(area, -0x8000000000000000, "It needs to overflow to the negative area.");
+}

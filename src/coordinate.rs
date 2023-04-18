@@ -17,3 +17,18 @@
 /// The type is 32-bits to allow for single-width entries in graphics card integer processors.
 /// Anything else kills performance.
 pub type Coordinate = i32;
+
+/// The type used to store the size of areas in 2D space.
+///
+/// Areas can be negative. This is used to indicate the surface areas of parts of complex shapes and
+/// self-intersecting shapes.
+///
+/// This type is meant to guarantee that every shape that can be represented by the coordinate
+/// system of `Coordinate` can have its area properly calculated. However, the maximum area that can
+/// be represented by `Coordinate`-specified shapes is 2^32 by 2^32 (from the negative minimum
+/// coordinate to the positive maximum, in both dimensions). This would be an area of 2^64 units,
+/// but the area can also be negative. The maximum signed area would need 65 bits to be represented.
+/// The available integer types would require this to use `i128`. However this size is so rarely
+/// used and would incur such a performance penalty that it's better to use `i64`. This type can at
+/// most represent only half of the total coordinate space in 2D, but it's much more performant.
+pub type Area = i64;
