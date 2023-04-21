@@ -13,3 +13,6 @@ pub use coordinate::*;
 
 pub mod shape2d;
 pub use shape2d::*;
+
+pub mod two_dimensional;
+pub use two_dimensional::*;
