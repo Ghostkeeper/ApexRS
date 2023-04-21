@@ -24,13 +24,19 @@ use crate::Shape2D; //A point is a shape, with a bounded (zero) area.
 /// useful for certain geometric algorithms. When compared, points with lower X coordinates will be
 /// considered lower. If points have the same X coordinate, points with lower Y coordinates will be
 /// considered lower. Thus the points are compared lexicographically with X before Y.
-#[derive(Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Point2D {
 	/// The projection of this point on the X dimension.
 	pub x: Coordinate,
 
 	/// The projection of this point on the Y dimension.
 	pub y: Coordinate,
+}
+
+impl Point2D {
+	fn new(x: Coordinate, y: Coordinate) -> Point2D {
+		Point2D { x, y }
+	}
 }
 
 impl Shape2D for Point2D {
@@ -45,3 +51,5 @@ impl TwoDimensional for Point2D {
 		self.y += dy;
 	}
 }
+
+impl_op_ex!(+ |a: &Point2D, b: &Point2D| -> Point2D { Point2D::new(a.x + b.x, a.y + b.y) });

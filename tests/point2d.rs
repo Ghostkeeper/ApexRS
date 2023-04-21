@@ -116,3 +116,12 @@ fn point2d_compare_same_x() {
 	assert!(point2 > point1, "Commutative: It doesn't matter in what order the points are compared.");
 	assert!(point2 >= point1, "Commutative: It doesn't matter in what order the points are compared.");
 }
+
+#[test]
+/// Test summing Point2Ds coordinate-wise.
+fn point2d_sum() {
+	let point1 = apex::Point2D { x: 100, y: 200 };
+	let point2 = apex::Point2D { x: 4000, y: 5000 };
+	assert_eq!(&point1 + &point2, apex::Point2D { x: 100 + 4000, y: 200 + 5000 }, "We simply sum the coordinates separately.");
+	assert_eq!(point2 + point1, apex::Point2D { x: 100 + 4000, y: 200 + 5000 }, "Commutative: It doesn't matter in what order the points are summed.");
+}

@@ -8,6 +8,8 @@
 
 //! Importing this module imports all of Apex, making it available for use in your project.
 
+#[macro_use] extern crate auto_ops;
+
 pub mod coordinate;
 pub use coordinate::*;
 
