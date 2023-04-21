@@ -62,11 +62,11 @@ fn point2d_equality() {
 	let point1 = apex::Point2D { x: 400, y: 600 };
 	let point2 = apex::Point2D { x: 400, y: 600 };
 	let different = apex::Point2D { x: -400, y: 600 }; //Different from the other two.
-	assert!(point1 == point1, "Reflexive: The point must be equal to itself.");
-	assert!(point1 == point2, "If the coordinates of the points are the same, the points are the same.");
-	assert!(point2 == point1, "Commutative: It doesn't matter in what order points are equated.");
-	assert!(point1 != different, "If the coordinates of the points are different, the points are different.");
-	assert!(different != point1, "Commutative: It doesn't matter in what order points are equated.");
+	assert_eq!(point1, point1, "Reflexive: The point must be equal to itself.");
+	assert_eq!(point1, point2, "If the coordinates of the points are the same, the points are the same.");
+	assert_eq!(point2, point1, "Commutative: It doesn't matter in what order points are equated.");
+	assert_ne!(point1, different, "If the coordinates of the points are different, the points are different.");
+	assert_ne!(different, point1, "Commutative: It doesn't matter in what order points are equated.");
 }
 
 #[test]
