@@ -55,3 +55,16 @@ fn point2d_translate_mixed() {
 	assert_eq!(point.x, 20000 + 100 - 500, "We further moved the X coordinate into the negative direction by 500.");
 	assert_eq!(point.y, -10000 - 200 + 1000, "We further moved the Y coordinate into the positive direction by 1000.");
 }
+
+#[test]
+/// Test the equality operator on Point2D.
+fn point2d_equality() {
+	let point1 = apex::Point2D { x: 400, y: 600 };
+	let point2 = apex::Point2D { x: 400, y: 600 };
+	let different = apex::Point2D { x: -400, y: 600 }; //Different from the other two.
+	assert!(point1 == point1, "Reflexive: The point must be equal to itself.");
+	assert!(point1 == point2, "If the coordinates of the points are the same, the points are the same.");
+	assert!(point2 == point1, "Commutative: It doesn't matter in what order points are equated.");
+	assert!(point1 != different, "If the coordinates of the points are different, the points are different.");
+	assert!(different != point1, "Commutative: It doesn't matter in what order points are equated.");
+}

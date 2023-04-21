@@ -19,6 +19,7 @@ use crate::Shape2D; //A point is a shape, with a bounded (zero) area.
 ///
 /// The point can be considered a degenerate shape. It has no surface area or width or height. It
 /// collides with other geometry only when the borders of the objects are considered.
+#[derive(PartialEq)]
 pub struct Point2D {
 	/// The projection of this point on the X dimension.
 	pub x: Coordinate,
