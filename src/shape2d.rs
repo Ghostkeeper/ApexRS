@@ -6,8 +6,6 @@
  * You should have received a copy of the GNU Affero General Public License along with this library. If not, see <https://gnu.org/licenses/>.
  */
 
-//! Defines the Shape2D trait.
-
 use crate::Area;
 
 /// A trait for finitely-bounded shapes in a 2D space.

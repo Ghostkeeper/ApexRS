@@ -6,8 +6,6 @@
  * You should have received a copy of the GNU Affero General Public License along with this library. If not, see <https://gnu.org/licenses/>.
  */
 
-//! Test the coordinate types of Apex.
-
 use apex;
 
 #[test]
