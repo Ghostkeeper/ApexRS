@@ -6,10 +6,10 @@
  * You should have received a copy of the GNU Affero General Public License along with this library. If not, see <https://gnu.org/licenses/>.
  */
 
-use crate::Area;
+use crate::{Area, TwoDimensional};
 
 /// A trait for finitely-bounded shapes in a 2D space.
-pub trait Shape2D {
+pub trait Shape2D : TwoDimensional {
 	/// Get the surface area of this shape.
 	///
 	/// It is possible that this area is negative. Shapes can be negative shapes, representing holes
