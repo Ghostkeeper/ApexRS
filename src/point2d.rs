@@ -19,7 +19,12 @@ use crate::Shape2D; //A point is a shape, with a bounded (zero) area.
 ///
 /// The point can be considered a degenerate shape. It has no surface area or width or height. It
 /// collides with other geometry only when the borders of the objects are considered.
-#[derive(PartialEq)]
+///
+/// Points can be compared lexicographically. While this has no real geometric meaning, this can be
+/// useful for certain geometric algorithms. When compared, points with lower X coordinates will be
+/// considered lower. If points have the same X coordinate, points with lower Y coordinates will be
+/// considered lower. Thus the points are compared lexicographically with X before Y.
+#[derive(Eq, Ord, PartialEq, PartialOrd)]
 pub struct Point2D {
 	/// The projection of this point on the X dimension.
 	pub x: Coordinate,

@@ -68,3 +68,51 @@ fn point2d_equality() {
 	assert!(point1 != different, "If the coordinates of the points are different, the points are different.");
 	assert!(different != point1, "Commutative: It doesn't matter in what order points are equated.");
 }
+
+#[test]
+/// Test comparing the order of Point2Ds if they are the same.
+fn point2d_compare_equal() {
+	let point1 = apex::Point2D { x: 100, y: 150 };
+	let point2 = apex::Point2D { x: 100, y: 150 };
+	assert!(point1 <= point2, "The points are equal, so they must also be less-than-or-equal.");
+	assert!(point2 <= point1, "Commutative: It doesn't matter in what order the points are compared.");
+	assert!(point1 >= point2, "The points are equal, so they must also be greater-than-or-equal.");
+	assert!(point2 >= point1, "Commutative: It doesn't matter in what order the points are compared.");
+	assert!(!(point1 < point2), "The points are equal, so one is not less than the other.");
+	assert!(!(point2 < point1), "The points are equal, so one is not less than the other.");
+	assert!(!(point1 > point2), "The points are equal, so one is not greater than the other.");
+	assert!(!(point2 > point1), "The points are equal, so one is not greater than the other.");
+}
+
+#[test]
+/// Test comparing the order of Point2Ds if they have different coordinates.
+fn point2d_compare_different() {
+	let point1 = apex::Point2D { x: 100, y: 150 };
+	let point2 = apex::Point2D { x: 101, y: 100 }; //X is greater, which is more significant, so point2 > point1.
+	assert!(point1 < point2, "The X coordinate is more significant, so point1 is less than point2.");
+	assert!(point1 <= point2, "If point1 < point2, then also point1 <= point2.");
+	assert!(!(point1 > point2), "The X coordinate is more significant, so point1 is not greater than point2.");
+	assert!(!(point1 >= point2), "If not point1 > point2 and not equal, then not point1 >= point2.");
+	assert!(!(point2 < point1), "Commutative: It doesn't matter in what order the points are compared.");
+	assert!(!(point2 <= point1), "Commutative: It doesn't matter in what order the points are compared.");
+	assert!(point2 > point1, "Commutative: It doesn't matter in what order the points are compared.");
+	assert!(point2 >= point1, "Commutative: It doesn't matter in what order the points are compared.");
+}
+
+#[test]
+/// Test comparing the order of Point2Ds if they have the same X coordinate, but different Y
+/// coordinates.
+///
+/// Since X is the same, Y is the less significant comparison, but determines the outcome.
+fn point2d_compare_same_x() {
+	let point1 = apex::Point2D { x: 100, y: 100 };
+	let point2 = apex::Point2D { x: 100, y: 150 }; //X is the same, but Y is greater.
+	assert!(point1 < point2, "The X coordinate is the same, but point1.y < point2.y.");
+	assert!(point1 <= point2, "If point1 < point2, then also point1 <= point2.");
+	assert!(!(point1 > point2), "The X coordinate is the same, but point1.y < point2.y.");
+	assert!(!(point1 >= point2), "If not point1 > point2 and not equal, then not point1 >= point2.");
+	assert!(!(point2 < point1), "Commutative: It doesn't matter in what order the points are compared.");
+	assert!(!(point2 <= point1), "Commutative: It doesn't matter in what order the points are compared.");
+	assert!(point2 > point1, "Commutative: It doesn't matter in what order the points are compared.");
+	assert!(point2 >= point1, "Commutative: It doesn't matter in what order the points are compared.");
+}
