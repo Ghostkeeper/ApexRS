@@ -125,3 +125,11 @@ fn point2d_sum() {
 	assert_eq!(&point1 + &point2, apex::Point2D { x: 100 + 4000, y: 200 + 5000 }, "We simply sum the coordinates separately.");
 	assert_eq!(point2 + point1, apex::Point2D { x: 100 + 4000, y: 200 + 5000 }, "Commutative: It doesn't matter in what order the points are summed.");
 }
+
+#[test]
+/// Test subtracting Point2Ds coordinate-wise.
+fn point2d_subtract() {
+	let point1 = apex::Point2D { x: 100, y: 200 };
+	let point2 = apex::Point2D { x: 10, y: -20 };
+	assert_eq!(&point1 - &point2, apex::Point2D { x: 100 - 10, y: 200 + 20 }, "We simply subtract the coordinates separately.");
+}
