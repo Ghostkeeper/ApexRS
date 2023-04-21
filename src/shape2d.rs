@@ -14,5 +14,8 @@ pub trait Shape2D : TwoDimensional {
 	///
 	/// It is possible that this area is negative. Shapes can be negative shapes, representing holes
 	/// in other shapes.
+	///
+	/// # Result
+	/// The surface area of this shape.
 	fn area(&self) -> Area;
 }
