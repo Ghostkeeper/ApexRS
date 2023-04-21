@@ -6,7 +6,9 @@
  * You should have received a copy of the GNU Affero General Public License along with this library. If not, see <https://gnu.org/licenses/>.
  */
 
-use crate::{Area, TwoDimensional};
+use crate::Area; //To return the area of the shape.
+use crate::Convexity; //To return the convexity of the shape.
+use crate::TwoDimensional; //All Shape2Ds are two-dimensional.
 
 /// A trait for finitely-bounded shapes in a 2D space.
 pub trait Shape2D : TwoDimensional {
@@ -18,4 +20,17 @@ pub trait Shape2D : TwoDimensional {
 	/// # Result
 	/// The surface area of this shape.
 	fn area(&self) -> Area;
+
+	/// Get the convexity of this shape.
+	///
+	/// A shape is convex if and only if all line segments starting and ending inside of the shape
+	/// are wholly inside of the shape. That is, there are no line segments that start and end
+	/// inside the shape which pass partially outside of the shape. If there are, the shape is
+	/// concave.
+	///
+	/// If the shape is degenerate, degenerate convexity will be returned.
+	///
+	/// # Result
+	/// The convexity of the shape.
+	fn convexity(&self) -> Convexity;
 }

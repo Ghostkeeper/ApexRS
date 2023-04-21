@@ -7,6 +7,7 @@
  */
 
 use apex;
+use apex::Convexity;
 use apex::Shape2D;
 use apex::TwoDimensional;
 
@@ -132,4 +133,11 @@ fn point2d_subtract() {
 	let point1 = apex::Point2D { x: 100, y: 200 };
 	let point2 = apex::Point2D { x: 10, y: -20 };
 	assert_eq!(&point1 - &point2, apex::Point2D { x: 100 - 10, y: 200 + 20 }, "We simply subtract the coordinates separately.");
+}
+
+#[test]
+/// Test the convexity of Point2D.
+fn point2d_convexity() {
+	let point = apex::Point2D { x: 100, y: 200 };
+	assert_eq!(point.convexity(), Convexity::DEGENERATE, "Points are always degenerate convexity.");
 }

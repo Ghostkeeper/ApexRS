@@ -9,6 +9,7 @@
 //! Defines a struct that represents single points in a 2-dimensional space.
 
 use crate::Area; //To implement Shape2D.
+use crate::Convexity; //To implement Shape2D.
 use crate::Coordinate; //The position of the point is stored with coordinates.
 use crate::TwoDimensional; //This point is in two-dimensional space.
 use crate::Shape2D; //A point is a shape, with a bounded (zero) area.
@@ -42,6 +43,10 @@ impl Point2D {
 impl Shape2D for Point2D {
 	fn area(&self) -> Area {
 		return 0; //A point has no area.
+	}
+
+	fn convexity(&self) -> Convexity {
+		return Convexity::DEGENERATE; //Points are degenerate shapes.
 	}
 }
 
