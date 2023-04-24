@@ -19,6 +19,9 @@ pub use coordinate::*;
 pub mod point2d;
 pub use point2d::*;
 
+pub mod polygon;
+pub use polygon::*;
+
 pub mod shape2d;
 pub use shape2d::*;
 
