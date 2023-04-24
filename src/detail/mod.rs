@@ -6,27 +6,9 @@
  * You should have received a copy of the GNU Affero General Public License along with this library. If not, see <https://gnu.org/licenses/>.
  */
 
-//! Importing this module imports all of Apex, making it available for use in your project.
+//! This module provides additional things for the library that should not be exposed to the public.
+//!
+//! The files in this module are separated from the rest, to make it easier to find what you need in
+//! the source code of this library.
 
-#[macro_use] extern crate auto_ops;
-
-pub mod convexity;
-pub use convexity::*;
-
-pub mod coordinate;
-pub use coordinate::*;
-
-pub mod point2d;
-pub use point2d::*;
-
-pub mod polygon;
-pub use polygon::*;
-
-pub mod shape2d;
-pub use shape2d::*;
-
-pub mod two_dimensional;
-pub use two_dimensional::*;
-
-//Private modules.
-mod detail;
+pub(crate) mod sync_status;

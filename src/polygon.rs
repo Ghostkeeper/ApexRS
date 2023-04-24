@@ -37,7 +37,7 @@ pub struct Polygon {
 	///
 	/// These vertices are not publicly accessible, since access to the most up-to-date version may
 	/// require a sync from the GPU to the CPU.
-	vertices: Vec<Point2D>
+	pub(crate) vertices: Vec<Point2D>
 }
 
 impl TwoDimensional for Polygon {
