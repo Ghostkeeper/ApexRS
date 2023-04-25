@@ -15,6 +15,8 @@ use crate::Point2D; //The vertices of the Polygon are Point2D.
 use crate::Shape2D; //This is a 2D shape.
 use crate::TwoDimensional; //This is a two-dimensional object.
 
+use crate::operations::translate; //To translate the polygons.
+
 /// A plane figure consisting of a single contour of straight line segments.
 ///
 /// This is a closed shape, represented by a list of vertices in 2D. Between every two adjacent
@@ -42,9 +44,7 @@ pub struct Polygon {
 
 impl TwoDimensional for Polygon {
 	fn translate(&mut self, dx: Coordinate, dy: Coordinate) {
-		for vertex in &mut self.vertices {
-			vertex.translate(dx, dy);
-		}
+		translate::translate_polygon_st(self, dx, dy);
 	}
 }
 

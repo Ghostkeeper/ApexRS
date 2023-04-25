@@ -6,28 +6,14 @@
  * You should have received a copy of the GNU Affero General Public License along with this library. If not, see <https://gnu.org/licenses/>.
  */
 
-//! Importing this module imports all of Apex, making it available for use in your project.
+//! This module contains the implementations of operations to translate (move) geometric objects.
 
-#[macro_use] extern crate auto_ops;
+use crate::Coordinate; //As parameter for how far to translate.
+use crate::Polygon; //Translate polygons.
+use crate::TwoDimensional; //The translate function is part of TwoDimensional.
 
-pub mod convexity;
-pub use convexity::*;
-
-pub mod coordinate;
-pub use coordinate::*;
-
-pub mod point2d;
-pub use point2d::*;
-
-pub mod polygon;
-pub use polygon::*;
-
-pub mod shape2d;
-pub use shape2d::*;
-
-pub mod two_dimensional;
-pub use two_dimensional::*;
-
-//Private modules.
-mod detail;
-mod operations;
+pub(crate) fn translate_polygon_st(polygon: &mut Polygon, dx: Coordinate, dy: Coordinate) {
+	for vertex in &mut polygon.vertices {
+		vertex.translate(dx, dy);
+	}
+}

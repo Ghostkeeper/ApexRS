@@ -6,28 +6,15 @@
  * You should have received a copy of the GNU Affero General Public License along with this library. If not, see <https://gnu.org/licenses/>.
  */
 
-//! Importing this module imports all of Apex, making it available for use in your project.
+//! This module contains the algorithms that perform actual operations on the geometric objects in
+//! this library.
+//!
+//! These algorithms are implemented as free functions. They can be called separately, but the
+//! intended way to use the library is to use the methods of the geometric objects themselves. The
+//! functions are organised by the type of operation performed. This causes the algorithms that
+//! perform the same type of operation to be located in the same module, which juxtaposes the
+//! algorithms together since they are likely going to be very similar. This makes the code easier
+//! to read. The methods in the geometric objects will simply call these free functions to implement
+//! them.
 
-#[macro_use] extern crate auto_ops;
-
-pub mod convexity;
-pub use convexity::*;
-
-pub mod coordinate;
-pub use coordinate::*;
-
-pub mod point2d;
-pub use point2d::*;
-
-pub mod polygon;
-pub use polygon::*;
-
-pub mod shape2d;
-pub use shape2d::*;
-
-pub mod two_dimensional;
-pub use two_dimensional::*;
-
-//Private modules.
-mod detail;
-mod operations;
+pub(crate) mod translate;
