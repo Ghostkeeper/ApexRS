@@ -42,6 +42,15 @@ pub struct Polygon {
 	pub(crate) vertices: Vec<Point2D>
 }
 
+impl Polygon {
+	/// Create a new, empty polygon, without any vertices.
+	///
+	/// The polygon will be degenerate, since it has no vertices.
+	pub const fn new() -> Self {
+		Polygon { vertices: Vec::new() }
+	}
+}
+
 impl TwoDimensional for Polygon {
 	fn translate(&mut self, dx: Coordinate, dy: Coordinate) {
 		translate::translate_polygon_st(self, dx, dy);
