@@ -12,6 +12,23 @@ use crate::Coordinate; //As parameter for how far to translate.
 use crate::Polygon; //Translate polygons.
 use crate::TwoDimensional; //The translate function is part of TwoDimensional.
 
+/// Move a polygon by a certain delta coordinate.
+///
+/// This implementation is single-threaded and simply translates every vertex one by one.
+///
+/// # Arguments
+/// * `dx` - How far to move the object in the X direction. Use a positive number to increase the X
+/// position, or a negative number to reduce the X position.
+/// * `dy` - How far to move the object in the Y direction. Use a positive number to increase the Y
+/// position, or a negative number to reduce the Y position.
+///
+/// # Examples
+/// ```
+/// use apex::{Polygon, TwoDimensional};
+/// let mut poly = Polygon::new();
+/// //TODO: Fill polygon with vertices.
+/// translate_polygon_st(poly, 100, -150);
+/// ```
 pub(crate) fn translate_polygon_st(polygon: &mut Polygon, dx: Coordinate, dy: Coordinate) {
 	for vertex in &mut polygon.vertices {
 		vertex.translate(dx, dy);
