@@ -8,6 +8,9 @@
 
 //! This module contains the implementations of operations to translate (move) geometric objects.
 
+use std::cmp;
+use rayon::prelude::*; //For multi-threaded implementations.
+
 use crate::Coordinate; //As parameter for how far to translate.
 use crate::Polygon; //Translate polygons.
 use crate::TwoDimensional; //The translate function is part of TwoDimensional.
@@ -33,4 +36,31 @@ pub(crate) fn translate_polygon_st(polygon: &mut Polygon, dx: Coordinate, dy: Co
 	for vertex in &mut polygon.vertices {
 		vertex.translate(dx, dy);
 	}
+}
+
+/// Move a polygon by a certain delta coordinate.
+///
+/// This implementation is multi-threaded and will apply multiple threads to move the polygon
+/// quickly.
+///
+/// # Aruments
+/// * `dx` - How far to move the object in the X direction. Use a positive number to increase the X
+/// position, or a negative number to reduce the X position.
+/// * `dy` - How far to move the object in the Y direction. Use a positive number to increase the Y
+/// position, or a negative number to reduce the Y position.
+///
+/// # Examples
+/// ```
+/// use apex::{Polygon, TwoDimensional};
+/// let mut poly = Polygon::new();
+/// //TODO: Fill polygon with vertices.
+/// translate_polygon_mt(poly, 100, -150);
+/// ```
+pub(crate) fn translate_polygon_mt(polygon: &mut Polygon, dx: Coordinate, dy: Coordinate) {
+	let chunk_size = cmp::max(10000, polygon.vertices.len() / rayon::current_num_threads());
+	polygon.vertices.par_chunks_mut(chunk_size).for_each(
+		|slice| slice.iter_mut().for_each(
+			|vertex| vertex.translate(dx, dy)
+		)
+	);
 }

@@ -9,3 +9,4 @@ license = "AGPL-3.0-or-later"
 
 [dependencies]
 auto_ops = "0.3.0"
+rayon = "1.7.0"
