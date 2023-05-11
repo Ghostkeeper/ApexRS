@@ -49,6 +49,29 @@ impl Polygon {
 	pub const fn new() -> Self {
 		Polygon { vertices: Vec::new() }
 	}
+
+	/// Create a new, empty polygon, without any vertices.
+	///
+	/// The polygon will be degenerate, since it has no vertices.
+	///
+	/// The polygon will reserve memory for a given number of vertices. This guarantees that as long
+	/// as the polygon doesn't contain more vertices than that, it will not need to move its
+	/// contents to a bigger sized piece of memory. If any more vertices are added, new memory will
+	/// need to be allocated and the contents will need to be moved.
+	///
+	/// # Arguments
+	/// * `capacity` - The amount of vertices that this polygon needs to be able to contain without
+	/// needing to allocate more memory.
+	///
+	/// # Examples
+	/// ```
+	/// use apex::Polygon;
+	/// let mut poly = apex::Polygon::with_capacity(4);
+	/// //TODO: Add vertices to it.
+	/// ```
+	pub fn with_capacity(capacity: usize) -> Self {
+		Polygon { vertices: Vec::with_capacity(capacity) }
+	}
 }
 
 impl TwoDimensional for Polygon {
