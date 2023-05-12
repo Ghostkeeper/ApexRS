@@ -66,11 +66,38 @@ impl Polygon {
 	/// # Examples
 	/// ```
 	/// use apex::Polygon;
-	/// let mut poly = apex::Polygon::with_capacity(4);
+	/// let mut poly = Polygon::with_capacity(4);
 	/// //TODO: Add vertices to it.
 	/// ```
 	pub fn with_capacity(capacity: usize) -> Self {
 		Polygon { vertices: Vec::with_capacity(capacity) }
+	}
+
+	/// Add an extra vertex to this polygon.
+	///
+	/// The vertex will be connected in the seam of the polygon, after the last vertex and connected
+	/// to the first vertex. Adding a vertex can change the properties of the polygon significantly.
+	/// Not only does it change the shape of the polygon or its surface area, but it can also
+	/// make it degenerate, introduce self-intersections, and so on.
+	///
+	/// If there is not enough space in the memory reserved for this polygon, a bigger area of
+	/// memory will be allocated for it. As such, this operation will often be quick, but can
+	/// sometimes take a long time to execute.
+	///
+	/// # Arguments
+	/// * `vertex` - The vertex to add to the polygon.
+	///
+	/// # Examples
+	/// ```
+	/// use apex::{Point2D, Polygon};
+	/// let mut poly = Polygon::new();
+	/// //Create an isosceles triangle by adding these three vertices.
+	/// poly.push(Point2D { x: 0, y: 0 });
+	/// poly.push(Point2D { x: 100, y: 0 });
+	/// poly.push(Point2D { x: 50, y: 100 });
+	/// ```
+	pub fn push(&mut self, vertex: Point2D) {
+		self.vertices.push(vertex);
 	}
 }
 
