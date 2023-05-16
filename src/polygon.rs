@@ -8,6 +8,7 @@
 
 //! Defines the Polygon struct.
 
+use std::ops::Index; //Indexing polygons accesses its vertices.
 use crate::Area; //To return the polygon's surface area.
 use crate::Convexity; //To return the polygon's convexity.
 use crate::Coordinate;
@@ -114,5 +115,40 @@ impl Shape2D for Polygon {
 
 	fn convexity(&self) -> Convexity {
 		return Convexity::UNKNOWN; //TODO: Implement.
+	}
+}
+
+impl Index<usize> for Polygon {
+	type Output = Point2D;
+
+	/// Indexes the vertices of this polygon.
+	///
+	/// This will obtain a single vertex of the polygon. This is typically used to process one
+	/// vertex at a time by a custom algorithm, or to extract the resulting computed geometry from
+	/// the library into the rest of your application.
+	///
+	/// This indexing only supports single indices. The polygon can't produce slices.
+	///
+	/// # Arguments
+	/// * `index` - The index of the vertex to obtain.
+	///
+	/// # Panics
+	/// Will panic if the index is equal to or greater than the number of vertices in the polygon.
+	///
+	/// # Examples
+	/// ```
+	/// use apex::{Point2D, Polygon};
+	/// //Create a square, with 4 vertices.
+	/// let mut poly = Polygon::new();
+	/// poly.push(Point2D { x: 0, y: 0 });
+	/// poly.push(Point2D { x: 100, y: 0 });
+	/// poly.push(Point2D { x: 100, y: 100 });
+	/// poly.push(Point2D { x: 0, y: 100 });
+	/// //Access one of the vertices.
+	/// let third_vertex = poly[2];
+	/// assert_eq!(third_vertex, Point2D { x: 100, y: 100 });
+	/// ```
+	fn index(&self, index: usize) -> &Point2D {
+		return self.vertices.index(index);
 	}
 }
