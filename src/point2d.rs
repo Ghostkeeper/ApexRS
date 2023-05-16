@@ -25,7 +25,7 @@ use crate::Shape2D; //A point is a shape, with a bounded (zero) area.
 /// useful for certain geometric algorithms. When compared, points with lower X coordinates will be
 /// considered lower. If points have the same X coordinate, points with lower Y coordinates will be
 /// considered lower. Thus the points are compared lexicographically with X before Y.
-#[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Point2D {
 	/// The projection of this point on the X dimension.
 	pub x: Coordinate,
