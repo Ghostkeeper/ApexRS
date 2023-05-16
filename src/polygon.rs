@@ -9,6 +9,7 @@
 //! Defines the Polygon struct.
 
 use std::ops::Index; //Indexing polygons accesses its vertices.
+use std::ops::IndexMut; //Indexing polygons accesses its vertices.
 use crate::Area; //To return the polygon's surface area.
 use crate::Convexity; //To return the polygon's convexity.
 use crate::Coordinate;
@@ -149,6 +150,39 @@ impl Index<usize> for Polygon {
 	/// assert_eq!(third_vertex, Point2D { x: 100, y: 100 });
 	/// ```
 	fn index(&self, index: usize) -> &Point2D {
-		return self.vertices.index(index);
+		self.vertices.index(index)
+	}
+}
+
+impl IndexMut<usize> for Polygon {
+	/// Indexes the vertices of this polygon.
+	///
+	/// This will allow mutating a single vertex of the polygon. This is typically used to process
+	/// one vertex at a time by a custom algorithm. Beware though that this doesn't allow processing
+	/// the polygon on a graphics card.
+	///
+	/// This indexing only supports single indices. The polygon can't produce slices.
+	///
+	/// # Arguments
+	/// * `index` - The index of the vertex to mutate.
+	///
+	/// # Panics
+	/// Will panic if the index is equal to or greater than the number of vertices in the polygon.
+	///
+	/// # Examples
+	/// ```
+	/// use apex::{Point2D, Polygon};
+	/// //Create a square, with 4 vertices.
+	/// let mut poly = Polygon::new();
+	/// poly.push(Point2D { x: 0, y: 0 });
+	/// poly.push(Point2D { x: 100, y: 0 });
+	/// poly.push(Point2D { x: 100, y: 100 });
+	/// poly.push(Point2D { x: 0, y: 100 });
+	/// //Change one of the vertices.
+	/// poly[1].x = 50;
+	/// assert_eq!(poly[1], Point2D { x: 50, y: 0 });
+	/// ```
+	fn index_mut(&mut self, index: usize) -> &mut Point2D {
+		self.vertices.index_mut(index)
 	}
 }
