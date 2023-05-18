@@ -96,6 +96,7 @@ fn index_out_of_range() {
 		apex::Point2D { x: 50, y: 10 },
 		apex::Point2D { x: 10, y: 100 }
 	]);
+	std::panic::set_hook(Box::new(|_| {})); //Disable stack trace from this panic.
 	poly[3]; //Panic here. This is out of range.
 }
 
