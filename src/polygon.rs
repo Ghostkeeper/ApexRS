@@ -67,9 +67,15 @@ impl Polygon {
 	///
 	/// # Examples
 	/// ```
-	/// use apex::Polygon;
+	/// use apex::{Point2D, Polygon};
 	/// let mut poly = Polygon::with_capacity(4);
-	/// //TODO: Add vertices to it.
+	/// //Now add some vertices to it.
+	/// //The first 4 vertices are guaranteed to not need additional memory.
+	/// poly.push(Point2D { x: 0, y: 0 });
+	/// poly.push(Point2D { x: 100, y: 0 });
+	/// poly.push(Point2D { x: 200, y: 50 });
+	/// poly.push(Point2D { x: 300, y: 150 });
+	/// poly.push(Point2D { x: 400, y: 300 }); //But the 5th vertex might cause reallocation!
 	/// ```
 	pub fn with_capacity(capacity: usize) -> Self {
 		Polygon { vertices: Vec::with_capacity(capacity) }
