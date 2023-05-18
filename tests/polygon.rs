@@ -101,6 +101,7 @@ fn index_out_of_range() {
 }
 
 /// Test modifying a vertex of the polygon.
+#[test]
 fn index_mut() {
 	let mut poly = apex::Polygon::from_iter([
 		apex::Point2D { x: 0, y: 0 },
