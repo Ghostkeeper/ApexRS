@@ -82,6 +82,32 @@ impl Polygon {
 		Polygon { vertices: Vec::with_capacity(capacity) }
 	}
 
+	/// Get the capacity of the polygon's memory allocation to hold vertices.
+	///
+	/// This is the number of vertices that the polygon could hold without needing to allocate more
+	/// memory. Allocating more memory would require the geometric data to be copied, which takes
+	/// additional computational resources.
+	///
+	/// # Examples
+	/// ```
+	/// use apex::{Point2D, Polygon};
+	/// let mut poly = Polygon::with_capacity(4); //Create a polygon with capacity 4.
+	/// poly.push(Point2D { x: 0, y: 0 });
+	/// poly.push(Point2D { x: 100, y: 0 });
+	/// poly.push(Point2D { x: 100, y: 100 });
+	/// //We filled 3 of the 4 vertices that the polygon has capacity for.
+	/// assert_eq!(poly.capacity(), 4);
+	/// //Try adding one more.
+	/// poly.push(Point2D { x: 0, y: 100 });
+	/// assert_eq!(poly.capacity(), 4); //We're now up to capacity.
+	/// //Try adding another.
+	/// poly.push(Point2D { x: 50, y: 50 }); //This will be over capacity, causing new memory allocation and copying the data.
+	/// assert!(poly.capacity() > 4); //We've had to increase the capacity.
+	/// ```
+	pub fn capacity(&self) -> usize {
+		self.vertices.capacity()
+	}
+
 	/// Get the number of vertices (or the number of sides) of a polygon.
 	///
 	/// This struct represents simple polygons, so the number of sides is equal to the number of
