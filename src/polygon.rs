@@ -210,6 +210,38 @@ impl FromIterator<Point2D> for Polygon {
 	}
 }
 
+impl IntoIterator for Polygon {
+	type Item = Point2D;
+	type IntoIter = std::vec::IntoIter<Point2D>;
+
+	/// Allows iterating over the vertices of the polygon.
+	///
+	/// This will return an iterator over the vertices, as `Point2D` instances. This will start
+	/// iterating at the seam of the polygon, and will enumerate all vertices in counter-clockwise
+	/// order (for a positive polygon) or clockwise order (for a negative polygon) until reaching
+	/// the seam again.
+	///
+	/// # Examples
+	/// ```
+	/// use apex::{Point2D, Polygon};
+	/// let vertices = [
+	/// 	Point2D { x: 0, y: 0 },
+	/// 	Point2D { x: 100, y: 100 },
+	/// 	Point2D { x: 0, y: 100 }
+	/// ];
+	/// let poly = Polygon::from_iter(vertices);
+	/// //Now iterate over the vertices.
+	/// let mut i = 0;
+	/// for vertex in poly { //This for-each loop is possible because Polygon implements IntoIterator.
+	/// 	assert_eq!(vertex, vertices[i]);
+	/// 	i += 1;
+	/// }
+	/// ```
+	fn into_iter(self) -> Self::IntoIter {
+		self.vertices.into_iter()
+	}
+}
+
 impl Index<usize> for Polygon {
 	type Output = Point2D;
 
