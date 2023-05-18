@@ -6,13 +6,24 @@
  * You should have received a copy of the GNU Affero General Public License along with this library. If not, see <https://gnu.org/licenses/>.
  */
 
+use std::mem;
 use apex;
 
 /// Test creating a new, empty polygon.
 ///
-/// This assert that the new polygon is empty.
+/// This asserts that the new polygon is empty.
 #[test]
 fn new() {
 	let poly = apex::Polygon::new();
+	assert_eq!(poly.len(), 0, "The new polygon has no vertices.");
+}
+
+/// Test creating a polygon with a given capacity.
+///
+/// This asserts that the new polygon is empty, and that the polygon has the given capacity.
+#[test]
+fn with_capacity() {
+	let poly = apex::Polygon::with_capacity(10);
+	assert_eq!(poly.capacity(), 10, "We require the capacity to be exactly 10 then.");
 	assert_eq!(poly.len(), 0, "The new polygon has no vertices.");
 }
