@@ -8,6 +8,7 @@
 
 //! Defines the Polygon struct.
 
+use std::iter::FromIterator; //Constructing polygons from iterable lists of vertices.
 use std::ops::Index; //Indexing polygons accesses its vertices.
 use std::ops::IndexMut; //Indexing polygons accesses its vertices.
 use crate::Area; //To return the polygon's surface area.
@@ -122,6 +123,35 @@ impl Shape2D for Polygon {
 
 	fn convexity(&self) -> Convexity {
 		return Convexity::UNKNOWN; //TODO: Implement.
+	}
+}
+
+impl FromIterator<Point2D> for Polygon {
+	/// Construct a new polygon from a collection of vertices.
+	///
+	/// The vertices will be copied into the new polygon.
+	///
+	/// # Arguments
+	/// * `iter` - An object that can be converted into an iterator. In other words, an iterable
+	/// object. The elements of the objects must be `Point2D` instances which will become the
+	/// vertices of the new polygon.
+	///
+	/// # Examples
+	/// ```
+	/// use apex::{Point2D, Polygon};
+	/// //Here we feed a literal array of Point2D objects as argument.
+	/// let poly = Polygon::from_iter([
+	/// 	Point2D { x: 0, y: 0 },
+	/// 	Point2D { x: 100, y: 0 },
+	/// 	Point2D { x: 50, y: 100 }
+	/// ]);
+	/// assert_eq!(poly[0], Point2D { x: 0, y: 0 });
+	/// assert_eq!(poly[1], Point2D { x: 100, y: 0 });
+	/// assert_eq!(poly[2], Point2D { x: 50, y: 100 });
+	/// ```
+	fn from_iter<T>(iter: T) -> Self
+			where T: IntoIterator<Item = Point2D> {
+		Polygon { vertices: Vec::from_iter(iter) }
 	}
 }
 
