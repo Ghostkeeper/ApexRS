@@ -29,10 +29,11 @@ use crate::TwoDimensional; //The translate function is part of TwoDimensional.
 /// ```ignore //Since it uses crate-private functions.
 /// use apex::{Point2D, Polygon, TwoDimensional};
 /// //Create a triangular polygon.
-/// let mut poly = Polygon::new();
-/// poly.push(Point2D { x: 0, y: 0 });
-/// poly.push(Point2D { x: 100, y: 0 });
-/// poly.push(Point2D { x: 67, y: 100 });
+/// let mut poly = Polygon::from_iter([
+/// 	Point2D { x: 0, y: 0 },
+/// 	Point2D { x: 100, y: 0 },
+/// 	Point2D { x: 67, y: 100 }
+/// ]);
 /// //Move the polygon.
 /// translate_polygon_st(poly, 100, -150);
 /// //Now, all of the vertices will have moved.
@@ -58,13 +59,14 @@ pub(crate) fn translate_polygon_st(polygon: &mut Polygon, dx: Coordinate, dy: Co
 /// position, or a negative number to reduce the Y position.
 ///
 /// # Examples
-/// ```ignore
+/// ```ignore //Since it uses crate-private functions.
 /// use apex::{Point2D, Polygon, TwoDimensional};
 /// //Create a triangular polygon.
-/// let mut poly = Polygon::new();
-/// poly.push(Point2D { x: 0, y: 0 });
-/// poly.push(Point2D { x: 100, y: 0 });
-/// poly.push(Point2D { x: 67, y: 100 });
+/// let mut poly = Polygon::from_iter([
+/// 	Point2D { x: 0, y: 0 },
+/// 	Point2D { x: 100, y: 0 },
+/// 	Point2D { x: 67, y: 100 }
+/// ]);
 /// //Move the polygon.
 /// translate_polygon_mt(poly, 100, -150);
 /// //Now, all of the vertices will have moved.
