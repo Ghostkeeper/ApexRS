@@ -68,6 +68,22 @@ fn from_iter_polygon() {
 	assert_eq!(poly[2], apex::Point2D { x: 250, y: 1000 }, "The third vertex in the newly created polygon.");
 }
 
+/// Test iterating over vertices in a polygon.
+#[test]
+fn into_iter() {
+	let vertices = [
+		apex::Point2D { x: 0, y: 0 },
+		apex::Point2D { x: 100, y: 0 },
+		apex::Point2D { x: 50, y: 100 }
+	];
+	let poly = apex::Polygon::from_iter(vertices);
+	let mut i = 0;
+	for vertex in poly {
+		assert_eq!(vertex, vertices[i], "The iterator must iterate over the vertices in order.");
+		i += 1;
+	}
+}
+
 /// Test getting the capacity of a polygon.
 #[test]
 fn capacity() {
