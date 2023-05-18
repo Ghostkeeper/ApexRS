@@ -44,3 +44,16 @@ fn capacity() {
 	poly.push(apex::Point2D { x: 0, y: 100 });
 	assert!(poly.capacity() > 3, "The capacity is now expanded since the number of vertices was over capacity.");
 }
+
+/// Test getting the number of vertices/sides of a polygon.
+#[test]
+fn len() {
+	let mut poly = apex::Polygon::new();
+	assert_eq!(poly.len(), 0, "The polygon was created without any vertices.");
+	poly.push(apex::Point2D { x: 0, y: 0 });
+	assert_eq!(poly.len(), 1, "After adding a vertex, the length is now 1.");
+	for i in 0..10 { //Add 10 more vertices.
+		poly.push(apex::Point2D { x: i + 100, y: i + 100 });
+	}
+	assert_eq!(poly.len(), 11, "After adding 10 more vertices, the length is now 11.");
+}
