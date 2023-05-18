@@ -27,6 +27,47 @@ fn with_capacity() {
 	assert_eq!(poly.len(), 0, "The new polygon has no vertices.");
 }
 
+/// Test creating a polygon from an iterable object, this time an array.
+#[test]
+fn from_iter_array() {
+	let poly = apex::Polygon::from_iter([
+		apex::Point2D { x: 0, y: 0 },
+		apex::Point2D { x: 500, y: 0 },
+		apex::Point2D { x: 250, y: 1000 }
+	]);
+	assert_eq!(poly[0], apex::Point2D { x: 0, y: 0 }, "The first vertex in the newly created polygon.");
+	assert_eq!(poly[1], apex::Point2D { x: 500, y: 0 }, "The second vertex in the newly created polygon.");
+	assert_eq!(poly[2], apex::Point2D { x: 250, y: 1000 }, "The third vertex in the newly created polygon.");
+}
+
+/// Test creating a polygon from an iterable object, this time a vector.
+#[test]
+fn from_iter_vec() {
+	let vertices = vec![
+		apex::Point2D { x: 0, y: 0 },
+		apex::Point2D { x: 500, y: 0 },
+		apex::Point2D { x: 250, y: 1000 }
+	];
+	let poly = apex::Polygon::from_iter(vertices);
+	assert_eq!(poly[0], apex::Point2D { x: 0, y: 0 }, "The first vertex in the newly created polygon.");
+	assert_eq!(poly[1], apex::Point2D { x: 500, y: 0 }, "The second vertex in the newly created polygon.");
+	assert_eq!(poly[2], apex::Point2D { x: 250, y: 1000 }, "The third vertex in the newly created polygon.");
+}
+
+/// Test creating a polygon from an iterable object, this time a different polygon.
+#[test]
+fn from_iter_polygon() {
+	let original = apex::Polygon::from_iter([
+		apex::Point2D { x: 0, y: 0 },
+		apex::Point2D { x: 500, y: 0 },
+		apex::Point2D { x: 250, y: 1000 }
+	]);
+	let poly = apex::Polygon::from_iter(original);
+	assert_eq!(poly[0], apex::Point2D { x: 0, y: 0 }, "The first vertex in the newly created polygon.");
+	assert_eq!(poly[1], apex::Point2D { x: 500, y: 0 }, "The second vertex in the newly created polygon.");
+	assert_eq!(poly[2], apex::Point2D { x: 250, y: 1000 }, "The third vertex in the newly created polygon.");
+}
+
 /// Test getting the capacity of a polygon.
 #[test]
 fn capacity() {
