@@ -69,3 +69,30 @@ fn push() {
 	assert_eq!(poly.len(), 4, "After adding 1 more vertex, there are now 4 vertices.");
 	assert_eq!(poly[3], apex::Point2D { x: 0, y: 100 }, "The newly added vertex is at the seam.");
 }
+
+/// Test accessing vertices of the polygon.
+///
+/// All access in this test is within range.
+#[test]
+fn index_in_range() {
+	let poly = apex::Polygon::from_iter([
+		apex::Point2D { x: 0, y: 0 },
+		apex::Point2D { x: 50, y: 10 },
+		apex::Point2D { x: 10, y: 100 }
+	]);
+	assert_eq!(poly[0], apex::Point2D { x: 0, y: 0 }, "Getting the first vertex at index 0.");
+	assert_eq!(poly[1], apex::Point2D { x: 50, y: 10 }, "Getting the second vertex at index 1.");
+	assert_eq!(poly[2], apex::Point2D { x: 10, y: 100 }, "Getting the third vertex at index 2.");
+}
+
+/// Test accessing vertices of the polygon.
+#[test]
+#[should_panic(expected = "the len is 3 but the index is 3")]
+fn index_out_of_range() {
+	let poly = apex::Polygon::from_iter([
+		apex::Point2D { x: 0, y: 0 },
+		apex::Point2D { x: 50, y: 10 },
+		apex::Point2D { x: 10, y: 100 }
+	]);
+	poly[3]; //Panic here. This is out of range.
+}
