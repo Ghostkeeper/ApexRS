@@ -82,6 +82,35 @@ impl Polygon {
 		Polygon { vertices: Vec::with_capacity(capacity) }
 	}
 
+	/// Get the number of vertices (or the number of sides) of a polygon.
+	///
+	/// This struct represents simple polygons, so the number of sides is equal to the number of
+	/// vertices.
+	///
+	/// # Examples
+	/// ```
+	/// use apex::{Point2D, Polygon};
+	/// //Construct two polygons with different amounts of vertices.
+	/// let triangle = Polygon::from_iter([
+	/// 	Point2D { x: 0, y: 0 },
+	/// 	Point2D { x: 100, y: 0 },
+	/// 	Point2D { x: 50, y: 87 }
+	/// ]);
+	/// let pentagon = Polygon::from_iter([
+	/// 	Point2D { x: 31, y: 0 },
+	/// 	Point2D { x: 131, y: 0 },
+	/// 	Point2D { x: 162, y: 95 },
+	/// 	Point2D { x: 81, y: 154 },
+	/// 	Point2D { x: 0, y: 95 }
+	/// ]);
+	/// //Now test how many sides each of these polygons has.
+	/// assert_eq!(triangle.len(), 3, "A triangle has 3 sides.");
+	/// assert_eq!(pentagon.len(), 5, "A pentagon has 5 sides.");
+	/// ```
+	pub fn len(&self) -> usize {
+		self.vertices.len()
+	}
+
 	/// Add an extra vertex to this polygon.
 	///
 	/// The vertex will be connected in the seam of the polygon, after the last vertex and connected
