@@ -85,7 +85,9 @@ fn index_in_range() {
 	assert_eq!(poly[2], apex::Point2D { x: 10, y: 100 }, "Getting the third vertex at index 2.");
 }
 
-/// Test accessing vertices of the polygon.
+/// Test accessing a vertex beyond the size of the polygon.
+///
+/// This test should cause a panic.
 #[test]
 #[should_panic(expected = "the len is 3 but the index is 3")]
 fn index_out_of_range() {
@@ -95,4 +97,15 @@ fn index_out_of_range() {
 		apex::Point2D { x: 10, y: 100 }
 	]);
 	poly[3]; //Panic here. This is out of range.
+}
+
+/// Test modifying a vertex of the polygon.
+fn index_mut() {
+	let mut poly = apex::Polygon::from_iter([
+		apex::Point2D { x: 0, y: 0 },
+		apex::Point2D { x: 50, y: 10 },
+		apex::Point2D { x: 10, y: 100 }
+	]);
+	poly[1] = apex::Point2D { x: 200, y: 400 };
+	assert_eq!(poly[1], apex::Point2D { x: 200, y: 400 }, "The second vertex was modified.");
 }
