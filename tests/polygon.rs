@@ -6,7 +6,6 @@
  * You should have received a copy of the GNU Affero General Public License along with this library. If not, see <https://gnu.org/licenses/>.
  */
 
-use std::mem;
 use apex;
 
 /// Test creating a new, empty polygon.
@@ -56,4 +55,17 @@ fn len() {
 		poly.push(apex::Point2D { x: i + 100, y: i + 100 });
 	}
 	assert_eq!(poly.len(), 11, "After adding 10 more vertices, the length is now 11.");
+}
+
+/// Test adding new vertices to a polygon.
+#[test]
+fn push() {
+	let mut poly = apex::Polygon::from_iter([ //Start off with 3 vertices.
+		apex::Point2D { x: 0, y: 0 },
+		apex::Point2D { x: 100, y: 0 },
+		apex::Point2D { x: 100, y: 100 }
+	]);
+	poly.push(apex::Point2D { x: 0, y: 100 });
+	assert_eq!(poly.len(), 4, "After adding 1 more vertex, there are now 4 vertices.");
+	assert_eq!(poly[3], apex::Point2D { x: 0, y: 100 }, "The newly added vertex is at the seam.");
 }
