@@ -107,5 +107,7 @@ fn index_mut() {
 		apex::Point2D { x: 10, y: 100 }
 	]);
 	poly[1] = apex::Point2D { x: 200, y: 400 };
+	assert_eq!(poly[0], apex::Point2D { x: 0, y: 0 }, "The first vertex was not modified.");
 	assert_eq!(poly[1], apex::Point2D { x: 200, y: 400 }, "The second vertex was modified.");
+	assert_eq!(poly[2], apex::Point2D { x: 10, y: 100 }, "The third vertex was not modified.");
 }
