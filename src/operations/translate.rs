@@ -41,7 +41,7 @@ use crate::TwoDimensional; //The translate function is part of TwoDimensional.
 /// assert_eq!(poly[1], Point2D { x: 200, y: -150 });
 /// assert_eq!(poly[2], Point2D { x: 167, y: -50 });
 /// ```
-pub(crate) fn translate_polygon_st(polygon: &mut Polygon, dx: Coordinate, dy: Coordinate) {
+pub fn translate_polygon_st(polygon: &mut Polygon, dx: Coordinate, dy: Coordinate) {
 	for vertex in &mut polygon.vertices {
 		vertex.translate(dx, dy);
 	}
@@ -74,7 +74,7 @@ pub(crate) fn translate_polygon_st(polygon: &mut Polygon, dx: Coordinate, dy: Co
 /// assert_eq!(poly[1], Point2D { x: 200, y: -150 });
 /// assert_eq!(poly[2], Point2D { x: 167, y: -50 });
 /// ```
-pub(crate) fn translate_polygon_mt(polygon: &mut Polygon, dx: Coordinate, dy: Coordinate) {
+pub fn translate_polygon_mt(polygon: &mut Polygon, dx: Coordinate, dy: Coordinate) {
 	let chunk_size = cmp::max(10000, polygon.vertices.len() / rayon::current_num_threads());
 	polygon.vertices.par_chunks_mut(chunk_size).for_each(
 		|slice| slice.iter_mut().for_each(

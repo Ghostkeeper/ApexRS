@@ -6,15 +6,14 @@
  * You should have received a copy of the GNU Affero General Public License along with this library. If not, see <https://gnu.org/licenses/>.
  */
 
-//! This module contains the algorithms that perform actual operations on the geometric objects in
-//! this library.
-//!
-//! These algorithms are implemented as free functions. They can be called separately, but the
-//! intended way to use the library is to use the methods of the geometric objects themselves. The
-//! functions are organised by the type of operation performed. This causes the algorithms that
-//! perform the same type of operation to be located in the same module, which juxtaposes the
-//! algorithms together since they are likely going to be very similar. This makes the code easier
-//! to read. The methods in the geometric objects will simply call these free functions to implement
-//! them.
+use apex;
 
-pub mod translate;
+/// Test moving an empty polygon.
+///
+/// This mainly just tests that it won't panic on that.
+#[test]
+fn translate_polygon_st_empty() {
+    let mut poly = apex::Polygon::new();
+    apex::operations::translate::translate_polygon_st(&mut poly, 100, 100);
+    assert_eq!(poly.len(), 0, "The polygon must still be unchanged.");
+}

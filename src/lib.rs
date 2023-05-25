@@ -10,6 +10,8 @@
 
 #[macro_use] extern crate auto_ops;
 
+pub mod operations;
+
 pub mod convexity;
 pub use convexity::*;
 
@@ -30,4 +32,3 @@ pub use two_dimensional::*;
 
 //Private modules.
 mod detail;
-mod operations;
