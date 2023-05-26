@@ -119,6 +119,19 @@ impl Polygon {
 	///
 	/// # Arguments
 	/// * `additional` - How many additional vertices this polygon will need to contain.
+	///
+	/// # Examples
+	/// ```
+	/// use apex::{Point2D, Polygon};
+	/// let mut poly = Polygon::with_capacity(10); //Create a polygon with capacity 10.
+	/// poly.push(Point2D { x: 0, y: 0 });
+	/// poly.push(Point2D { x: 100, y: 100 });
+	/// poly.push(Point2D { x: 100, y: 0 }); //At this point, there is 7 capacity left.
+	/// poly.reserve(5); //Does nothing, since we already had more than 5 capacity left.
+	/// assert_eq!(poly.capacity(), 10); //So this is still 10.
+	/// poly.reserve(8); //We have too little capacity for 8 additional vertices, so this should reserve more memory.
+	/// assert!(poly.capacity() >= 11); //We must have capacity now for at least 3 + 8 vertices (current length + 8 additional).
+	/// ```
 	pub fn reserve(&mut self, additional: usize) {
 		self.vertices.reserve(additional);
 	}
