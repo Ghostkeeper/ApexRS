@@ -8,8 +8,19 @@
 
 use apex;
 
+/// A 1000x1000 square.
+///
+/// The square starts at the coordinate origin with the seam. It is centred at 500,500.
 pub fn square_1000() -> apex::Polygon {
 	load_polygon(include_str!("polygon/square_1000.svg"))
+}
+
+/// A triangle with base 1000.
+///
+/// The triangle starts at the coordinate origin with the seam. The 1000-length base extends from
+/// there along the X-axis.
+pub fn triangle_1000() -> apex::Polygon {
+	load_polygon(include_str!("polygon/triangle_1000.svg"))
 }
 
 /// Parse an SVG file to load a polygon from it.
