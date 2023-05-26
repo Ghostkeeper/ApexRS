@@ -6,10 +6,8 @@
  * You should have received a copy of the GNU Affero General Public License along with this library. If not, see <https://gnu.org/licenses/>.
  */
 
-//! All of the tests for the operations sub-module of the library.
+//! This module provides test data to test the library with.
 //!
-//! The tests are organised in a layout that mimics the layout of the source code of the library. To
-//! this end, the tests for the operations are organised in a sub-module just like the
-//! implementation of these operations is.
+//! It supplies a bunch of fixtures which make it easy to test with existing geometric objects.
 
-mod translate;
+pub mod polygon;

@@ -6,4 +6,16 @@
  * You should have received a copy of the GNU Affero General Public License along with this library. If not, see <https://gnu.org/licenses/>.
  */
 
+//! This is the collection of tests for the library.
+//!
+//! To run these tests, use cargo's `test` target. If Cargo is integrated in your shell, you can run
+//! these tests in the usual way for Rust, like so:
+//! ```bash
+//! cargo test
+//! ```
+//!
+//! This should run all of this library's tests and provide you with an overview of which tests
+//! failed (if any) and how they failed.
+
+mod data;
 mod operations;
