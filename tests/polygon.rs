@@ -47,6 +47,26 @@ fn capacity() {
 	assert!(poly.capacity() > 3, "The capacity is now expanded since the number of vertices was over capacity.");
 }
 
+/// Test reserving memory for more vertices.
+///
+/// This will test whether it will reserve more memory when it doesn't have enough capacity yet, and
+/// that it will do nothing if it does have enough capacity.
+#[test]
+fn reserve() {
+	let mut poly = apex::Polygon::with_capacity(10);
+	for _ in 0..3 {
+		poly.push(apex::Point2D { x: 0, y: 0 });
+	}
+
+	//We already have capacity for 7 additional vertices, so this shouldn't do anything.
+	poly.reserve(7);
+	assert_eq!(poly.capacity(), 10, "The capacity is still 10, since we already had enough space for 7 additional vertices.");
+
+	//We don't have capacity for 8 additional vertices, so this should increase the capacity.
+	poly.reserve(8);
+	assert!(poly.capacity() >= 11, "We need capacity for at least 8 additional vertices above the current 3.");
+}
+
 /// Test getting the number of vertices/sides of a polygon.
 #[test]
 fn len() {

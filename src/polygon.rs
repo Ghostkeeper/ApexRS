@@ -108,6 +108,21 @@ impl Polygon {
 		self.vertices.capacity()
 	}
 
+	/// Reserve memory for at least the given amount of vertices to be added to this polygon.
+	///
+	/// This guarantees that as long as the polygon doesn't receive more additional vertices than
+	/// that, it will not need to move its contents to a bigger sized piece of memory. If any more
+	/// vertices are added, new memory may need to be allocated and the contents may need to be
+	/// moved.
+	///
+	/// If the capacity is already sufficient, this will not do anything.
+	///
+	/// # Arguments
+	/// * `additional` - How many additional vertices this polygon will need to contain.
+	pub fn reserve(&mut self, additional: usize) {
+		self.vertices.reserve(additional);
+	}
+
 	/// Get the number of vertices (or the number of sides) of a polygon.
 	///
 	/// This struct represents simple polygons, so the number of sides is equal to the number of
