@@ -124,6 +124,39 @@ fn insert_end() {
 	assert_eq!(poly[3], apex::Point2D { x: 500, y: 500 }, "This is the newly inserted vertex.");
 }
 
+/// Test removing a vertex from the start of a polygon.
+#[test]
+fn remove_start() {
+	let mut poly = polygon::square_1000();
+	let removed = poly.remove(0);
+	assert_eq!(removed, apex::Point2D { x: 0, y: 0 }, "The first vertex was removed.");
+	assert_eq!(poly[0], apex::Point2D { x: 1000, y: 0 }, "The second vertex shifted into the first position.");
+	assert_eq!(poly[1], apex::Point2D { x: 1000, y: 1000 }, "The third vertex shifted into the second position.");
+	assert_eq!(poly[2], apex::Point2D { x: 0, y: 1000 }, "The fourth vertex shifted into the third position.");
+}
+
+/// Test removing a vertex from the middle of a polygon.
+#[test]
+fn remove_middle() {
+	let mut poly = polygon::square_1000();
+	let removed = poly.remove(2);
+	assert_eq!(removed, apex::Point2D { x: 1000, y: 1000 }, "The third vertex was removed.");
+	assert_eq!(poly[0], apex::Point2D { x: 0, y: 0 }, "The first vertex is still in place.");
+	assert_eq!(poly[1], apex::Point2D { x: 1000, y: 0 }, "The second vertex is still in place.");
+	assert_eq!(poly[2], apex::Point2D { x: 0, y: 1000 }, "The fourth vertex shifted into the third position.");
+}
+
+/// Test removing a vertex from the end of a polygon.
+#[test]
+fn remove_end() {
+	let mut poly = polygon::square_1000();
+	let removed = poly.remove(3);
+	assert_eq!(removed, apex::Point2D { x: 0, y: 1000 }, "The fourth vertex was removed.");
+	assert_eq!(poly[0], apex::Point2D { x: 0, y: 0 }, "The first vertex is still in place.");
+	assert_eq!(poly[1], apex::Point2D { x: 1000, y: 0 }, "The second vertex is still in place.");
+	assert_eq!(poly[2], apex::Point2D { x: 1000, y: 1000 }, "The third vertex is still in place.");
+}
+
 /// Test creating a polygon from an iterable object, this time an array.
 #[test]
 fn from_iter_array() {

@@ -225,6 +225,32 @@ impl Polygon {
 	pub fn insert(&mut self, index: usize, vertex: Point2D) {
 		self.vertices.insert(index, vertex);
 	}
+
+	/// Removes a vertex from the polygonal chain around this polygon and returns the removed
+	/// vertex.
+	///
+	/// The vertices around the removed vertex will be linked together to form a new edge.
+	///
+	/// # Arguments
+	/// * `index` - The index of the vertex to remove.
+	///
+	/// # Examples
+	/// ```
+	/// use apex::{Point2D, Polygon};
+	/// let mut poly = Polygon::from_iter([
+	/// 	Point2D { x: 0, y: 0 },
+	/// 	Point2D { x: 1000, y: 0 },
+	/// 	Point2D { x: 1000, y: 1000 },
+	/// 	Point2D { x: 0, y: 1000 }
+	/// ]);
+	/// //Remove one of the vertices.
+	/// let removed_vertex = poly.remove(2);
+	/// assert_eq!(removed_vertex, Point2D { x: 1000, y: 1000 }); //This is the removed vertex.
+	/// assert_eq!(poly[2], Point2D { x: 0, y: 1000 }); //The last vertex has shifted in its place.
+	/// ```
+	pub fn remove(&mut self, index: usize) -> Point2D {
+		self.vertices.remove(index)
+	}
 }
 
 impl TwoDimensional for Polygon {
