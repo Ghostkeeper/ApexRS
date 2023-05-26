@@ -90,6 +90,40 @@ fn push() {
 	assert_eq!(poly[4], apex::Point2D { x: 0, y: 100 }, "The newly added vertex is at the seam.");
 }
 
+/// Test inserting a new vertex at the start of a polygon.
+#[test]
+fn insert_start() {
+	let mut poly = polygon::triangle_1000();
+	poly.insert(0, apex::Point2D { x: 500, y: 500 }); //Insert at the start.
+	assert_eq!(poly.len(), 4, "With one additional vertex inserted, there are now 4 vertices.");
+	assert_eq!(poly[0], apex::Point2D { x: 500, y: 500 }, "This is the newly inserted vertex.");
+	assert_eq!(poly[1], apex::Point2D { x: 24, y: 24 }, "This is the vertex that used to be the first one.");
+}
+
+/// Test inserting a new vertex in the middle of a polygon.
+#[test]
+fn insert_middle() {
+	let mut poly = polygon::triangle_1000();
+	poly.insert(2, apex::Point2D { x: 500, y: 500 }); //Insert with 2 vertices before it, and 1 vertex after it.
+	assert_eq!(poly.len(), 4, "With one additional vertex inserted, there are now 4 vertices.");
+	assert_eq!(poly[0], apex::Point2D { x: 24, y: 24 }, "The first vertex is not moved.");
+	assert_eq!(poly[1], apex::Point2D { x: 1024, y: 24 }, "The second vertex is not moved.");
+	assert_eq!(poly[2], apex::Point2D { x: 500, y: 500 }, "This is the newly inserted vertex.");
+	assert_eq!(poly[3], apex::Point2D { x: 524, y: 1024 }, "This is the vertex that used to be the third vertex.");
+}
+
+/// Test inserting a new vertex at the end of a polygon.
+#[test]
+fn insert_end() {
+	let mut poly = polygon::triangle_1000();
+	poly.insert(3, apex::Point2D { x: 500, y: 500 }); //Insert at the end.
+	assert_eq!(poly.len(), 4, "With one additional vertex inserted, there are now 4 vertices.");
+	assert_eq!(poly[0], apex::Point2D { x: 24, y: 24 }, "The first vertex is not moved.");
+	assert_eq!(poly[1], apex::Point2D { x: 1024, y: 24 }, "The second vertex is not moved.");
+	assert_eq!(poly[2], apex::Point2D { x: 524, y: 1024 }, "The third vertex is not moved.");
+	assert_eq!(poly[3], apex::Point2D { x: 500, y: 500 }, "This is the newly inserted vertex.");
+}
+
 /// Test creating a polygon from an iterable object, this time an array.
 #[test]
 fn from_iter_array() {

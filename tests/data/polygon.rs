@@ -17,8 +17,8 @@ pub fn square_1000() -> apex::Polygon {
 
 /// A triangle with base 1000.
 ///
-/// The triangle starts at the coordinate origin with the seam. The 1000-length base extends from
-/// there along the X-axis.
+/// The triangle starts at 24,24 with the seam. The 1000-length base extends from there parallel to
+/// the X-axis.
 pub fn triangle_1000() -> apex::Polygon {
 	load_polygon(include_str!("polygon/triangle_1000.svg"))
 }
