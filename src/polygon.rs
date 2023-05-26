@@ -192,6 +192,37 @@ impl Polygon {
 		self.vertices.push(vertex);
 	}
 
+	/// Remove the last vertex before the seam of the polygon and return it.
+	///
+	/// The vertex before the last vertex will be connected to the first vertex after the seam to
+	/// form a new edge.
+	///
+	/// If the polygon is already empty, return `None`.
+	///
+	/// # Examples
+	/// ```
+	/// use apex::{Point2D, Polygon};
+	/// let mut poly = Polygon::from_iter([
+	/// 	Point2D { x: 0, y: 0 },
+	/// 	Point2D { x: 1000, y: 0 },
+	/// 	Point2D { x: 500, y: 1000 }
+	/// ]);
+	/// let mut removed = poly.pop();
+	/// assert_eq!(removed.unwrap(), Point2D { x: 500, y: 1000 }); //The last vertex was removed.
+	/// assert_eq!(poly.len(), 2); //Only 2 vertices left now.
+	/// removed = poly.pop();
+	/// assert_eq!(removed.unwrap(), Point2D { x: 1000, y: 0 }); //Remove the one that is now last.
+	/// assert_eq!(poly.len(), 1); //Only 1 left.
+	/// removed = poly.pop();
+	/// assert_eq!(removed.unwrap(), Point2D { x: 0, y: 0 }); //Remove the one that is left, which was the first vertex.
+	/// assert_eq!(poly.len(), 0); //Nothing left.
+	/// removed = poly.pop();
+	/// assert_eq!(removed, None); //Since there is nothing to remove, returns None.
+	/// ```
+	pub fn pop(&mut self) -> Option<Point2D> {
+		self.vertices.pop()
+	}
+
 	/// Inserts a vertex at the given position in the polygonal chain.
 	///
 	/// The given index is the number of vertices between the new vertex and the seam going

@@ -90,6 +90,23 @@ fn push() {
 	assert_eq!(poly[4], apex::Point2D { x: 0, y: 100 }, "The newly added vertex is at the seam.");
 }
 
+/// Test removing the last element from the polygon.
+#[test]
+fn pop() {
+	let mut poly = polygon::triangle_1000();
+	let mut removed = poly.pop();
+	assert_eq!(removed.unwrap(), apex::Point2D { x: 524, y: 1024 }, "The last vertex was removed.");
+	assert_eq!(poly.len(), 2, "The triangle had 3 vertices, but now only 2.");
+	removed = poly.pop();
+	assert_eq!(removed.unwrap(), apex::Point2D { x: 1024, y: 24 }, "The second vertex was removed, which was now last.");
+	assert_eq!(poly.len(), 1, "The polygon had 2 vertices left, but now only 1.");
+	removed = poly.pop();
+	assert_eq!(removed.unwrap(), apex::Point2D { x: 24, y: 24 }, "The first vertex was removed, which was the only one remaining.");
+	assert_eq!(poly.len(), 0, "This was the last remaining vertex. Nothing is left.");
+	removed = poly.pop();
+	assert_eq!(removed, None, "There was nothing to remove any more.");
+}
+
 /// Test inserting a new vertex at the start of a polygon.
 #[test]
 fn insert_start() {
