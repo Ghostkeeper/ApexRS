@@ -174,6 +174,14 @@ fn remove_end() {
 	assert_eq!(poly[2], apex::Point2D { x: 1000, y: 1000 }, "The third vertex is still in place.");
 }
 
+/// Test clearing a polygon.
+#[test]
+fn clear() {
+	let mut poly = polygon::square_1000();
+	poly.clear();
+	assert_eq!(poly.len(), 0, "After clearing, there should no longer be any vertices.");
+}
+
 /// Test creating a polygon from an iterable object, this time an array.
 #[test]
 fn from_iter_array() {

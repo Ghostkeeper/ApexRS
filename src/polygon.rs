@@ -282,6 +282,25 @@ impl Polygon {
 	pub fn remove(&mut self, index: usize) -> Point2D {
 		self.vertices.remove(index)
 	}
+
+	/// Removes all vertices from this polygon, leaving it empty.
+	///
+	/// The resulting polygon will be degenerate, since it no longer has any vertices.
+	///
+	/// # Examples
+	/// ```
+	/// use apex::{Point2D, Polygon};
+	/// let mut poly = Polygon::from_iter([
+	/// 	Point2D { x: 0, y: 0 },
+	/// 	Point2D { x: 1000, y: 0 },
+	/// 	Point2D { x: 500, y: 1000 }
+	/// ]); //This polygon has 3 vertices.
+	/// poly.clear(); //But this will remove all of them.
+	/// assert_eq!(poly.len(), 0); //No more vertices.
+	/// ```
+	pub fn clear(&mut self) {
+		self.vertices.clear();
+	}
 }
 
 impl TwoDimensional for Polygon {
