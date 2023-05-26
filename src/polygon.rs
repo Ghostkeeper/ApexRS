@@ -191,6 +191,40 @@ impl Polygon {
 	pub fn push(&mut self, vertex: Point2D) {
 		self.vertices.push(vertex);
 	}
+
+	/// Inserts a vertex at the given position in the polygonal chain.
+	///
+	/// The given index is the number of vertices between the new vertex and the seam going
+	/// clockwise around the polygon. The vertex with the given index and everything after it will
+	/// adjust its index.
+	///
+	/// # Arguments
+	/// * `index` - The position along the polygonal chain where to insert the new vertex.
+	/// * `vertex` - The new vertex to insert.
+	///
+	/// # Examples
+	/// ```
+	/// use apex::{Point2D, Polygon};
+	/// let mut poly = Polygon::from_iter([
+	/// 	Point2D { x: 0, y: 0 },
+	/// 	Point2D { x: 1000, y: 0 },
+	/// 	Point2D { x: 1000, y: 1000 },
+	/// 	Point2D { x: 0, y: 1000 }
+	/// ]);
+	/// //Insert a new vertex halfway.
+	/// poly.insert(3, Point2D { x: 500, y: 500 });
+	/// //The first 3 vertices are not moved.
+	/// assert_eq!(poly[0], Point2D { x: 0, y: 0 });
+	/// assert_eq!(poly[1], Point2D { x: 1000, y: 0 });
+	/// assert_eq!(poly[2], Point2D { x: 1000, y: 1000 });
+	/// //Here is where the new vertex was inserted.
+	/// assert_eq!(poly[3], Point2D { x: 500, y: 500 });
+	/// //The remaining vertices were shifted.
+	/// assert_eq!(poly[4], Point2D { x: 0, y: 1000 });
+	/// ```
+	pub fn insert(&mut self, index: usize, vertex: Point2D) {
+		self.vertices.insert(index, vertex);
+	}
 }
 
 impl TwoDimensional for Polygon {
