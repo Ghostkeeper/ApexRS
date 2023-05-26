@@ -6,7 +6,10 @@
  * You should have received a copy of the GNU Affero General Public License along with this library. If not, see <https://gnu.org/licenses/>.
  */
 
-use apex;
+use apex; //The unit under test.
+
+mod data; //Polygon test cases to test with.
+use data::polygon;
 
 /// Test creating a new, empty polygon.
 ///
@@ -117,14 +120,11 @@ fn len() {
 /// Test adding new vertices to a polygon.
 #[test]
 fn push() {
-	let mut poly = apex::Polygon::from_iter([ //Start off with 3 vertices.
-		apex::Point2D { x: 0, y: 0 },
-		apex::Point2D { x: 100, y: 0 },
-		apex::Point2D { x: 100, y: 100 }
-	]);
+	let mut poly = polygon::square_1000();
+	assert_eq!(poly.len(), 4, "The square starts with 4 vertices.");
 	poly.push(apex::Point2D { x: 0, y: 100 });
-	assert_eq!(poly.len(), 4, "After adding 1 more vertex, there are now 4 vertices.");
-	assert_eq!(poly[3], apex::Point2D { x: 0, y: 100 }, "The newly added vertex is at the seam.");
+	assert_eq!(poly.len(), 5, "After adding 1 more vertex, there are now 5 vertices.");
+	assert_eq!(poly[4], apex::Point2D { x: 0, y: 100 }, "The newly added vertex is at the seam.");
 }
 
 /// Test accessing vertices of the polygon.
@@ -148,11 +148,7 @@ fn index_in_range() {
 #[test]
 #[should_panic(expected = "the len is 3 but the index is 3")]
 fn index_out_of_range() {
-	let poly = apex::Polygon::from_iter([
-		apex::Point2D { x: 0, y: 0 },
-		apex::Point2D { x: 50, y: 10 },
-		apex::Point2D { x: 10, y: 100 }
-	]);
+	let poly = polygon::triangle_1000();
 	std::panic::set_hook(Box::new(|_| {})); //Disable stack trace from this panic.
 	poly[3]; //Panic here. This is out of range.
 }
