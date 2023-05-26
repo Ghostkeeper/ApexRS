@@ -30,6 +30,46 @@ fn with_capacity() {
 	assert_eq!(poly.len(), 0, "The new polygon has no vertices.");
 }
 
+/// Test getting the capacity of a polygon.
+#[test]
+fn capacity() {
+	let mut poly = apex::Polygon::with_capacity(3);
+	assert_eq!(poly.capacity(), 3, "The polygon was initially created with capacity 3.");
+	//The memory is guaranteed to not be reallocated as long as the capacity is not reached.
+	//We can sort of see that by testing that the capacity was not increased.
+	poly.push(apex::Point2D { x: 0, y: 0 });
+	assert_eq!(poly.capacity(), 3, "The capacity was not expanded since there is only 1 vertex in the polygon.");
+	poly.push(apex::Point2D { x: 100, y: 0 });
+	assert_eq!(poly.capacity(), 3, "The capacity was not expanded since there are only 2 vertices in the polygon.");
+	poly.push(apex::Point2D { x: 100, y: 100 });
+	assert_eq!(poly.capacity(), 3, "The capacity was not expanded since there are exactly 3 vertices in the polygon.");
+	poly.push(apex::Point2D { x: 0, y: 100 });
+	assert!(poly.capacity() > 3, "The capacity is now expanded since the number of vertices was over capacity.");
+}
+
+/// Test getting the number of vertices/sides of a polygon.
+#[test]
+fn len() {
+	let mut poly = apex::Polygon::new();
+	assert_eq!(poly.len(), 0, "The polygon was created without any vertices.");
+	poly.push(apex::Point2D { x: 0, y: 0 });
+	assert_eq!(poly.len(), 1, "After adding a vertex, the length is now 1.");
+	for i in 0..10 { //Add 10 more vertices.
+		poly.push(apex::Point2D { x: i + 100, y: i + 100 });
+	}
+	assert_eq!(poly.len(), 11, "After adding 10 more vertices, the length is now 11.");
+}
+
+/// Test adding new vertices to a polygon.
+#[test]
+fn push() {
+	let mut poly = polygon::square_1000();
+	assert_eq!(poly.len(), 4, "The square starts with 4 vertices.");
+	poly.push(apex::Point2D { x: 0, y: 100 });
+	assert_eq!(poly.len(), 5, "After adding 1 more vertex, there are now 5 vertices.");
+	assert_eq!(poly[4], apex::Point2D { x: 0, y: 100 }, "The newly added vertex is at the seam.");
+}
+
 /// Test creating a polygon from an iterable object, this time an array.
 #[test]
 fn from_iter_array() {
@@ -85,46 +125,6 @@ fn into_iter() {
 		assert_eq!(vertex, vertices[i], "The iterator must iterate over the vertices in order.");
 		i += 1;
 	}
-}
-
-/// Test getting the capacity of a polygon.
-#[test]
-fn capacity() {
-	let mut poly = apex::Polygon::with_capacity(3);
-	assert_eq!(poly.capacity(), 3, "The polygon was initially created with capacity 3.");
-	//The memory is guaranteed to not be reallocated as long as the capacity is not reached.
-	//We can sort of see that by testing that the capacity was not increased.
-	poly.push(apex::Point2D { x: 0, y: 0 });
-	assert_eq!(poly.capacity(), 3, "The capacity was not expanded since there is only 1 vertex in the polygon.");
-	poly.push(apex::Point2D { x: 100, y: 0 });
-	assert_eq!(poly.capacity(), 3, "The capacity was not expanded since there are only 2 vertices in the polygon.");
-	poly.push(apex::Point2D { x: 100, y: 100 });
-	assert_eq!(poly.capacity(), 3, "The capacity was not expanded since there are exactly 3 vertices in the polygon.");
-	poly.push(apex::Point2D { x: 0, y: 100 });
-	assert!(poly.capacity() > 3, "The capacity is now expanded since the number of vertices was over capacity.");
-}
-
-/// Test getting the number of vertices/sides of a polygon.
-#[test]
-fn len() {
-	let mut poly = apex::Polygon::new();
-	assert_eq!(poly.len(), 0, "The polygon was created without any vertices.");
-	poly.push(apex::Point2D { x: 0, y: 0 });
-	assert_eq!(poly.len(), 1, "After adding a vertex, the length is now 1.");
-	for i in 0..10 { //Add 10 more vertices.
-		poly.push(apex::Point2D { x: i + 100, y: i + 100 });
-	}
-	assert_eq!(poly.len(), 11, "After adding 10 more vertices, the length is now 11.");
-}
-
-/// Test adding new vertices to a polygon.
-#[test]
-fn push() {
-	let mut poly = polygon::square_1000();
-	assert_eq!(poly.len(), 4, "The square starts with 4 vertices.");
-	poly.push(apex::Point2D { x: 0, y: 100 });
-	assert_eq!(poly.len(), 5, "After adding 1 more vertex, there are now 5 vertices.");
-	assert_eq!(poly[4], apex::Point2D { x: 0, y: 100 }, "The newly added vertex is at the seam.");
 }
 
 /// Test accessing vertices of the polygon.
