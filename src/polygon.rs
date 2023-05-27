@@ -301,6 +301,33 @@ impl Polygon {
 	pub fn clear(&mut self) {
 		self.vertices.clear();
 	}
+
+	/// Obtain a reference to a particular vertex in the polygon.
+	///
+	/// The index counts the number of vertices from the seam of the polygon. The result is a
+	/// reference to the vertex at that position.
+	///
+	/// If the index is out of bounds of the polygon, this will return `None`.
+	///
+	/// # Arguments
+	/// * `index` - The index of the vertex to get a reference to.
+	///
+	/// # Examples
+	/// ```
+	/// use apex::{Point2D, Polygon};
+	/// let poly = Polygon::from_iter([
+	/// 	Point2D { x: 0, y: 0 },
+	/// 	Point2D { x: 1000, y: 0 },
+	/// 	Point2D { x: 500, y: 1000 }
+	/// ]);
+	/// let vertex = poly.get(1); //Get the second vertex.
+	/// assert_eq!(*vertex.unwrap(), Point2D { x: 1000, y: 0 });
+	/// let other_vertex = poly.get(3); //But this is out of range.
+	/// assert_eq!(other_vertex, None);
+	/// ```
+	pub fn get(&self, index: usize) -> Option<&Point2D> {
+		self.vertices.get(index)
+	}
 }
 
 impl TwoDimensional for Polygon {

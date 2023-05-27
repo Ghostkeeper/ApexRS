@@ -182,6 +182,26 @@ fn clear() {
 	assert_eq!(poly.len(), 0, "After clearing, there should no longer be any vertices.");
 }
 
+/// Test getting a vertex from the polygon.
+///
+/// The vertex we obtain is within the range of the polygon.
+#[test]
+fn get_in_range() {
+	let poly = polygon::square_1000();
+	let vertex = poly.get(2);
+	assert_eq!(*vertex.unwrap(), apex::Point2D { x: 1000, y: 1000 }, "The second vertex was obtained.");
+}
+
+/// Test getting a vertex from the polygon.
+///
+/// However in this test, the vertex we obtain is out of range, so we should get `None`.
+#[test]
+fn get_out_of_range() {
+	let poly = polygon::square_1000();
+	let vertex = poly.get(4); //There are 4 vertices, so the 5th element is out of range.
+	assert_eq!(vertex, None, "The 5th vertex is out of range, so it should return None.");
+}
+
 /// Test creating a polygon from an iterable object, this time an array.
 #[test]
 fn from_iter_array() {

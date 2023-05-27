@@ -26,7 +26,7 @@ pub trait TwoDimensional {
 	/// # Examples
 	/// ```
 	/// use apex::{Point2D, TwoDimensional};
-	/// let mut point = Point2D{ x: 100, y: 500}; //Create a two-dimensional object, such as Point2D.
+	/// let mut point = Point2D{ x: 100, y: 500 }; //Create a two-dimensional object, such as Point2D.
 	/// point.translate(50, -130); //The point's position is now [150, 370].
 	/// ```
 	fn translate(&mut self, dx: Coordinate, dy: Coordinate);
