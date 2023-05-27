@@ -328,6 +328,34 @@ impl Polygon {
 	pub fn get(&self, index: usize) -> Option<&Point2D> {
 		self.vertices.get(index)
 	}
+
+	/// Obtain a mutable reference to a particular vertex in the polygon.
+	///
+	/// The index counts the number of vertices from the seam of the polygon. The result is a
+	/// reference to the vertex at that position.
+	///
+	/// If the index is out of bounds of the polygon, this will return `None`.
+	///
+	/// This reference can be used to change a vertex of the polygon in-place.
+	///
+	/// # Arguments
+	/// * `index` - The index of the vertex to get a mutable reference to.
+	///
+	/// # Examples
+	/// ```
+	/// use apex::{Point2D, Polygon};
+	/// let mut poly = Polygon::from_iter([
+	/// 	Point2D { x: 0, y: 0 },
+	/// 	Point2D { x: 1000, y: 0 },
+	/// 	Point2D { x: 500, y: 1000 }
+	/// ]);
+	/// let vertex = poly.get_mut(1).unwrap(); //Get the second vertex.
+	/// vertex.x = 500; //Changes the polygon in-place.
+	/// assert_eq!(poly[1], Point2D { x: 500, y: 0 });
+	/// ```
+	pub fn get_mut(&mut self, index: usize) -> Option<&mut Point2D> {
+		self.vertices.get_mut(index)
+	}
 }
 
 impl TwoDimensional for Polygon {

@@ -202,6 +202,29 @@ fn get_out_of_range() {
 	assert_eq!(vertex, None, "The 5th vertex is out of range, so it should return None.");
 }
 
+/// Test getting a vertex from the polygon.
+///
+/// The vertex we obtain is within the range of the polygon.
+#[test]
+fn get_mut_in_range() {
+	let mut poly = polygon::square_1000();
+	let vertex = poly.get_mut(2).unwrap();
+	assert_eq!(*vertex, apex::Point2D { x: 1000, y: 1000 }, "The second vertex was obtained.");
+	vertex.x = 2000;
+	assert_eq!(*vertex, apex::Point2D { x: 2000, y: 1000 }, "The second vertex is now modified.");
+	assert_eq!(poly[2], apex::Point2D { x: 2000, y: 1000 }, "And this is also reflected in the polygon itself.");
+}
+
+/// Test getting a vertex from the polygon.
+///
+/// However in this test, the vertex we obtain is out of range, so we should get `None`.
+#[test]
+fn get_mut_out_of_range() {
+	let mut poly = polygon::square_1000();
+	let vertex = poly.get_mut(4); //There are 4 vertices, so the 5th element is out of range.
+	assert_eq!(vertex, None, "The 5th vertex is out of range, so it should return None.");
+}
+
 /// Test creating a polygon from an iterable object, this time an array.
 #[test]
 fn from_iter_array() {
