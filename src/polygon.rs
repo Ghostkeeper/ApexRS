@@ -371,9 +371,9 @@ impl Polygon {
 	/// 	Point2D { x: 333, y: 1000 }
 	/// ]);
 	/// let mut iter = poly.iter();
-	/// assert_eq!(iter.next(), Some(Point2D { x: 0, y: 0 }));
-	/// assert_eq!(iter.next(), Some(Point2D { x: 667, y: 0 })); //Counter-clockwise along the polygon's boundary.
-	/// assert_eq!(iter.next(), Some(Point2D { x: 333, y: 1000 }));
+	/// assert_eq!(iter.next(), Some(&Point2D { x: 0, y: 0 }));
+	/// assert_eq!(iter.next(), Some(&Point2D { x: 667, y: 0 })); //Counter-clockwise along the polygon's boundary.
+	/// assert_eq!(iter.next(), Some(&Point2D { x: 333, y: 1000 }));
 	/// assert_eq!(iter.next(), None); //It ran out of vertices, so it stops iterating here.
 	/// ```
 	pub fn iter(&self) -> core::slice::Iter<Point2D> {

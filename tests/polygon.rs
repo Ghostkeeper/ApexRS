@@ -225,6 +225,18 @@ fn get_mut_out_of_range() {
 	assert_eq!(vertex, None, "The 5th vertex is out of range, so it should return None.");
 }
 
+/// Test iterating over the polygon with `iter()`.
+#[test]
+fn iter() {
+	let poly = polygon::square_1000();
+	let mut iterator = poly.iter();
+	assert_eq!(iterator.next(), Some(&apex::Point2D { x: 0, y: 0 }), "First it should encounter the vertex at the seam.");
+	assert_eq!(iterator.next(), Some(&apex::Point2D { x: 1000, y: 0 }), "Next the second vertex counter-clockwisely.");
+	assert_eq!(iterator.next(), Some(&apex::Point2D { x: 1000, y: 1000 }), "Next the third vertex.");
+	assert_eq!(iterator.next(), Some(&apex::Point2D { x: 0, y: 1000 }), "And finally the last vertex.");
+	assert_eq!(iterator.next(), None, "After all vertices are iterated over, it should return None.");
+}
+
 /// Test creating a polygon from an iterable object, this time an array.
 #[test]
 fn from_iter_array() {
