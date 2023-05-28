@@ -379,6 +379,31 @@ impl Polygon {
 	pub fn iter(&self) -> core::slice::Iter<Point2D> {
 		self.vertices.iter()
 	}
+
+	/// Create an iterator that allows modifying the vertices of this polygon.
+	///
+	/// The iterator will enumerate all of the vertices of this polygon in order, and allow the user
+	/// to modify them in-place. The order will be counter-clockwise if the polygon is a positive
+	/// shape, starting from the seam.
+	///
+	/// # Examples
+	/// ```
+	/// use apex::{Point2D, Polygon};
+	/// let mut poly = Polygon::from_iter([
+	/// 	Point2D { x: 0, y: 0 },
+	/// 	Point2D { x: 1000, y: 700 },
+	/// 	Point2D { x: 0, y: 1000 }
+	/// ]);
+	/// for vertex in poly.iter_mut() { //Now iterate over the vertices, multiplying all Y coordinates by 2.
+	/// 	vertex.y *= 2;
+	/// }
+	/// assert_eq!(poly[0], Point2D { x: 0, y: 0 });
+	/// assert_eq!(poly[1], Point2D { x: 1000, y: 1400 });
+	/// assert_eq!(poly[2], Point2D { x: 0, y: 2000 });
+	/// ```
+	pub fn iter_mut(&mut self) -> core::slice::IterMut<Point2D> {
+		self.vertices.iter_mut()
+	}
 }
 
 impl TwoDimensional for Polygon {
