@@ -237,6 +237,24 @@ fn iter() {
 	assert_eq!(iterator.next(), None, "After all vertices are iterated over, it should return None.");
 }
 
+/// Test iterating over the polygon while modifying it with `iter_mut()`.
+#[test]
+fn iter_mut() {
+	let mut poly = polygon::square_1000();
+	let copy = polygon::square_1000();
+	let mut i = 0;
+	for vertex in poly.iter_mut() {
+		assert_eq!(*vertex, copy[i], "We must iterate over the polygon in index order.");
+		i += 1;
+		vertex.x += 33;
+		vertex.y += 10;
+	}
+	assert_eq!(poly[0], apex::Point2D { x: 33, y: 10 }, "The first vertex is now shifted by 33,10.");
+	assert_eq!(poly[1], apex::Point2D { x: 1033, y: 10 }, "The second vertex is now shifted by 33,10.");
+	assert_eq!(poly[2], apex::Point2D { x: 1033, y: 1010 }, "The third vertex is now shifted by 33,10.");
+	assert_eq!(poly[3], apex::Point2D { x: 33, y: 1010 }, "The fourth vertex is now shifted by 33,10.");
+}
+
 /// Test creating a polygon from an iterable object, this time an array.
 #[test]
 fn from_iter_array() {
