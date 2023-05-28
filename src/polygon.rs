@@ -356,6 +356,29 @@ impl Polygon {
 	pub fn get_mut(&mut self, index: usize) -> Option<&mut Point2D> {
 		self.vertices.get_mut(index)
 	}
+
+	/// Create an iterator over the vertices of this polygon.
+	///
+	/// The iterator will enumerate all of the vertices of this polygon in order. The order will be
+	/// counter-clockwise if the polygon is a positive shape, starting from the seam.
+	///
+	/// # Examples
+	/// ```
+	/// use apex::{Point2D, Polygon};
+	/// let poly = Polygon::from_iter([
+	/// 	Point2D { x: 0, y: 0 },
+	/// 	Point2D { x: 667, y: 0 },
+	/// 	Point2D { x: 333, y: 1000 }
+	/// ]);
+	/// let mut iter = poly.iter();
+	/// assert_eq!(iter.next(), Some(Point2D { x: 0, y: 0 }));
+	/// assert_eq!(iter.next(), Some(Point2D { x: 667, y: 0 })); //Counter-clockwise along the polygon's boundary.
+	/// assert_eq!(iter.next(), Some(Point2D { x: 333, y: 1000 }));
+	/// assert_eq!(iter.next(), None); //It ran out of vertices, so it stops iterating here.
+	/// ```
+	pub fn iter(&self) -> core::slice::Iter<Point2D> {
+		self.vertices.iter()
+	}
 }
 
 impl TwoDimensional for Polygon {
