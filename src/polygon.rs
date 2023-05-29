@@ -550,3 +550,17 @@ impl IndexMut<usize> for Polygon {
 		self.vertices.index_mut(index)
 	}
 }
+
+impl AsRef<Polygon> for Polygon {
+	/// Convert a polygon into a reference to the same polygon.
+	fn as_ref(&self) -> &Polygon {
+		self
+	}
+}
+
+impl AsMut<Polygon> for Polygon {
+	/// Convert a polygon into a mutable reference to the same polygon.
+	fn as_mut(&mut self) -> &mut Polygon {
+		self
+	}
+}
