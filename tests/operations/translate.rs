@@ -12,8 +12,10 @@ use apex;
 ///
 /// This mainly just tests that it won't panic on that.
 #[test]
-fn translate_polygon_st_empty() {
+fn translate_polygon_empty() {
     let mut poly = apex::Polygon::new();
     apex::operations::translate::translate_polygon_st(&mut poly, 100, 100);
+    assert_eq!(poly.len(), 0, "The polygon must still be unchanged.");
+    apex::operations::translate::translate_polygon_mt(&mut poly, 100, 100);
     assert_eq!(poly.len(), 0, "The polygon must still be unchanged.");
 }
