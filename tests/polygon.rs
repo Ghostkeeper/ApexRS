@@ -9,7 +9,7 @@
 use apex; //The unit under test.
 
 mod data; //Polygon test cases to test with.
-use data::polygon;
+use crate::data::polygon;
 
 /// Test creating a new, empty polygon.
 ///
