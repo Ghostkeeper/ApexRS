@@ -32,3 +32,7 @@ pub use two_dimensional::*;
 
 //Private modules.
 mod detail;
+
+//For testing only.
+#[cfg(test)]
+pub mod test;

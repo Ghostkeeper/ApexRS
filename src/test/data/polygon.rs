@@ -6,12 +6,10 @@
  * You should have received a copy of the GNU Affero General Public License along with this library. If not, see <https://gnu.org/licenses/>.
  */
 
-use apex;
-
 /// A 1000x1000 square.
 ///
 /// The square starts at the coordinate origin with the seam. It is centred at 500,500.
-pub fn square_1000() -> apex::Polygon {
+pub fn square_1000() -> crate::Polygon {
 	load_polygon(include_str!("polygon/square_1000.svg"))
 }
 
@@ -19,7 +17,7 @@ pub fn square_1000() -> apex::Polygon {
 ///
 /// The triangle starts at 24,24 with the seam. The 1000-length base extends from there parallel to
 /// the X-axis.
-pub fn triangle_1000() -> apex::Polygon {
+pub fn triangle_1000() -> crate::Polygon {
 	load_polygon(include_str!("polygon/triangle_1000.svg"))
 }
 
@@ -42,16 +40,16 @@ pub fn triangle_1000() -> apex::Polygon {
 /// let poly = load_polygon(include_str!("polygon/square_1000.svg")); //Statically load this polygon.
 /// assert_eq!(poly.area(), 1000000);
 /// ```
-fn load_polygon(svg: &str) -> apex::Polygon {
+fn load_polygon(svg: &str) -> crate::Polygon {
 	let tag_start = svg.find("<polygon ").expect("The <polygon> tag is missing.") + 9;
 	let points_start = tag_start + svg[tag_start..].find("points=\"").expect("The points attribute is missing.") + 8;
 	let points_end = points_start + svg[points_start..].find("\"").expect("The points attribute never closes.");
 
 	let coordinates = svg[points_start..points_end] //Take the points attribute's contents.
 		.split([' ', ',']) //Split at spaces or commas.
-		.map(|coordinate_str| coordinate_str.parse::<apex::Coordinate>().expect(["One of the coordinates is not integer:", coordinate_str].join(" ").as_str()))
-		.collect::<Vec<apex::Coordinate>>();
+		.map(|coordinate_str| coordinate_str.parse::<crate::Coordinate>().expect(["One of the coordinates is not integer:", coordinate_str].join(" ").as_str()))
+		.collect::<Vec<crate::Coordinate>>();
 	let vertices = coordinates.chunks(2) //Pair them up into coordinate-pairs.
-		.map(|chunk| apex::Point2D { x: chunk[0], y: chunk[1] }); //Group them up into points. If this panics, there's not an even number of coordinates.
-	return apex::Polygon::from_iter(vertices);
+		.map(|chunk| crate::Point2D { x: chunk[0], y: chunk[1] }); //Group them up into points. If this panics, there's not an even number of coordinates.
+	return crate::Polygon::from_iter(vertices);
 }

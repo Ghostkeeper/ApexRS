@@ -6,10 +6,20 @@
  * You should have received a copy of the GNU Affero General Public License along with this library. If not, see <https://gnu.org/licenses/>.
  */
 
-//! All of the tests for the operations sub-module of the library.
+//! This module contains integration tests and helper utilities for all tests.
 //!
-//! The tests are organised in a layout that mimics the layout of the source code of the library. To
-//! this end, the tests for the operations are organised in a sub-module just like the
-//! implementation of these operations is.
+//! This module does not contain the unit tests. Those are organised inside of the files that
+//! implement the units under test, as per the recommended Rust code organisation guidelines. This
+//! makes access control and scope easier for those tests.
+//!
+//! To run these tests, use cargo's `test` target. If Cargo is integrated in your shell, you can run
+//! these tests in the usual way for Rust, like so:
+//! ```bash
+//! cargo test
+//! ```
+//!
+//! This should run all of this library's tests and provide you with an overview of which tests
+//! failed (if any) and how they failed.
 
-mod translate;
+pub mod data;
+pub use data::*;
