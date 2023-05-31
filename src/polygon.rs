@@ -37,6 +37,7 @@ use crate::operations::translate; //To translate the polygons.
 ///
 /// If the vertices of the polygon are winding counter-clockwise, the polygon is positive. Otherwise
 /// it is negative.
+#[derive(Debug)]
 pub struct Polygon {
 	/// The vertices that form the closed polygonal chain around this polygon.
 	///
