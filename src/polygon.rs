@@ -106,7 +106,7 @@ impl Polygon {
 	/// assert!(poly.capacity() > 4); //We've had to increase the capacity.
 	/// ```
 	pub fn capacity(&self) -> usize {
-		self.cpu_vertices().capacity()
+		self.host_vertices().capacity()
 	}
 
 	/// Reserve memory for at least the given amount of vertices to be added to this polygon.
@@ -134,7 +134,7 @@ impl Polygon {
 	/// assert!(poly.capacity() >= 11); //We must have capacity now for at least 3 + 8 vertices (current length + 8 additional).
 	/// ```
 	pub fn reserve(&mut self, additional: usize) {
-		self.cpu_vertices_mut().reserve(additional);
+		self.host_vertices_mut().reserve(additional);
 	}
 
 	/// Get the number of vertices (or the number of sides) of a polygon.
@@ -163,7 +163,7 @@ impl Polygon {
 	/// assert_eq!(pentagon.len(), 5, "A pentagon has 5 sides.");
 	/// ```
 	pub fn len(&self) -> usize {
-		self.cpu_vertices().len()
+		self.host_vertices().len()
 	}
 
 	/// Add an extra vertex to this polygon.
@@ -190,7 +190,7 @@ impl Polygon {
 	/// poly.push(Point2D { x: 50, y: 100 });
 	/// ```
 	pub fn push(&mut self, vertex: Point2D) {
-		self.cpu_vertices_mut().push(vertex);
+		self.host_vertices_mut().push(vertex);
 	}
 
 	/// Remove the last vertex before the seam of the polygon and return it.
@@ -221,7 +221,7 @@ impl Polygon {
 	/// assert_eq!(removed, None); //Since there is nothing to remove, returns None.
 	/// ```
 	pub fn pop(&mut self) -> Option<Point2D> {
-		self.cpu_vertices_mut().pop()
+		self.host_vertices_mut().pop()
 	}
 
 	/// Inserts a vertex at the given position in the polygonal chain.
@@ -255,7 +255,7 @@ impl Polygon {
 	/// assert_eq!(poly[4], Point2D { x: 0, y: 1000 });
 	/// ```
 	pub fn insert(&mut self, index: usize, vertex: Point2D) {
-		self.cpu_vertices_mut().insert(index, vertex);
+		self.host_vertices_mut().insert(index, vertex);
 	}
 
 	/// Removes a vertex from the polygonal chain around this polygon and returns the removed
@@ -281,7 +281,7 @@ impl Polygon {
 	/// assert_eq!(poly[2], Point2D { x: 0, y: 1000 }); //The last vertex has shifted in its place.
 	/// ```
 	pub fn remove(&mut self, index: usize) -> Point2D {
-		self.cpu_vertices_mut().remove(index)
+		self.host_vertices_mut().remove(index)
 	}
 
 	/// Removes all vertices from this polygon, leaving it empty.
@@ -300,7 +300,7 @@ impl Polygon {
 	/// assert_eq!(poly.len(), 0); //No more vertices.
 	/// ```
 	pub fn clear(&mut self) {
-		self.cpu_vertices_mut().clear();
+		self.host_vertices_mut().clear();
 	}
 
 	/// Obtain a reference to a particular vertex in the polygon.
@@ -327,7 +327,7 @@ impl Polygon {
 	/// assert_eq!(other_vertex, None);
 	/// ```
 	pub fn get(&self, index: usize) -> Option<&Point2D> {
-		self.cpu_vertices().get(index)
+		self.host_vertices().get(index)
 	}
 
 	/// Obtain a mutable reference to a particular vertex in the polygon.
@@ -355,7 +355,7 @@ impl Polygon {
 	/// assert_eq!(poly[1], Point2D { x: 500, y: 0 });
 	/// ```
 	pub fn get_mut(&mut self, index: usize) -> Option<&mut Point2D> {
-		self.cpu_vertices_mut().get_mut(index)
+		self.host_vertices_mut().get_mut(index)
 	}
 
 	/// Create an iterator over the vertices of this polygon.
@@ -378,7 +378,7 @@ impl Polygon {
 	/// assert_eq!(iter.next(), None); //It ran out of vertices, so it stops iterating here.
 	/// ```
 	pub fn iter(&self) -> core::slice::Iter<Point2D> {
-		self.cpu_vertices().iter()
+		self.host_vertices().iter()
 	}
 
 	/// Create an iterator that allows modifying the vertices of this polygon.
@@ -403,24 +403,24 @@ impl Polygon {
 	/// assert_eq!(poly[2], Point2D { x: 0, y: 2000 });
 	/// ```
 	pub fn iter_mut(&mut self) -> core::slice::IterMut<Point2D> {
-		self.cpu_vertices_mut().iter_mut()
+		self.host_vertices_mut().iter_mut()
 	}
 
-	/// Obtain the vertices of this polygon on the CPU.
+	/// Obtain the vertices of this polygon on the host.
 	///
-	/// If the latest version of the vertices is in the GPU rather than the CPU, it will be copied
-	/// to the CPU. If the latest version of the vertices is on the CPU (or they are in sync), it
-	/// will simply give a reference to those.
-	pub(crate) fn cpu_vertices(&self) -> &Vec<Point2D> {
+	/// If the latest version of the vertices is in the GPU rather than the host, it will be copied
+	/// to the host's RAM. If the latest version of the vertices is on the CPU (or they are in
+	/// sync), it will simply give a reference to those.
+	pub(crate) fn host_vertices(&self) -> &Vec<Point2D> {
 		&self.vertices //TODO: Sync from GPU if necessary.
 	}
 
-	/// Obtain the vertices of this polygon on the CPU, allowing their modification.
+	/// Obtain the vertices of this polygon on the host, allowing their modification.
 	///
-	/// If the latest version of the vertices is in the GPU rather than the CPU, it will be copied
-	/// to the CPU. If the latest version of the vertices is on the CPU (or they are in sync), it
-	/// will simply give a reference to those.
-	pub(crate) fn cpu_vertices_mut(&mut self) -> &mut Vec<Point2D> {
+	/// If the latest version of the vertices is in the GPU rather than the host, it will be copied
+	/// to the host's RAM. If the latest version of the vertices is on the CPU (or they are in
+	/// sync), it will simply give a reference to those.
+	pub(crate) fn host_vertices_mut(&mut self) -> &mut Vec<Point2D> {
 		&mut self.vertices //TODO: Sync from GPU if necessary.
 	}
 }
