@@ -42,7 +42,7 @@ use crate::TwoDimensional; //The translate function is part of TwoDimensional.
 /// assert_eq!(poly[2], Point2D { x: 167, y: -50 });
 /// ```
 pub fn translate_polygon_st(polygon: &mut Polygon, dx: Coordinate, dy: Coordinate) {
-	for vertex in &mut polygon.vertices {
+	for vertex in polygon.cpu_vertices_mut() {
 		vertex.translate(dx, dy);
 	}
 }
@@ -75,8 +75,8 @@ pub fn translate_polygon_st(polygon: &mut Polygon, dx: Coordinate, dy: Coordinat
 /// assert_eq!(poly[2], Point2D { x: 167, y: -50 });
 /// ```
 pub fn translate_polygon_mt(polygon: &mut Polygon, dx: Coordinate, dy: Coordinate) {
-	let chunk_size = cmp::max(10000, polygon.vertices.len() / rayon::current_num_threads());
-	polygon.vertices.par_chunks_mut(chunk_size).for_each(
+	let chunk_size = cmp::max(10000, polygon.cpu_vertices().len() / rayon::current_num_threads());
+	polygon.cpu_vertices_mut().par_chunks_mut(chunk_size).for_each(
 		|slice| slice.iter_mut().for_each(
 			|vertex| vertex.translate(dx, dy)
 		)
@@ -106,9 +106,9 @@ mod tests {
 		let original = crate::test::data::polygon::square_1000(); //An original to compare to.
 		let mut poly = crate::test::data::polygon::square_1000(); //A copy that we can translate.
 		translate_polygon_st(&mut poly, 0, 0); //Translate by 0,0.
-		assert_eq!(poly.vertices, original.vertices, "The polygon's vertices may not have changed by moving 0,0.");
+		assert_eq!(poly.cpu_vertices(), original.cpu_vertices(), "The polygon's vertices may not have changed by moving 0,0.");
 		translate_polygon_mt(&mut poly, 0, 0);
-		assert_eq!(poly.vertices, original.vertices, "The polygon's vertices may not have changed by moving 0,0.");
+		assert_eq!(poly.cpu_vertices(), original.cpu_vertices(), "The polygon's vertices may not have changed by moving 0,0.");
 	}
 
 	/// Test moving a polygon by a certain offset.

@@ -10,13 +10,13 @@
 
 #[macro_use] extern crate auto_ops;
 
-pub mod operations;
-
 pub mod convexity;
 pub use convexity::*;
 
 pub mod coordinate;
 pub use coordinate::*;
+
+pub mod operations;
 
 pub mod point2d;
 pub use point2d::*;
