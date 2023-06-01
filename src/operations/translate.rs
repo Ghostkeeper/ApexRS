@@ -92,10 +92,21 @@ mod tests {
 	/// This mainly just tests that it won't panic on that.
 	#[test]
 	fn translate_polygon_empty() {
-		let mut poly = crate::Polygon::new();
+		let mut poly = Polygon::new();
 		translate_polygon_st(&mut poly, 100, 100);
 		assert_eq!(poly.len(), 0, "The polygon must still be unchanged.");
 		translate_polygon_mt(&mut poly, 100, 100);
 		assert_eq!(poly.len(), 0, "The polygon must still be unchanged.");
+	}
+
+	/// Test whether moving a polygon by 0,0 yields the original polygon.
+	#[test]
+	fn translate_polygon_zero() {
+		let original = crate::test::data::polygon::square_1000();
+		let mut poly = crate::test::data::polygon::square_1000(); //Make a copy that we can translate.
+		translate_polygon_st(&mut poly, 0, 0); //Translate by 0,0.
+		assert_eq!(poly.vertices, original.vertices, "The polygon's vertices may not have changed by moving 0,0.");
+		translate_polygon_mt(&mut poly, 0, 0);
+		assert_eq!(poly.vertices, original.vertices, "The polygon's vertices may not have changed by moving 0,0.");
 	}
 }
