@@ -11,13 +11,14 @@
 use std::iter::FromIterator; //Constructing polygons from iterable lists of vertices.
 use std::ops::Index; //Indexing polygons accesses its vertices.
 use std::ops::IndexMut; //Indexing polygons accesses its vertices.
+
 use crate::Area; //To return the polygon's surface area.
 use crate::Convexity; //To return the polygon's convexity.
 use crate::Coordinate;
 use crate::Point2D; //The vertices of the Polygon are Point2D.
 use crate::Shape2D; //This is a 2D shape.
 use crate::TwoDimensional; //This is a two-dimensional object.
-
+use crate::detail::sync_status; //To track whether the GPU or CPU copies are up-to-date.
 use crate::operations::translate; //To translate the polygons.
 
 /// A plane figure consisting of a single contour of straight line segments.
@@ -43,7 +44,15 @@ pub struct Polygon {
 	///
 	/// These vertices are not publicly accessible, since access to the most up-to-date version may
 	/// require a sync from the GPU to the CPU.
-	pub(crate) vertices: Vec<Point2D>
+	vertices: Vec<Point2D>,
+
+	/// The up-to-date-ness of the vertex data on the CPU (host) or the GPU.
+	///
+	/// This tracks whether the CPU version is the most up-to-date version of the vertex data, or
+	/// the GPU is, or whether both are in sync (so both are the most up-to-date version).
+	///
+	/// If the CPU version is the most up-to-date,
+	sync_status: sync_status::SyncStatus
 }
 
 impl Polygon {
@@ -51,7 +60,10 @@ impl Polygon {
 	///
 	/// The polygon will be degenerate, since it has no vertices.
 	pub const fn new() -> Self {
-		Polygon { vertices: Vec::new() }
+		Polygon {
+			vertices: Vec::new(),
+			sync_status: sync_status::SyncStatus::HOST
+		}
 	}
 
 	/// Create a new, empty polygon, without any vertices.
@@ -80,7 +92,10 @@ impl Polygon {
 	/// poly.push(Point2D { x: 400, y: 300 }); //But the 5th vertex might cause reallocation!
 	/// ```
 	pub fn with_capacity(capacity: usize) -> Self {
-		Polygon { vertices: Vec::with_capacity(capacity) }
+		Polygon {
+			vertices: Vec::with_capacity(capacity),
+			sync_status: sync_status::SyncStatus::HOST
+		}
 	}
 
 	/// Get the capacity of the polygon's memory allocation to hold vertices.
@@ -106,7 +121,7 @@ impl Polygon {
 	/// assert!(poly.capacity() > 4); //We've had to increase the capacity.
 	/// ```
 	pub fn capacity(&self) -> usize {
-		self.vertices.capacity()
+		self.host_vertices().capacity()
 	}
 
 	/// Reserve memory for at least the given amount of vertices to be added to this polygon.
@@ -134,7 +149,7 @@ impl Polygon {
 	/// assert!(poly.capacity() >= 11); //We must have capacity now for at least 3 + 8 vertices (current length + 8 additional).
 	/// ```
 	pub fn reserve(&mut self, additional: usize) {
-		self.vertices.reserve(additional);
+		self.host_vertices_mut().reserve(additional);
 	}
 
 	/// Get the number of vertices (or the number of sides) of a polygon.
@@ -163,7 +178,7 @@ impl Polygon {
 	/// assert_eq!(pentagon.len(), 5, "A pentagon has 5 sides.");
 	/// ```
 	pub fn len(&self) -> usize {
-		self.vertices.len()
+		self.host_vertices().len()
 	}
 
 	/// Add an extra vertex to this polygon.
@@ -190,7 +205,7 @@ impl Polygon {
 	/// poly.push(Point2D { x: 50, y: 100 });
 	/// ```
 	pub fn push(&mut self, vertex: Point2D) {
-		self.vertices.push(vertex);
+		self.host_vertices_mut().push(vertex);
 	}
 
 	/// Remove the last vertex before the seam of the polygon and return it.
@@ -221,7 +236,7 @@ impl Polygon {
 	/// assert_eq!(removed, None); //Since there is nothing to remove, returns None.
 	/// ```
 	pub fn pop(&mut self) -> Option<Point2D> {
-		self.vertices.pop()
+		self.host_vertices_mut().pop()
 	}
 
 	/// Inserts a vertex at the given position in the polygonal chain.
@@ -255,7 +270,7 @@ impl Polygon {
 	/// assert_eq!(poly[4], Point2D { x: 0, y: 1000 });
 	/// ```
 	pub fn insert(&mut self, index: usize, vertex: Point2D) {
-		self.vertices.insert(index, vertex);
+		self.host_vertices_mut().insert(index, vertex);
 	}
 
 	/// Removes a vertex from the polygonal chain around this polygon and returns the removed
@@ -281,7 +296,7 @@ impl Polygon {
 	/// assert_eq!(poly[2], Point2D { x: 0, y: 1000 }); //The last vertex has shifted in its place.
 	/// ```
 	pub fn remove(&mut self, index: usize) -> Point2D {
-		self.vertices.remove(index)
+		self.host_vertices_mut().remove(index)
 	}
 
 	/// Removes all vertices from this polygon, leaving it empty.
@@ -300,7 +315,7 @@ impl Polygon {
 	/// assert_eq!(poly.len(), 0); //No more vertices.
 	/// ```
 	pub fn clear(&mut self) {
-		self.vertices.clear();
+		self.host_vertices_mut().clear();
 	}
 
 	/// Obtain a reference to a particular vertex in the polygon.
@@ -327,7 +342,7 @@ impl Polygon {
 	/// assert_eq!(other_vertex, None);
 	/// ```
 	pub fn get(&self, index: usize) -> Option<&Point2D> {
-		self.vertices.get(index)
+		self.host_vertices().get(index)
 	}
 
 	/// Obtain a mutable reference to a particular vertex in the polygon.
@@ -355,7 +370,7 @@ impl Polygon {
 	/// assert_eq!(poly[1], Point2D { x: 500, y: 0 });
 	/// ```
 	pub fn get_mut(&mut self, index: usize) -> Option<&mut Point2D> {
-		self.vertices.get_mut(index)
+		self.host_vertices_mut().get_mut(index)
 	}
 
 	/// Create an iterator over the vertices of this polygon.
@@ -378,7 +393,7 @@ impl Polygon {
 	/// assert_eq!(iter.next(), None); //It ran out of vertices, so it stops iterating here.
 	/// ```
 	pub fn iter(&self) -> core::slice::Iter<Point2D> {
-		self.vertices.iter()
+		self.host_vertices().iter()
 	}
 
 	/// Create an iterator that allows modifying the vertices of this polygon.
@@ -403,7 +418,25 @@ impl Polygon {
 	/// assert_eq!(poly[2], Point2D { x: 0, y: 2000 });
 	/// ```
 	pub fn iter_mut(&mut self) -> core::slice::IterMut<Point2D> {
-		self.vertices.iter_mut()
+		self.host_vertices_mut().iter_mut()
+	}
+
+	/// Obtain the vertices of this polygon on the host.
+	///
+	/// If the latest version of the vertices is in the GPU rather than the host, it will be copied
+	/// to the host's RAM. If the latest version of the vertices is on the CPU (or they are in
+	/// sync), it will simply give a reference to those.
+	pub(crate) fn host_vertices(&self) -> &Vec<Point2D> {
+		&self.vertices //TODO: Sync from GPU if necessary.
+	}
+
+	/// Obtain the vertices of this polygon on the host, allowing their modification.
+	///
+	/// If the latest version of the vertices is in the GPU rather than the host, it will be copied
+	/// to the host's RAM. If the latest version of the vertices is on the CPU (or they are in
+	/// sync), it will simply give a reference to those.
+	pub(crate) fn host_vertices_mut(& mut self) -> &mut Vec<Point2D> {
+		&mut self.vertices //TODO: Sync from GPU if necessary.
 	}
 }
 
@@ -448,13 +481,16 @@ impl FromIterator<Point2D> for Polygon {
 	/// ```
 	fn from_iter<T>(iter: T) -> Self
 			where T: IntoIterator<Item = Point2D> {
-		Polygon { vertices: Vec::from_iter(iter) }
+		Polygon {
+			vertices: Vec::from_iter(iter),
+			sync_status: sync_status::SyncStatus::HOST
+		}
 	}
 }
 
-impl IntoIterator for Polygon {
-	type Item = Point2D;
-	type IntoIter = std::vec::IntoIter<Point2D>;
+impl<'a> IntoIterator for &'a Polygon {
+	type Item = &'a Point2D;
+	type IntoIter = std::slice::Iter<'a, Point2D>;
 
 	/// Allows iterating over the vertices of the polygon.
 	///
@@ -474,13 +510,13 @@ impl IntoIterator for Polygon {
 	/// let poly = Polygon::from_iter(vertices);
 	/// //Now iterate over the vertices.
 	/// let mut i = 0;
-	/// for vertex in poly { //This for-each loop is possible because Polygon implements IntoIterator.
-	/// 	assert_eq!(vertex, vertices[i]);
+	/// for vertex in &poly { //This for-each loop is possible because Polygon implements IntoIterator.
+	/// 	assert_eq!(*vertex, vertices[i]);
 	/// 	i += 1;
 	/// }
 	/// ```
 	fn into_iter(self) -> Self::IntoIter {
-		self.vertices.into_iter()
+		self.host_vertices().into_iter()
 	}
 }
 
@@ -515,7 +551,7 @@ impl Index<usize> for Polygon {
 	/// assert_eq!(third_vertex, Point2D { x: 100, y: 100 });
 	/// ```
 	fn index(&self, index: usize) -> &Point2D {
-		self.vertices.index(index)
+		self.host_vertices().index(index)
 	}
 }
 
@@ -548,7 +584,7 @@ impl IndexMut<usize> for Polygon {
 	/// assert_eq!(poly[1], Point2D { x: 50, y: 0 });
 	/// ```
 	fn index_mut(&mut self, index: usize) -> &mut Point2D {
-		self.vertices.index_mut(index)
+		self.host_vertices_mut().index_mut(index)
 	}
 }
 
@@ -850,7 +886,7 @@ mod tests {
 			Point2D { x: 500, y: 0 },
 			Point2D { x: 250, y: 1000 }
 		]);
-		let poly = Polygon::from_iter(original);
+		let poly = Polygon::from_iter(original.iter().copied());
 		assert_eq!(poly[0], Point2D { x: 0, y: 0 }, "The first vertex in the newly created polygon.");
 		assert_eq!(poly[1], Point2D { x: 500, y: 0 }, "The second vertex in the newly created polygon.");
 		assert_eq!(poly[2], Point2D { x: 250, y: 1000 }, "The third vertex in the newly created polygon.");
@@ -866,8 +902,8 @@ mod tests {
 		];
 		let poly = Polygon::from_iter(vertices);
 		let mut i = 0;
-		for vertex in poly {
-			assert_eq!(vertex, vertices[i], "The iterator must iterate over the vertices in order.");
+		for vertex in &poly {
+			assert_eq!(*vertex, vertices[i], "The iterator must iterate over the vertices in order.");
 			i += 1;
 		}
 	}
