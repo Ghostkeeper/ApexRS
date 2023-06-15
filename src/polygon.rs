@@ -8,6 +8,7 @@
 
 //! Defines the Polygon struct.
 
+use std::fmt; //You can print polygons as text.
 use std::iter::FromIterator; //Constructing polygons from iterable lists of vertices.
 use std::ops::Index; //Indexing polygons accesses its vertices.
 use std::ops::IndexMut; //Indexing polygons accesses its vertices.
@@ -38,7 +39,6 @@ use crate::operations::translate; //To translate the polygons.
 ///
 /// If the vertices of the polygon are winding counter-clockwise, the polygon is positive. Otherwise
 /// it is negative.
-#[derive(Debug)]
 pub struct Polygon {
 	/// The vertices that form the closed polygonal chain around this polygon.
 	///
@@ -599,6 +599,16 @@ impl AsMut<Polygon> for Polygon {
 	/// Convert a polygon into a mutable reference to the same polygon.
 	fn as_mut(&mut self) -> &mut Polygon {
 		self
+	}
+}
+
+impl fmt::Debug for Polygon {
+	/// A reference string representing this polygon, for debugging the polygon in a log or CLI
+	/// output.
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		f.debug_struct("Polygon")
+			.field("vertices", self.host_vertices())
+			.finish()
 	}
 }
 
