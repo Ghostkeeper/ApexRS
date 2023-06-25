@@ -17,7 +17,7 @@
 /// Before the CPU can use it again, it must be copied back to the host system. If the resource was
 /// synchronised but not edited yet on either the CPU or the GPU, the two copies are in sync. This
 /// state is denoted by the `SYNCED` value.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum SyncStatus {
 	/// The copy on the host (CPU/RAM) is leading.
 	///

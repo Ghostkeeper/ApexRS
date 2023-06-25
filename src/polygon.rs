@@ -477,6 +477,24 @@ impl Polygon {
 		//TODO: Sync from host if necessary.
 		self.gpu_vertices.as_mut().unwrap()
 	}
+
+	/// Copy the vertex data from the host to the GPU, to prepare for processing it there.
+	///
+	/// This will allocate space for the data on the GPU if there is not enough space there yet. If
+	/// there is enough space, the existing space will be re-used.
+	///
+	/// This function assumes that the GPU data is outdated. If the host and GPU are already synced,
+	/// this will cause an unnecessary copy to the GPU. If the GPU was leading, then this will erase
+	/// the leading GPU data with the data on the host, effectively reversing the latest changes to
+	/// the data. So it is important to check first what the sync status is of these vertices
+	/// between the different devices.
+	fn sync_host_to_gpu(&mut self) {
+		//Check if we can re-use the existing memory in the GPU to store the updated vertex information.
+		if self.gpu_vertices.is_some() && self.gpu_vertices.as_ref().unwrap().dims()[0] >= self.vertices.len() as u64 {
+			//We can!
+			self.gpu_vertices.as_ref().unwrap().
+		}
+	}
 }
 
 impl TwoDimensional for Polygon {
