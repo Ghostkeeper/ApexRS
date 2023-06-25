@@ -12,6 +12,7 @@ use std::fmt; //You can print polygons as text.
 use std::iter::FromIterator; //Constructing polygons from iterable lists of vertices.
 use std::ops::Index; //Indexing polygons accesses its vertices.
 use std::ops::IndexMut; //Indexing polygons accesses its vertices.
+use arrayfire; //GPU processing.
 
 use crate::Area; //To return the polygon's surface area.
 use crate::Convexity; //To return the polygon's convexity.
@@ -42,9 +43,19 @@ use crate::operations::translate; //To translate the polygons.
 pub struct Polygon {
 	/// The vertices that form the closed polygonal chain around this polygon.
 	///
-	/// These vertices are not publicly accessible, since access to the most up-to-date version may
-	/// require a sync from the GPU to the CPU.
+	/// This is the copy of the vertices that is in the host CPU's RAM. These vertices are not
+	/// publicly accessible, since access to the most up-to-date version may require a sync from the
+	/// GPU to the CPU.
 	vertices: Vec<Point2D>,
+
+	/// The vertices that form the closed polygonal chain around this polygon.
+	///
+	/// This is the copy of the vertices that is on the GPU slave. These vertices are not publicly
+	/// accessible, since access to the most up-to-date version may require a sync from the CPU to
+	/// the GPU.
+	///
+	/// Before the first time that the polygon gets synced to the GPU, this will be `None`.
+	gpu_vertices: Option<arrayfire::Array<Coordinate>>,
 
 	/// The up-to-date-ness of the vertex data on the CPU (host) or the GPU.
 	///
@@ -59,9 +70,10 @@ impl Polygon {
 	/// Create a new, empty polygon, without any vertices.
 	///
 	/// The polygon will be degenerate, since it has no vertices.
-	pub const fn new() -> Self {
+	pub fn new() -> Self {
 		Polygon {
 			vertices: Vec::new(),
+			gpu_vertices: None,
 			sync_status: sync_status::SyncStatus::HOST
 		}
 	}
@@ -94,6 +106,7 @@ impl Polygon {
 	pub fn with_capacity(capacity: usize) -> Self {
 		Polygon {
 			vertices: Vec::with_capacity(capacity),
+			gpu_vertices: None,
 			sync_status: sync_status::SyncStatus::HOST
 		}
 	}
@@ -438,6 +451,32 @@ impl Polygon {
 	pub(crate) fn host_vertices_mut(&mut self) -> &mut Vec<Point2D> {
 		&mut self.vertices //TODO: Sync from GPU if necessary.
 	}
+
+	/// Obtain the vertices of this polygon on the GPU.
+	///
+	/// If the latest version of the vertices is in the host rather than the GPU, it will be copied
+	/// to the GPU first. If the latest version of the vertices is in the GPU (or they are in sync),
+	/// it will simply give a reference to those.
+	pub(crate) fn gpu_vertices(&mut self) -> &arrayfire::Array<Coordinate> {
+		if self.gpu_vertices.is_none() {
+			self.gpu_vertices.replace(arrayfire::Array::<Coordinate>::new_empty(arrayfire::Dim4::new(&[0, 2, 1, 1])));
+		}
+		//TODO: Sync from host if necessary.
+		self.gpu_vertices.as_ref().unwrap()
+	}
+
+	/// Obtain the vertices of this polygon on the GPU, allowing their modification.
+	///
+	/// If the latest version of the vertices is in the host rather than the GPU, it will be copied
+	/// to the GPU first. If the latest version of the vertices is in the GPU (or they are in sync),
+	/// it will simply give a reference to those.
+	pub(crate) fn gpu_vertices_mut(&mut self) -> &mut arrayfire::Array<Coordinate> {
+		if self.gpu_vertices.is_none() {
+			self.gpu_vertices.replace(arrayfire::Array::<Coordinate>::new_empty(arrayfire::Dim4::new(&[0, 2, 1, 1])));
+		}
+		//TODO: Sync from host if necessary.
+		self.gpu_vertices.as_mut().unwrap()
+	}
 }
 
 impl TwoDimensional for Polygon {
@@ -483,6 +522,7 @@ impl FromIterator<Point2D> for Polygon {
 			where T: IntoIterator<Item = Point2D> {
 		Polygon {
 			vertices: Vec::from_iter(iter),
+			gpu_vertices: None,
 			sync_status: sync_status::SyncStatus::HOST
 		}
 	}

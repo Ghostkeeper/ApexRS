@@ -8,6 +8,7 @@ repository = "https://github.com/Ghostkeeper/Apex-rs"
 license = "AGPL-3.0-or-later"
 
 [dependencies]
+arrayfire = "3.8.0"
 auto_ops = "0.3.0"
 rayon = "1.7.0"
 
