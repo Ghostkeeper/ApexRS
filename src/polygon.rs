@@ -440,7 +440,10 @@ impl Polygon {
 	/// to the host's RAM. If the latest version of the vertices is on the CPU (or they are in
 	/// sync), it will simply give a reference to those.
 	pub(crate) fn host_vertices(&self) -> &Vec<Point2D> {
-		&self.vertices //TODO: Sync from GPU if necessary.
+		if self.sync_status == sync_status::SyncStatus::GPU { //Host is outdated.
+			//self.sync_gpu_to_host(); //TODO: Interior mutability pattern.
+		}
+		&self.vertices
 	}
 
 	/// Obtain the vertices of this polygon on the host, allowing their modification.
@@ -449,7 +452,10 @@ impl Polygon {
 	/// to the host's RAM. If the latest version of the vertices is on the CPU (or they are in
 	/// sync), it will simply give a reference to those.
 	pub(crate) fn host_vertices_mut(&mut self) -> &mut Vec<Point2D> {
-		&mut self.vertices //TODO: Sync from GPU if necessary.
+		if self.sync_status == sync_status::SyncStatus::GPU { //Host is outdated.
+			self.sync_gpu_to_host();
+		}
+		&mut self.vertices
 	}
 
 	/// Obtain the vertices of this polygon on the GPU.
@@ -457,9 +463,9 @@ impl Polygon {
 	/// If the latest version of the vertices is in the host rather than the GPU, it will be copied
 	/// to the GPU first. If the latest version of the vertices is in the GPU (or they are in sync),
 	/// it will simply give a reference to those.
-	pub(crate) fn gpu_vertices(&mut self) -> &arrayfire::Array<Coordinate> {
+	pub(crate) fn gpu_vertices(&self) -> &arrayfire::Array<Coordinate> {
 		if self.sync_status == sync_status::SyncStatus::HOST { //GPU is outdated.
-			self.sync_host_to_gpu();
+			//self.sync_host_to_gpu(); //TODO: Interior mutability pattern.
 		}
 		self.gpu_vertices.as_ref().unwrap()
 	}
@@ -482,14 +488,14 @@ impl Polygon {
 	/// there is enough space, the existing space will be re-used.
 	///
 	/// This function assumes that the GPU data is outdated. If the host and GPU are already synced,
-	/// this will cause an unnecessary copy to the GPU. If the GPU was leading, then this will erase
-	/// the leading GPU data with the data on the host, effectively reversing the latest changes to
-	/// the data. So it is important to check first what the sync status is of these vertices
-	/// between the different devices.
+	/// this will cause an unnecessary copy to the GPU. If the GPU was leading, then this will
+	/// override the leading GPU data with the data on the host, effectively reversing the latest
+	/// changes to the data. So it is important to check first what the sync status is of these
+	/// vertices between the different devices.
 	fn sync_host_to_gpu(&mut self) {
 		//TODO: If the GPU memory already has enough space, copy without allocating new memory.
 		let num_vertices = self.len();
-		let mut coordinates = Vec::<Coordinate>::with_capacity(num_vertices);
+		let mut coordinates = Vec::<Coordinate>::with_capacity(num_vertices * 2);
 		for vertex in &self.vertices {
 			coordinates.push(vertex.x);
 			coordinates.push(vertex.y);
@@ -498,6 +504,31 @@ impl Polygon {
 		self.gpu_vertices.replace(
 			arrayfire::Array::<Coordinate>::new(coordinates.as_slice(), arrayfire::Dim4::new(&[num_vertices as u64, 2, 1, 1]))
 		);
+		self.sync_status = sync_status::SyncStatus::SYNCED; //They are now in sync.
+	}
+
+	/// Copy the vertex data from the GPU to the host, to prepare for processing it there.
+	///
+	/// This function assumes that the host data is outdated. If the host and GPU are already
+	/// synced, this will cause an unnecessary copy from the GPU to the host. If the host was
+	/// leading, then this will override the leading host data with the data on the GU, effectively
+	/// reversing the latest changes to the data. So it is important to check first what the sync
+	/// status is of these vertices between the different devices.
+	fn sync_gpu_to_host(&mut self) {
+		let verts = self.gpu_vertices.as_ref();
+		let num_vertices = verts.unwrap().dims()[0] as usize;
+
+		//Copy the coordinates into a 1D array.
+		let mut coordinates = Vec::<Coordinate>::with_capacity(num_vertices * 2);
+		verts.unwrap().host(&mut coordinates);
+
+		//Unwrap the 1D array as vertices.
+		if num_vertices > self.vertices.len() {
+			self.vertices.reserve(num_vertices - self.vertices.len());
+		}
+		for i in 0..num_vertices {
+			self.vertices[i] = Point2D { x: coordinates[i * 2], y: coordinates[i * 2 + 1] };
+		}
 		self.sync_status = sync_status::SyncStatus::SYNCED; //They are now in sync.
 	}
 }
