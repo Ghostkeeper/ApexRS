@@ -8,6 +8,7 @@
 
 //! Defines the Polygon struct.
 
+use std::cell::{Ref, RefCell, RefMut}; //Interior mutability of the vertices in this polygon as cache.
 use std::fmt; //You can print polygons as text.
 use std::iter::FromIterator; //Constructing polygons from iterable lists of vertices.
 use std::ops::Index; //Indexing polygons accesses its vertices.
@@ -46,7 +47,7 @@ pub struct Polygon {
 	/// This is the copy of the vertices that is in the host CPU's RAM. These vertices are not
 	/// publicly accessible, since access to the most up-to-date version may require a sync from the
 	/// GPU to the CPU.
-	vertices: Vec<Point2D>,
+	vertices: RefCell<Vec<Point2D>>,
 
 	/// The vertices that form the closed polygonal chain around this polygon.
 	///
@@ -72,7 +73,7 @@ impl Polygon {
 	/// The polygon will be degenerate, since it has no vertices.
 	pub fn new() -> Self {
 		Polygon {
-			vertices: Vec::new(),
+			vertices: RefCell::new(Vec::new()),
 			gpu_vertices: None,
 			sync_status: sync_status::SyncStatus::HOST
 		}
@@ -105,7 +106,7 @@ impl Polygon {
 	/// ```
 	pub fn with_capacity(capacity: usize) -> Self {
 		Polygon {
-			vertices: Vec::with_capacity(capacity),
+			vertices: RefCell::new(Vec::with_capacity(capacity)),
 			gpu_vertices: None,
 			sync_status: sync_status::SyncStatus::HOST
 		}
@@ -439,11 +440,11 @@ impl Polygon {
 	/// If the latest version of the vertices is in the GPU rather than the host, it will be copied
 	/// to the host's RAM. If the latest version of the vertices is on the CPU (or they are in
 	/// sync), it will simply give a reference to those.
-	pub(crate) fn host_vertices(&self) -> &Vec<Point2D> {
+	pub(crate) fn host_vertices(&self) -> Ref<Vec<Point2D>> {
 		if self.sync_status == sync_status::SyncStatus::GPU { //Host is outdated.
 			//self.sync_gpu_to_host(); //TODO: Interior mutability pattern.
 		}
-		&self.vertices
+		self.vertices.borrow()
 	}
 
 	/// Obtain the vertices of this polygon on the host, allowing their modification.
@@ -451,11 +452,11 @@ impl Polygon {
 	/// If the latest version of the vertices is in the GPU rather than the host, it will be copied
 	/// to the host's RAM. If the latest version of the vertices is on the CPU (or they are in
 	/// sync), it will simply give a reference to those.
-	pub(crate) fn host_vertices_mut(&mut self) -> &mut Vec<Point2D> {
+	pub(crate) fn host_vertices_mut(&mut self) -> RefMut<Vec<Point2D>> {
 		if self.sync_status == sync_status::SyncStatus::GPU { //Host is outdated.
 			self.sync_gpu_to_host();
 		}
-		&mut self.vertices
+		self.vertices.borrow_mut()
 	}
 
 	/// Obtain the vertices of this polygon on the GPU.
@@ -496,7 +497,7 @@ impl Polygon {
 		//TODO: If the GPU memory already has enough space, copy without allocating new memory.
 		let num_vertices = self.len();
 		let mut coordinates = Vec::<Coordinate>::with_capacity(num_vertices * 2);
-		for vertex in &self.vertices {
+		for vertex in self.vertices.borrow().iter() {
 			coordinates.push(vertex.x);
 			coordinates.push(vertex.y);
 		}
@@ -523,11 +524,12 @@ impl Polygon {
 		verts.unwrap().host(&mut coordinates);
 
 		//Unwrap the 1D array as vertices.
-		if num_vertices > self.vertices.len() {
-			self.vertices.reserve(num_vertices - self.vertices.len());
+		let vertices_len = self.vertices.borrow().len();
+		if num_vertices > vertices_len {
+			self.vertices.borrow_mut().reserve(num_vertices - vertices_len);
 		}
 		for i in 0..num_vertices {
-			self.vertices[i] = Point2D { x: coordinates[i * 2], y: coordinates[i * 2 + 1] };
+			self.vertices.borrow_mut()[i] = Point2D { x: coordinates[i * 2], y: coordinates[i * 2 + 1] };
 		}
 		self.sync_status = sync_status::SyncStatus::SYNCED; //They are now in sync.
 	}
@@ -575,7 +577,7 @@ impl FromIterator<Point2D> for Polygon {
 	fn from_iter<T>(iter: T) -> Self
 			where T: IntoIterator<Item = Point2D> {
 		Polygon {
-			vertices: Vec::from_iter(iter),
+			vertices: RefCell::new(Vec::from_iter(iter)),
 			gpu_vertices: None,
 			sync_status: sync_status::SyncStatus::HOST
 		}
@@ -693,6 +695,14 @@ impl AsMut<Polygon> for Polygon {
 	/// Convert a polygon into a mutable reference to the same polygon.
 	fn as_mut(&mut self) -> &mut Polygon {
 		self
+	}
+}
+
+impl PartialEq for Polygon {
+	fn eq(&self, other: &Polygon) -> bool {
+		if self.host_vertices().len() != other.host_vertices().len() {
+			
+		}
 	}
 }
 

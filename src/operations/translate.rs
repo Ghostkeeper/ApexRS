@@ -9,6 +9,7 @@
 //! This module contains the implementations of operations to translate (move) geometric objects.
 
 use std::cmp;
+use std::cell::Ref; //To use the internal methods for getting the Polygon's two cache copies.
 use rayon::prelude::*; //For multi-threaded implementations.
 
 use crate::Coordinate; //As parameter for how far to translate.
@@ -42,7 +43,7 @@ use crate::TwoDimensional; //The translate function is part of TwoDimensional.
 /// assert_eq!(poly[2], Point2D { x: 167, y: -50 });
 /// ```
 pub fn translate_polygon_st(polygon: &mut Polygon, dx: Coordinate, dy: Coordinate) {
-	for vertex in polygon.host_vertices_mut() {
+	for vertex in polygon.host_vertices_mut().iter_mut() {
 		vertex.translate(dx, dy);
 	}
 }
@@ -106,9 +107,9 @@ mod tests {
 		let original = crate::test::data::polygon::square_1000(); //An original to compare to.
 		let mut poly = crate::test::data::polygon::square_1000(); //A copy that we can translate.
 		translate_polygon_st(&mut poly, 0, 0); //Translate by 0,0.
-		assert_eq!(poly.host_vertices(), original.host_vertices(), "The polygon's vertices may not have changed by moving 0,0.");
+		assert_eq!(poly, original, "The polygon's vertices may not have changed by moving 0,0.");
 		translate_polygon_mt(&mut poly, 0, 0);
-		assert_eq!(poly.host_vertices(), original.host_vertices(), "The polygon's vertices may not have changed by moving 0,0.");
+		assert_eq!(poly, original, "The polygon's vertices may not have changed by moving 0,0.");
 	}
 
 	/// Test moving a polygon by a certain offset.
