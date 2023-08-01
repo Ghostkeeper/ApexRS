@@ -40,6 +40,37 @@ use crate::operations::translate; //To translate the polygons.
 ///
 /// If the vertices of the polygon are winding counter-clockwise, the polygon is positive. Otherwise
 /// it is negative.
+///
+/// # Basic usage
+/// A polygon can be constructed from an iterable data source, like so:
+/// ```
+/// use apex::{Point2D, Polygon};
+/// //Some vertex data from your application's input data.
+/// let verts = vec!(
+/// 	Point2D { x: 0, y: 0 }, //In this case, a square.
+/// 	Point2D { x: 1000, y: 0 },
+/// 	Point2D { x: 1000, y: 1000 },
+/// 	Point2D { x: 0, y: 1000 },
+/// );
+/// let square = Polygon::from_iter(verts); //Put the vertices in a polygon.
+///
+/// //You can also construct a polygon by creating an empty one and then pushing vertices onto it.
+/// let mut triangle = Polygon::new();
+/// triangle.push(Point2D { x: 0, y: 0 });
+/// triangle.push(Point2D { x: 1000, y: 0 });
+/// triangle.push(Point2D { x: 500, y: 1000 });
+/// ```
+///
+/// # Host vs. GPU
+/// Apex decides for itself whether to use the host or the GPU for each operation, based on where
+/// the data is at the moment and how long an operation would take on each device. If the data
+/// currently resides on the host (RAM), but the operation would be much faster on a GPU, the data
+/// will be copied to the GPU and kept there. If the data is currently in the GPU (VRAM) but is
+/// needed on the CPU for outputting or because the operation is more efficient there, then it will
+/// be copied to the CPU.
+///
+/// Transfer time between the host and the CPU is significant, but this is taken into account in
+/// order to decide where an operation should be calculated.
 pub struct Polygon {
 	/// The vertices that form the closed polygonal chain around this polygon.
 	///
@@ -489,7 +520,7 @@ impl Polygon {
 	///
 	/// This function assumes that the GPU data is outdated. If the host and GPU are already synced,
 	/// this will cause an unnecessary copy to the GPU. If the GPU was leading, then this will
-	/// override the leading GPU data with the data on the host, effectively reversing the latest
+	/// overwrite the leading GPU data with the data on the host, effectively reversing the latest
 	/// changes to the data. So it is important to check first what the sync status is of these
 	/// vertices between the different devices.
 	fn sync_host_to_gpu(&mut self) {
