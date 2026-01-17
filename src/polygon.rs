@@ -1,6 +1,6 @@
 /*
  * Library for performing massively parallel computations on polygons.
- * Copyright (C) 2023 Ghostkeeper
+ * Copyright (C) 2026 Ghostkeeper
  * This library is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
  * This library is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for details.
  * You should have received a copy of the GNU Affero General Public License along with this library. If not, see <https://gnu.org/licenses/>.
@@ -8,11 +8,14 @@
 
 //! Defines the Polygon struct.
 
+use std::cell::{Ref, RefCell, RefMut}; //For interior mutability to keep CPU and GPU in sync.
 use std::fmt; //You can print polygons as text.
 use std::iter::FromIterator; //Constructing polygons from iterable lists of vertices.
-use std::ops::Index; //Indexing polygons accesses its vertices.
-use std::ops::IndexMut; //Indexing polygons accesses its vertices.
-use arrayfire; //GPU processing.
+use std::ops::{Deref, DerefMut, Index}; //Indexing polygons accesses its vertices.
+use std::ops::IndexMut;
+use std::rc::Rc; //For interior mutability to keep CPU and GPU in sync.
+use std::slice::{Iter, IterMut}; //Indexing polygons accesses its vertices.
+use cubecl::prelude::Array;  //GPU processing.
 
 use crate::Area; //To return the polygon's surface area.
 use crate::Convexity; //To return the polygon's convexity.
@@ -77,7 +80,7 @@ pub struct Polygon {
 	/// This is the copy of the vertices that is in the host CPU's RAM. These vertices are not
 	/// publicly accessible, since access to the most up-to-date version may require a sync from the
 	/// GPU to the CPU.
-	vertices: Vec<Point2D>,
+	vertices: Rc<RefCell<Vec<Point2D>>>,
 
 	/// The vertices that form the closed polygonal chain around this polygon.
 	///
@@ -86,7 +89,7 @@ pub struct Polygon {
 	/// the GPU.
 	///
 	/// Before the first time that the polygon gets synced to the GPU, this will be `None`.
-	gpu_vertices: Option<arrayfire::Array<Coordinate>>,
+	gpu_vertices: Rc<RefCell<Array<Coordinate>>>,
 
 	/// The up-to-date-ness of the vertex data on the CPU (host) or the GPU.
 	///
@@ -94,7 +97,7 @@ pub struct Polygon {
 	/// the GPU is, or whether both are in sync (so both are the most up-to-date version).
 	///
 	/// If the CPU version is the most up-to-date,
-	sync_status: sync_status::SyncStatus
+	sync_status: Rc<RefCell<sync_status::SyncStatus>>,
 }
 
 impl Polygon {
@@ -103,9 +106,9 @@ impl Polygon {
 	/// The polygon will be degenerate, since it has no vertices.
 	pub fn new() -> Self {
 		Polygon {
-			vertices: Vec::new(),
-			gpu_vertices: None,
-			sync_status: sync_status::SyncStatus::HOST
+			vertices: Rc::new(RefCell::new(vec!())),
+			gpu_vertices: Rc::new(RefCell::new(Array::new(0))),
+			sync_status: Rc::new(RefCell::new(sync_status::SyncStatus::SYNCED)),
 		}
 	}
 
@@ -136,9 +139,9 @@ impl Polygon {
 	/// ```
 	pub fn with_capacity(capacity: usize) -> Self {
 		Polygon {
-			vertices: Vec::with_capacity(capacity),
-			gpu_vertices: None,
-			sync_status: sync_status::SyncStatus::HOST
+			vertices: Rc::new(RefCell::new(Vec::with_capacity(capacity))),
+			gpu_vertices: Rc::new(RefCell::new(Array::new(0))),
+			sync_status: Rc::new(RefCell::new(sync_status::SyncStatus::HOST)),
 		}
 	}
 
@@ -223,6 +226,16 @@ impl Polygon {
 	/// ```
 	pub fn len(&self) -> usize {
 		self.host_vertices().len()
+	}
+
+	pub fn vertex(&self, index: usize) -> Ref<Point2D> {
+		self.sync_gpu_to_host();
+		Ref::map(self.vertices.borrow(), |verts| &verts[index])
+	}
+
+	pub fn vertex_mut(&mut self, index: usize) -> RefMut<Point2D> {
+		self.sync_gpu_to_host();
+		RefMut::map(self.vertices.borrow_mut(), |verts| &mut verts[index])
 	}
 
 	/// Add an extra vertex to this polygon.
@@ -362,61 +375,6 @@ impl Polygon {
 		self.host_vertices_mut().clear();
 	}
 
-	/// Obtain a reference to a particular vertex in the polygon.
-	///
-	/// The index counts the number of vertices from the seam of the polygon. The result is a
-	/// reference to the vertex at that position.
-	///
-	/// If the index is out of bounds of the polygon, this will return `None`.
-	///
-	/// # Arguments
-	/// * `index` - The index of the vertex to get a reference to.
-	///
-	/// # Examples
-	/// ```
-	/// use apex::{Point2D, Polygon};
-	/// let poly = Polygon::from_iter([
-	/// 	Point2D { x: 0, y: 0 },
-	/// 	Point2D { x: 1000, y: 0 },
-	/// 	Point2D { x: 500, y: 1000 }
-	/// ]);
-	/// let vertex = poly.get(1); //Get the second vertex.
-	/// assert_eq!(*vertex.unwrap(), Point2D { x: 1000, y: 0 });
-	/// let other_vertex = poly.get(3); //But this is out of range.
-	/// assert_eq!(other_vertex, None);
-	/// ```
-	pub fn get(&self, index: usize) -> Option<&Point2D> {
-		self.host_vertices().get(index)
-	}
-
-	/// Obtain a mutable reference to a particular vertex in the polygon.
-	///
-	/// The index counts the number of vertices from the seam of the polygon. The result is a
-	/// reference to the vertex at that position.
-	///
-	/// If the index is out of bounds of the polygon, this will return `None`.
-	///
-	/// This reference can be used to change a vertex of the polygon in-place.
-	///
-	/// # Arguments
-	/// * `index` - The index of the vertex to get a mutable reference to.
-	///
-	/// # Examples
-	/// ```
-	/// use apex::{Point2D, Polygon};
-	/// let mut poly = Polygon::from_iter([
-	/// 	Point2D { x: 0, y: 0 },
-	/// 	Point2D { x: 1000, y: 0 },
-	/// 	Point2D { x: 500, y: 1000 }
-	/// ]);
-	/// let vertex = poly.get_mut(1).unwrap(); //Get the second vertex.
-	/// vertex.x = 500; //Changes the polygon in-place.
-	/// assert_eq!(poly[1], Point2D { x: 500, y: 0 });
-	/// ```
-	pub fn get_mut(&mut self, index: usize) -> Option<&mut Point2D> {
-		self.host_vertices_mut().get_mut(index)
-	}
-
 	/// Create an iterator over the vertices of this polygon.
 	///
 	/// The iterator will enumerate all of the vertices of this polygon in order. The order will be
@@ -436,8 +394,8 @@ impl Polygon {
 	/// assert_eq!(iter.next(), Some(&Point2D { x: 333, y: 1000 }));
 	/// assert_eq!(iter.next(), None); //It ran out of vertices, so it stops iterating here.
 	/// ```
-	pub fn iter(&self) -> core::slice::Iter<Point2D> {
-		self.host_vertices().iter()
+	pub fn iter(&self) -> PolygonIterator {
+		PolygonIterator { vertex_reference: self.host_vertices() }
 	}
 
 	/// Create an iterator that allows modifying the vertices of this polygon.
@@ -461,8 +419,8 @@ impl Polygon {
 	/// assert_eq!(poly[1], Point2D { x: 1000, y: 1400 });
 	/// assert_eq!(poly[2], Point2D { x: 0, y: 2000 });
 	/// ```
-	pub fn iter_mut(&mut self) -> core::slice::IterMut<Point2D> {
-		self.host_vertices_mut().iter_mut()
+	pub fn iter_mut(&mut self) -> PolygonIteratorMut {
+		PolygonIteratorMut { polygon_reference: self.host_vertices_mut() }
 	}
 
 	/// Obtain the vertices of this polygon on the host.
@@ -470,11 +428,11 @@ impl Polygon {
 	/// If the latest version of the vertices is in the GPU rather than the host, it will be copied
 	/// to the host's RAM. If the latest version of the vertices is on the CPU (or they are in
 	/// sync), it will simply give a reference to those.
-	pub(crate) fn host_vertices(&self) -> &Vec<Point2D> {
-		if self.sync_status == sync_status::SyncStatus::GPU { //Host is outdated.
-			//self.sync_gpu_to_host(); //TODO: Interior mutability pattern.
+	pub(crate) fn host_vertices<'a>(&'a self) -> Ref<'a, Vec<Point2D>> {
+		if self.sync_status.borrow().eq(&sync_status::SyncStatus::GPU) { //Host is outdated.
+			self.sync_gpu_to_host();
 		}
-		&self.vertices
+		self.vertices.borrow()
 	}
 
 	/// Obtain the vertices of this polygon on the host, allowing their modification.
@@ -482,11 +440,11 @@ impl Polygon {
 	/// If the latest version of the vertices is in the GPU rather than the host, it will be copied
 	/// to the host's RAM. If the latest version of the vertices is on the CPU (or they are in
 	/// sync), it will simply give a reference to those.
-	pub(crate) fn host_vertices_mut(&mut self) -> &mut Vec<Point2D> {
-		if self.sync_status == sync_status::SyncStatus::GPU { //Host is outdated.
+	pub(crate) fn host_vertices_mut<'a>(&'a mut self) -> RefMut<'a, Vec<Point2D>> {
+		if self.sync_status.borrow().eq(&sync_status::SyncStatus::GPU) { //Host is outdated.
 			self.sync_gpu_to_host();
 		}
-		&mut self.vertices
+		self.vertices.borrow_mut()
 	}
 
 	/// Obtain the vertices of this polygon on the GPU.
@@ -494,11 +452,14 @@ impl Polygon {
 	/// If the latest version of the vertices is in the host rather than the GPU, it will be copied
 	/// to the GPU first. If the latest version of the vertices is in the GPU (or they are in sync),
 	/// it will simply give a reference to those.
-	pub(crate) fn gpu_vertices(&self) -> &arrayfire::Array<Coordinate> {
-		if self.sync_status == sync_status::SyncStatus::HOST { //GPU is outdated.
-			//self.sync_host_to_gpu(); //TODO: Interior mutability pattern.
+	///
+	/// While this returns an ``Option`` due to the internal data structure in this polygon, the
+	/// resulting ``Option`` is guaranteed to be ``Some``.
+	pub(crate) fn gpu_vertices(&self) -> Ref<Array<Coordinate>> {
+		if self.sync_status.borrow().eq(&sync_status::SyncStatus::HOST) { //GPU is outdated.
+			self.sync_host_to_gpu();
 		}
-		self.gpu_vertices.as_ref().unwrap()
+		self.gpu_vertices.borrow()
 	}
 
 	/// Obtain the vertices of this polygon on the GPU, allowing their modification.
@@ -506,14 +467,24 @@ impl Polygon {
 	/// If the latest version of the vertices is in the host rather than the GPU, it will be copied
 	/// to the GPU first. If the latest version of the vertices is in the GPU (or they are in sync),
 	/// it will simply give a reference to those.
-	pub(crate) fn gpu_vertices_mut(&mut self) -> &mut arrayfire::Array<Coordinate> {
-		if self.sync_status == sync_status::SyncStatus::HOST { //GPU is outdated.
-			self.sync_host_to_gpu();
+	///
+	/// While this returns an ``Option`` due to the internal data structure in this polygon, the
+	/// resulting ``Option`` is guaranteed to be ``Some``.
+	pub(crate) fn gpu_vertices_mut(&mut self) -> RefMut<Array<Coordinate>> {
+		if self.sync_status.borrow().eq(&sync_status::SyncStatus::HOST) { //GPU is outdated.
+			//self.sync_host_to_gpu();
 		}
-		self.gpu_vertices.as_mut().unwrap()
+		self.gpu_vertices.borrow_mut()
 	}
 
-	/// Copy the vertex data from the host to the GPU, to prepare for processing it there.
+	fn sync_host_to_gpu(&self) {
+		//TODO.
+	}
+	fn sync_gpu_to_host(&self) {
+		//TODO.
+	}
+
+	/*/// Copy the vertex data from the host to the GPU, to prepare for processing it there.
 	///
 	/// This will allocate space for the data on the GPU if there is not enough space there yet. If
 	/// there is enough space, the existing space will be re-used.
@@ -527,15 +498,15 @@ impl Polygon {
 		//TODO: If the GPU memory already has enough space, copy without allocating new memory.
 		let num_vertices = self.len();
 		let mut coordinates = Vec::<Coordinate>::with_capacity(num_vertices * 2);
-		for vertex in &self.vertices {
+		for vertex in self.vertices.borrow().iter() {
 			coordinates.push(vertex.x);
 			coordinates.push(vertex.y);
 		}
 
-		self.gpu_vertices.replace(
-			arrayfire::Array::<Coordinate>::new(coordinates.as_slice(), arrayfire::Dim4::new(&[num_vertices as u64, 2, 1, 1]))
+		self.gpu_vertices.borrow_mut().replace(
+			Array::<Coordinate>::new(coordinates.as_slice(), arrayfire::Dim4::new(&[num_vertices as u64, 2, 1, 1]))
 		);
-		self.sync_status = sync_status::SyncStatus::SYNCED; //They are now in sync.
+		self.sync_status.replace(sync_status::SyncStatus::SYNCED); //They are now in sync.
 	}
 
 	/// Copy the vertex data from the GPU to the host, to prepare for processing it there.
@@ -546,22 +517,24 @@ impl Polygon {
 	/// reversing the latest changes to the data. So it is important to check first what the sync
 	/// status is of these vertices between the different devices.
 	fn sync_gpu_to_host(&mut self) {
-		let verts = self.gpu_vertices.as_ref();
-		let num_vertices = verts.unwrap().dims()[0] as usize;
+		let mut host_verts = self.vertices.borrow_mut();
+		let gpu_verts = self.gpu_vertices.borrow();
+		let num_vertices = gpu_verts.as_ref().unwrap().dims()[0] as usize;
 
 		//Copy the coordinates into a 1D array.
 		let mut coordinates = Vec::<Coordinate>::with_capacity(num_vertices * 2);
-		verts.unwrap().host(&mut coordinates);
+		gpu_verts.as_ref().unwrap().host(&mut coordinates);
 
 		//Unwrap the 1D array as vertices.
-		if num_vertices > self.vertices.len() {
-			self.vertices.reserve(num_vertices - self.vertices.len());
+		let num_host_verts = host_verts.len();
+		if num_vertices > num_host_verts {
+			host_verts.reserve(num_vertices - num_host_verts);
 		}
 		for i in 0..num_vertices {
-			self.vertices[i] = Point2D { x: coordinates[i * 2], y: coordinates[i * 2 + 1] };
+			host_verts[i] = Point2D { x: coordinates[i * 2], y: coordinates[i * 2 + 1] };
 		}
-		self.sync_status = sync_status::SyncStatus::SYNCED; //They are now in sync.
-	}
+		self.sync_status.replace(sync_status::SyncStatus::SYNCED); //They are now in sync.
+	}*/
 }
 
 impl TwoDimensional for Polygon {
@@ -606,110 +579,10 @@ impl FromIterator<Point2D> for Polygon {
 	fn from_iter<T>(iter: T) -> Self
 			where T: IntoIterator<Item = Point2D> {
 		Polygon {
-			vertices: Vec::from_iter(iter),
-			gpu_vertices: None,
-			sync_status: sync_status::SyncStatus::HOST
+			vertices: Rc::new(RefCell::new(Vec::from_iter(iter))),
+			gpu_vertices: Rc::new(RefCell::new(Array::new(0))),
+			sync_status: Rc::new(RefCell::new(sync_status::SyncStatus::HOST)),
 		}
-	}
-}
-
-impl<'a> IntoIterator for &'a Polygon {
-	type Item = &'a Point2D;
-	type IntoIter = std::slice::Iter<'a, Point2D>;
-
-	/// Allows iterating over the vertices of the polygon.
-	///
-	/// This will return an iterator over the vertices, as `Point2D` instances. This will start
-	/// iterating at the seam of the polygon, and will enumerate all vertices in counter-clockwise
-	/// order (for a positive polygon) or clockwise order (for a negative polygon) until reaching
-	/// the seam again.
-	///
-	/// # Examples
-	/// ```
-	/// use apex::{Point2D, Polygon};
-	/// let vertices = [
-	/// 	Point2D { x: 0, y: 0 },
-	/// 	Point2D { x: 100, y: 100 },
-	/// 	Point2D { x: 0, y: 100 }
-	/// ];
-	/// let poly = Polygon::from_iter(vertices);
-	/// //Now iterate over the vertices.
-	/// let mut i = 0;
-	/// for vertex in &poly { //This for-each loop is possible because Polygon implements IntoIterator.
-	/// 	assert_eq!(*vertex, vertices[i]);
-	/// 	i += 1;
-	/// }
-	/// ```
-	fn into_iter(self) -> Self::IntoIter {
-		self.host_vertices().into_iter()
-	}
-}
-
-impl Index<usize> for Polygon {
-	type Output = Point2D;
-
-	/// Indexes the vertices of this polygon.
-	///
-	/// This will obtain a single vertex of the polygon. This is typically used to process one
-	/// vertex at a time by a custom algorithm, or to extract the resulting computed geometry from
-	/// the library into the rest of your application.
-	///
-	/// This indexing only supports single indices. The polygon can't produce slices.
-	///
-	/// # Arguments
-	/// * `index` - The index of the vertex to obtain.
-	///
-	/// # Panics
-	/// Will panic if the index is equal to or greater than the number of vertices in the polygon.
-	///
-	/// # Examples
-	/// ```
-	/// use apex::{Point2D, Polygon};
-	/// //Create a square, with 4 vertices.
-	/// let mut poly = Polygon::new();
-	/// poly.push(Point2D { x: 0, y: 0 });
-	/// poly.push(Point2D { x: 100, y: 0 });
-	/// poly.push(Point2D { x: 100, y: 100 });
-	/// poly.push(Point2D { x: 0, y: 100 });
-	/// //Access one of the vertices.
-	/// let third_vertex = poly[2];
-	/// assert_eq!(third_vertex, Point2D { x: 100, y: 100 });
-	/// ```
-	fn index(&self, index: usize) -> &Point2D {
-		self.host_vertices().index(index)
-	}
-}
-
-impl IndexMut<usize> for Polygon {
-	/// Indexes the vertices of this polygon.
-	///
-	/// This will allow mutating a single vertex of the polygon. This is typically used to process
-	/// one vertex at a time by a custom algorithm. Beware though that this doesn't allow processing
-	/// the polygon on a graphics card.
-	///
-	/// This indexing only supports single indices. The polygon can't produce slices.
-	///
-	/// # Arguments
-	/// * `index` - The index of the vertex to mutate.
-	///
-	/// # Panics
-	/// Will panic if the index is equal to or greater than the number of vertices in the polygon.
-	///
-	/// # Examples
-	/// ```
-	/// use apex::{Point2D, Polygon};
-	/// //Create a square, with 4 vertices.
-	/// let mut poly = Polygon::new();
-	/// poly.push(Point2D { x: 0, y: 0 });
-	/// poly.push(Point2D { x: 100, y: 0 });
-	/// poly.push(Point2D { x: 100, y: 100 });
-	/// poly.push(Point2D { x: 0, y: 100 });
-	/// //Change one of the vertices.
-	/// poly[1].x = 50;
-	/// assert_eq!(poly[1], Point2D { x: 50, y: 0 });
-	/// ```
-	fn index_mut(&mut self, index: usize) -> &mut Point2D {
-		self.host_vertices_mut().index_mut(index)
 	}
 }
 
@@ -732,8 +605,64 @@ impl fmt::Debug for Polygon {
 	/// output.
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		f.debug_struct("Polygon")
-			.field("vertices", self.host_vertices())
+			.field("vertices", &self.host_vertices().as_slice())
 			.finish()
+	}
+}
+
+/// An iterator over the vertices of a polygon.
+///
+/// This iterator holds a reference to the vertex data in the polygon. The reference is a guard to
+/// borrow the polygon's data. While the iterator is in use, the reference will be kept alive so
+/// that iteration can continue safely.
+///
+/// If the polygon is modified during iteration, the reference will panic due to the RefCell being
+/// obtained mutably while also being referenced to immutably. This is slightly different to the
+/// behaviour of a normal iterator.
+///
+/// This class is not an actual iterator but merely implements `IntoIterator`, consuming it to
+/// become an actual iterator but keeping the reference alive.
+struct PolygonIterator<'a> {
+	/// A reference to the vertex data inside of the polygon.
+	///
+	/// This reference is to the CPU-side data in the polygon.
+	vertex_reference: Ref<'a, Vec<Point2D>>
+}
+
+impl<'a, 'b: 'a> IntoIterator for &'b PolygonIterator<'a> {
+	/// The `PolygonIterator` turns into an iterator over `Point2D` instances.
+	type Item = &'a Point2D;
+
+	/// The `PolygonIterator` turns into an iterator over `Point2D` instances.
+	type IntoIter = Iter<'a, Point2D>;
+
+	/// Converts the `PolygonIterator` into an iterator.
+	///
+	/// This happens automatically when the user attempts to iterate over the `PolygonIterator`.
+	fn into_iter(self) -> Iter<'a, Point2D> {
+		self.vertex_reference.iter()
+	}
+}
+
+struct PolygonIteratorMut<'a> {
+	/// A reference to the vertex data inside of the polygon.
+	///
+	/// This reference is to the CPU-side data in the polygon.
+	polygon_reference: RefMut<'a, Vec<Point2D>>
+}
+
+impl<'a, 'b: 'a> IntoIterator for &'b mut PolygonIteratorMut<'a> {
+	/// The `PolygonIteratorMut` turns into an iterator over `Point2D` instances.
+	type Item = &'a mut Point2D;
+
+	/// The `PolygonIteratorMut` turns into an iterator over `Point2D` instances.
+	type IntoIter = IterMut<'a, Point2D>;
+
+	/// Converts the `PolygonIteratorMut` into an iterator.
+	///
+	/// This happens automatically when the user attempts to iterate over the `PolygonIteratorMut`.
+	fn into_iter(self) -> IterMut<'a, Point2D> {
+		self.polygon_reference.iter_mut()
 	}
 }
 
@@ -818,7 +747,7 @@ mod tests {
 		assert_eq!(poly.len(), 4, "The square starts with 4 vertices.");
 		poly.push(Point2D { x: 0, y: 100 });
 		assert_eq!(poly.len(), 5, "After adding 1 more vertex, there are now 5 vertices.");
-		assert_eq!(poly[4], Point2D { x: 0, y: 100 }, "The newly added vertex is at the seam.");
+		assert_eq!(*poly.vertex(4), Point2D { x: 0, y: 100 }, "The newly added vertex is at the seam.");
 	}
 
 	/// Test removing the last element from the polygon.
@@ -844,8 +773,8 @@ mod tests {
 		let mut poly = polygon::triangle_1000();
 		poly.insert(0, Point2D { x: 500, y: 500 }); //Insert at the start.
 		assert_eq!(poly.len(), 4, "With one additional vertex inserted, there are now 4 vertices.");
-		assert_eq!(poly[0], Point2D { x: 500, y: 500 }, "This is the newly inserted vertex.");
-		assert_eq!(poly[1], Point2D { x: 24, y: 24 }, "This is the vertex that used to be the first one.");
+		assert_eq!(*poly.vertex(0), Point2D { x: 500, y: 500 }, "This is the newly inserted vertex.");
+		assert_eq!(*poly.vertex(1), Point2D { x: 24, y: 24 }, "This is the vertex that used to be the first one.");
 	}
 
 	/// Test inserting a new vertex in the middle of a polygon.
@@ -854,10 +783,10 @@ mod tests {
 		let mut poly = polygon::triangle_1000();
 		poly.insert(2, Point2D { x: 500, y: 500 }); //Insert with 2 vertices before it, and 1 vertex after it.
 		assert_eq!(poly.len(), 4, "With one additional vertex inserted, there are now 4 vertices.");
-		assert_eq!(poly[0], Point2D { x: 24, y: 24 }, "The first vertex is not moved.");
-		assert_eq!(poly[1], Point2D { x: 1024, y: 24 }, "The second vertex is not moved.");
-		assert_eq!(poly[2], Point2D { x: 500, y: 500 }, "This is the newly inserted vertex.");
-		assert_eq!(poly[3], Point2D { x: 524, y: 1024 }, "This is the vertex that used to be the third vertex.");
+		assert_eq!(*poly.vertex(0), Point2D { x: 24, y: 24 }, "The first vertex is not moved.");
+		assert_eq!(*poly.vertex(1), Point2D { x: 1024, y: 24 }, "The second vertex is not moved.");
+		assert_eq!(*poly.vertex(2), Point2D { x: 500, y: 500 }, "This is the newly inserted vertex.");
+		assert_eq!(*poly.vertex(3), Point2D { x: 524, y: 1024 }, "This is the vertex that used to be the third vertex.");
 	}
 
 	/// Test inserting a new vertex at the end of a polygon.
@@ -866,10 +795,10 @@ mod tests {
 		let mut poly = polygon::triangle_1000();
 		poly.insert(3, Point2D { x: 500, y: 500 }); //Insert at the end.
 		assert_eq!(poly.len(), 4, "With one additional vertex inserted, there are now 4 vertices.");
-		assert_eq!(poly[0], Point2D { x: 24, y: 24 }, "The first vertex is not moved.");
-		assert_eq!(poly[1], Point2D { x: 1024, y: 24 }, "The second vertex is not moved.");
-		assert_eq!(poly[2], Point2D { x: 524, y: 1024 }, "The third vertex is not moved.");
-		assert_eq!(poly[3], Point2D { x: 500, y: 500 }, "This is the newly inserted vertex.");
+		assert_eq!(*poly.vertex(0), Point2D { x: 24, y: 24 }, "The first vertex is not moved.");
+		assert_eq!(*poly.vertex(1), Point2D { x: 1024, y: 24 }, "The second vertex is not moved.");
+		assert_eq!(*poly.vertex(2), Point2D { x: 524, y: 1024 }, "The third vertex is not moved.");
+		assert_eq!(*poly.vertex(3), Point2D { x: 500, y: 500 }, "This is the newly inserted vertex.");
 	}
 
 	/// Test removing a vertex from the start of a polygon.
@@ -878,9 +807,9 @@ mod tests {
 		let mut poly = polygon::square_1000();
 		let removed = poly.remove(0);
 		assert_eq!(removed, Point2D { x: 0, y: 0 }, "The first vertex was removed.");
-		assert_eq!(poly[0], Point2D { x: 1000, y: 0 }, "The second vertex shifted into the first position.");
-		assert_eq!(poly[1], Point2D { x: 1000, y: 1000 }, "The third vertex shifted into the second position.");
-		assert_eq!(poly[2], Point2D { x: 0, y: 1000 }, "The fourth vertex shifted into the third position.");
+		assert_eq!(*poly.vertex(0), Point2D { x: 1000, y: 0 }, "The second vertex shifted into the first position.");
+		assert_eq!(*poly.vertex(1), Point2D { x: 1000, y: 1000 }, "The third vertex shifted into the second position.");
+		assert_eq!(*poly.vertex(2), Point2D { x: 0, y: 1000 }, "The fourth vertex shifted into the third position.");
 	}
 
 	/// Test removing a vertex from the middle of a polygon.
@@ -889,9 +818,9 @@ mod tests {
 		let mut poly = polygon::square_1000();
 		let removed = poly.remove(2);
 		assert_eq!(removed, Point2D { x: 1000, y: 1000 }, "The third vertex was removed.");
-		assert_eq!(poly[0], Point2D { x: 0, y: 0 }, "The first vertex is still in place.");
-		assert_eq!(poly[1], Point2D { x: 1000, y: 0 }, "The second vertex is still in place.");
-		assert_eq!(poly[2], Point2D { x: 0, y: 1000 }, "The fourth vertex shifted into the third position.");
+		assert_eq!(*poly.vertex(0), Point2D { x: 0, y: 0 }, "The first vertex is still in place.");
+		assert_eq!(*poly.vertex(1), Point2D { x: 1000, y: 0 }, "The second vertex is still in place.");
+		assert_eq!(*poly.vertex(2), Point2D { x: 0, y: 1000 }, "The fourth vertex shifted into the third position.");
 	}
 
 	/// Test removing a vertex from the end of a polygon.
@@ -900,9 +829,9 @@ mod tests {
 		let mut poly = polygon::square_1000();
 		let removed = poly.remove(3);
 		assert_eq!(removed, Point2D { x: 0, y: 1000 }, "The fourth vertex was removed.");
-		assert_eq!(poly[0], Point2D { x: 0, y: 0 }, "The first vertex is still in place.");
-		assert_eq!(poly[1], Point2D { x: 1000, y: 0 }, "The second vertex is still in place.");
-		assert_eq!(poly[2], Point2D { x: 1000, y: 1000 }, "The third vertex is still in place.");
+		assert_eq!(*poly.vertex(0), Point2D { x: 0, y: 0 }, "The first vertex is still in place.");
+		assert_eq!(*poly.vertex(1), Point2D { x: 1000, y: 0 }, "The second vertex is still in place.");
+		assert_eq!(*poly.vertex(2), Point2D { x: 1000, y: 1000 }, "The third vertex is still in place.");
 	}
 
 	/// Test clearing a polygon.
@@ -911,49 +840,6 @@ mod tests {
 		let mut poly = polygon::square_1000();
 		poly.clear();
 		assert_eq!(poly.len(), 0, "After clearing, there should no longer be any vertices.");
-	}
-
-	/// Test getting a vertex from the polygon.
-	///
-	/// The vertex we obtain is within the range of the polygon.
-	#[test]
-	fn get_in_range() {
-		let poly = polygon::square_1000();
-		let vertex = poly.get(2);
-		assert_eq!(*vertex.unwrap(), Point2D { x: 1000, y: 1000 }, "The second vertex was obtained.");
-	}
-
-	/// Test getting a vertex from the polygon.
-	///
-	/// However in this test, the vertex we obtain is out of range, so we should get `None`.
-	#[test]
-	fn get_out_of_range() {
-		let poly = polygon::square_1000();
-		let vertex = poly.get(4); //There are 4 vertices, so the 5th element is out of range.
-		assert_eq!(vertex, None, "The 5th vertex is out of range, so it should return None.");
-	}
-
-	/// Test getting a vertex from the polygon.
-	///
-	/// The vertex we obtain is within the range of the polygon.
-	#[test]
-	fn get_mut_in_range() {
-		let mut poly = polygon::square_1000();
-		let vertex = poly.get_mut(2).unwrap();
-		assert_eq!(*vertex, Point2D { x: 1000, y: 1000 }, "The second vertex was obtained.");
-		vertex.x = 2000;
-		assert_eq!(*vertex, Point2D { x: 2000, y: 1000 }, "The second vertex is now modified.");
-		assert_eq!(poly[2], Point2D { x: 2000, y: 1000 }, "And this is also reflected in the polygon itself.");
-	}
-
-	/// Test getting a vertex from the polygon.
-	///
-	/// However in this test, the vertex we obtain is out of range, so we should get `None`.
-	#[test]
-	fn get_mut_out_of_range() {
-		let mut poly = polygon::square_1000();
-		let vertex = poly.get_mut(4); //There are 4 vertices, so the 5th element is out of range.
-		assert_eq!(vertex, None, "The 5th vertex is out of range, so it should return None.");
 	}
 
 	/// Test iterating over the polygon with `iter()`.
@@ -980,10 +866,10 @@ mod tests {
 			vertex.x += 33;
 			vertex.y += 10;
 		}
-		assert_eq!(poly[0], Point2D { x: 33, y: 10 }, "The first vertex is now shifted by 33,10.");
-		assert_eq!(poly[1], Point2D { x: 1033, y: 10 }, "The second vertex is now shifted by 33,10.");
-		assert_eq!(poly[2], Point2D { x: 1033, y: 1010 }, "The third vertex is now shifted by 33,10.");
-		assert_eq!(poly[3], Point2D { x: 33, y: 1010 }, "The fourth vertex is now shifted by 33,10.");
+		assert_eq!(*poly.vertex(0), Point2D { x: 33, y: 10 }, "The first vertex is now shifted by 33,10.");
+		assert_eq!(*poly.vertex(1), Point2D { x: 1033, y: 10 }, "The second vertex is now shifted by 33,10.");
+		assert_eq!(*poly.vertex(2), Point2D { x: 1033, y: 1010 }, "The third vertex is now shifted by 33,10.");
+		assert_eq!(*poly.vertex(3), Point2D { x: 33, y: 1010 }, "The fourth vertex is now shifted by 33,10.");
 	}
 
 	/// Test creating a polygon from an iterable object, this time an array.
@@ -994,9 +880,9 @@ mod tests {
 			Point2D { x: 500, y: 0 },
 			Point2D { x: 250, y: 1000 }
 		]);
-		assert_eq!(poly[0], Point2D { x: 0, y: 0 }, "The first vertex in the newly created polygon.");
-		assert_eq!(poly[1], Point2D { x: 500, y: 0 }, "The second vertex in the newly created polygon.");
-		assert_eq!(poly[2], Point2D { x: 250, y: 1000 }, "The third vertex in the newly created polygon.");
+		assert_eq!(*poly.vertex(0), Point2D { x: 0, y: 0 }, "The first vertex in the newly created polygon.");
+		assert_eq!(*poly.vertex(1), Point2D { x: 500, y: 0 }, "The second vertex in the newly created polygon.");
+		assert_eq!(*poly.vertex(2), Point2D { x: 250, y: 1000 }, "The third vertex in the newly created polygon.");
 	}
 
 	/// Test creating a polygon from an iterable object, this time a vector.
@@ -1008,9 +894,9 @@ mod tests {
 			Point2D { x: 250, y: 1000 }
 		];
 		let poly = Polygon::from_iter(vertices);
-		assert_eq!(poly[0], Point2D { x: 0, y: 0 }, "The first vertex in the newly created polygon.");
-		assert_eq!(poly[1], Point2D { x: 500, y: 0 }, "The second vertex in the newly created polygon.");
-		assert_eq!(poly[2], Point2D { x: 250, y: 1000 }, "The third vertex in the newly created polygon.");
+		assert_eq!(*poly.vertex(0), Point2D { x: 0, y: 0 }, "The first vertex in the newly created polygon.");
+		assert_eq!(*poly.vertex(1), Point2D { x: 500, y: 0 }, "The second vertex in the newly created polygon.");
+		assert_eq!(*poly.vertex(2), Point2D { x: 250, y: 1000 }, "The third vertex in the newly created polygon.");
 	}
 
 	/// Test creating a polygon from an iterable object, this time a different polygon.
@@ -1022,9 +908,9 @@ mod tests {
 			Point2D { x: 250, y: 1000 }
 		]);
 		let poly = Polygon::from_iter(original.iter().copied());
-		assert_eq!(poly[0], Point2D { x: 0, y: 0 }, "The first vertex in the newly created polygon.");
-		assert_eq!(poly[1], Point2D { x: 500, y: 0 }, "The second vertex in the newly created polygon.");
-		assert_eq!(poly[2], Point2D { x: 250, y: 1000 }, "The third vertex in the newly created polygon.");
+		assert_eq!(*poly.vertex(0), Point2D { x: 0, y: 0 }, "The first vertex in the newly created polygon.");
+		assert_eq!(*poly.vertex(1), Point2D { x: 500, y: 0 }, "The second vertex in the newly created polygon.");
+		assert_eq!(*poly.vertex(2), Point2D { x: 250, y: 1000 }, "The third vertex in the newly created polygon.");
 	}
 
 	/// Test iterating over vertices in a polygon.
@@ -1053,9 +939,9 @@ mod tests {
 			Point2D { x: 50, y: 10 },
 			Point2D { x: 10, y: 100 }
 		]);
-		assert_eq!(poly[0], Point2D { x: 0, y: 0 }, "Getting the first vertex at index 0.");
-		assert_eq!(poly[1], Point2D { x: 50, y: 10 }, "Getting the second vertex at index 1.");
-		assert_eq!(poly[2], Point2D { x: 10, y: 100 }, "Getting the third vertex at index 2.");
+		assert_eq!(*poly.vertex(0), Point2D { x: 0, y: 0 }, "Getting the first vertex at index 0.");
+		assert_eq!(*poly.vertex(1), Point2D { x: 50, y: 10 }, "Getting the second vertex at index 1.");
+		assert_eq!(*poly.vertex(2), Point2D { x: 10, y: 100 }, "Getting the third vertex at index 2.");
 	}
 
 	/// Test accessing a vertex beyond the size of the polygon.
@@ -1066,7 +952,7 @@ mod tests {
 	fn index_out_of_range() {
 		let poly = polygon::triangle_1000();
 		std::panic::set_hook(Box::new(|_| {})); //Disable stack trace from this panic.
-		poly[3]; //Panic here. This is out of range.
+		poly.vertex(3); //Panic here. This is out of range.
 	}
 
 	/// Test modifying a vertex of the polygon.
@@ -1077,9 +963,9 @@ mod tests {
 			Point2D { x: 50, y: 10 },
 			Point2D { x: 10, y: 100 }
 		]);
-		poly[1] = Point2D { x: 200, y: 400 };
-		assert_eq!(poly[0], Point2D { x: 0, y: 0 }, "The first vertex was not modified.");
-		assert_eq!(poly[1], Point2D { x: 200, y: 400 }, "The second vertex was modified.");
-		assert_eq!(poly[2], Point2D { x: 10, y: 100 }, "The third vertex was not modified.");
+		*poly.vertex_mut(1) = Point2D { x: 200, y: 400 };
+		assert_eq!(*poly.vertex(0), Point2D { x: 0, y: 0 }, "The first vertex was not modified.");
+		assert_eq!(*poly.vertex(1), Point2D { x: 200, y: 400 }, "The second vertex was modified.");
+		assert_eq!(*poly.vertex(2), Point2D { x: 10, y: 100 }, "The third vertex was not modified.");
 	}
 }

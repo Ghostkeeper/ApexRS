@@ -42,7 +42,7 @@ use crate::TwoDimensional; //The translate function is part of TwoDimensional.
 /// assert_eq!(poly[2], Point2D { x: 167, y: -50 });
 /// ```
 pub fn translate_polygon_st(polygon: &mut Polygon, dx: Coordinate, dy: Coordinate) {
-	for vertex in polygon.host_vertices_mut() {
+	for vertex in polygon.host_vertices_mut().iter_mut() {
 		vertex.translate(dx, dy);
 	}
 }
@@ -121,13 +121,13 @@ mod tests {
 
 		translate_polygon_st(&mut poly, x, y);
 		for i in 0..poly.len() {
-			assert_eq!(poly[i], original[i] + crate::Point2D { x, y });
+			assert_eq!(*(&poly)[i], *(&original)[i] + crate::Point2D { x, y });
 		}
 
 		poly = crate::test::data::polygon::square_1000(); //Reset to original.
 		translate_polygon_mt(&mut poly, x, y);
 		for i in 0..poly.len() {
-			assert_eq!(poly[i], original[i] + crate::Point2D { x, y });
+			assert_eq!(*(&poly)[i], *(&original)[i] + crate::Point2D { x, y });
 		}
 	}
 }
