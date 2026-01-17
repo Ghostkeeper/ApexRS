@@ -3,14 +3,14 @@ name = "apex"
 version = "0.1.0"
 authors = ["Ghostkeeper"]
 description = "Massively parallel geometry operations"
-edition = "2021"
+edition = "2024"
 repository = "https://github.com/Ghostkeeper/Apex-rs"
 license = "AGPL-3.0-or-later"
 
 [dependencies]
-arrayfire = "3.8.0"
 auto_ops = "0.3.0"
-rayon = "1.7.0"
+rayon = "1.11.0"
+cubecl = "0.8.1"
 
 [dev-dependencies]
-test-case = "3.1.0"
+test-case = "3.3.1"
