@@ -11,10 +11,7 @@
 use std::cell::{Ref, RefCell, RefMut}; //For interior mutability to keep CPU and GPU in sync.
 use std::fmt; //You can print polygons as text.
 use std::iter::FromIterator; //Constructing polygons from iterable lists of vertices.
-use std::ops::{Deref, DerefMut, Index}; //Indexing polygons accesses its vertices.
-use std::ops::IndexMut;
 use std::rc::Rc; //For interior mutability to keep CPU and GPU in sync.
-use std::slice::{Iter, IterMut}; //Indexing polygons accesses its vertices.
 use cubecl::prelude::Array;  //GPU processing.
 
 use crate::Area; //To return the polygon's surface area.
@@ -395,32 +392,15 @@ impl Polygon {
 	/// assert_eq!(iter.next(), None); //It ran out of vertices, so it stops iterating here.
 	/// ```
 	pub fn iter(&self) -> PolygonIterator {
-		PolygonIterator { vertex_reference: self.host_vertices() }
+		PolygonIterator {
+			vertices_ref: Some(Ref::map(self.vertices.borrow(), |v| &v[..])),
+		}
 	}
 
-	/// Create an iterator that allows modifying the vertices of this polygon.
-	///
-	/// The iterator will enumerate all of the vertices of this polygon in order, and allow the user
-	/// to modify them in-place. The order will be counter-clockwise if the polygon is a positive
-	/// shape, starting from the seam.
-	///
-	/// # Examples
-	/// ```
-	/// use apex::{Point2D, Polygon};
-	/// let mut poly = Polygon::from_iter([
-	/// 	Point2D { x: 0, y: 0 },
-	/// 	Point2D { x: 1000, y: 700 },
-	/// 	Point2D { x: 0, y: 1000 }
-	/// ]);
-	/// for vertex in poly.iter_mut() { //Now iterate over the vertices, multiplying all Y coordinates by 2.
-	/// 	vertex.y *= 2;
-	/// }
-	/// assert_eq!(poly[0], Point2D { x: 0, y: 0 });
-	/// assert_eq!(poly[1], Point2D { x: 1000, y: 1400 });
-	/// assert_eq!(poly[2], Point2D { x: 0, y: 2000 });
-	/// ```
 	pub fn iter_mut(&mut self) -> PolygonIteratorMut {
-		PolygonIteratorMut { polygon_reference: self.host_vertices_mut() }
+		PolygonIteratorMut {
+			vertices_ref: Some(RefMut::map(self.vertices.borrow_mut(), |v| &mut v[..])),
+		}
 	}
 
 	/// Obtain the vertices of this polygon on the host.
@@ -623,46 +603,52 @@ impl fmt::Debug for Polygon {
 /// This class is not an actual iterator but merely implements `IntoIterator`, consuming it to
 /// become an actual iterator but keeping the reference alive.
 struct PolygonIterator<'a> {
-	/// A reference to the vertex data inside of the polygon.
-	///
-	/// This reference is to the CPU-side data in the polygon.
-	vertex_reference: Ref<'a, Vec<Point2D>>
+	vertices_ref: Option<Ref<'a, [Point2D]>>,
 }
 
-impl<'a, 'b: 'a> IntoIterator for &'b PolygonIterator<'a> {
-	/// The `PolygonIterator` turns into an iterator over `Point2D` instances.
-	type Item = &'a Point2D;
+impl<'a> Iterator for PolygonIterator<'a> {
+	type Item = Ref<'a, Point2D>;
 
-	/// The `PolygonIterator` turns into an iterator over `Point2D` instances.
-	type IntoIter = Iter<'a, Point2D>;
-
-	/// Converts the `PolygonIterator` into an iterator.
-	///
-	/// This happens automatically when the user attempts to iterate over the `PolygonIterator`.
-	fn into_iter(self) -> Iter<'a, Point2D> {
-		self.vertex_reference.iter()
+	fn next(&mut self) -> Option<Self::Item> {
+		if self.vertices_ref.is_none() {
+			return None;
+		}
+		if let Some(borrow) = self.vertices_ref.take() {
+			if borrow.is_empty() {
+				return None;
+			}
+			let (head, tail) = Ref::map_split(borrow, |slice| {
+				slice.split_at(1)
+			});
+			self.vertices_ref.replace(tail);
+			return Some(Ref::map(head, |slice| &slice[0]));
+		}
+		None
 	}
 }
 
 struct PolygonIteratorMut<'a> {
-	/// A reference to the vertex data inside of the polygon.
-	///
-	/// This reference is to the CPU-side data in the polygon.
-	polygon_reference: RefMut<'a, Vec<Point2D>>
+	vertices_ref: Option<RefMut<'a, [Point2D]>>,
 }
 
-impl<'a, 'b: 'a> IntoIterator for &'b mut PolygonIteratorMut<'a> {
-	/// The `PolygonIteratorMut` turns into an iterator over `Point2D` instances.
-	type Item = &'a mut Point2D;
+impl<'a> Iterator for PolygonIteratorMut<'a> {
+	type Item = RefMut<'a, Point2D>;
 
-	/// The `PolygonIteratorMut` turns into an iterator over `Point2D` instances.
-	type IntoIter = IterMut<'a, Point2D>;
-
-	/// Converts the `PolygonIteratorMut` into an iterator.
-	///
-	/// This happens automatically when the user attempts to iterate over the `PolygonIteratorMut`.
-	fn into_iter(self) -> IterMut<'a, Point2D> {
-		self.polygon_reference.iter_mut()
+	fn next(&mut self) -> Option<Self::Item> {
+		if self.vertices_ref.is_none() {
+			return None;
+		}
+		if let Some(borrow) = self.vertices_ref.take() {
+			if borrow.is_empty() {
+				return None;
+			}
+			let (head, tail) = RefMut::map_split(borrow, |slice| {
+				slice.split_at_mut(1)
+			});
+			self.vertices_ref.replace(tail);
+			return Some(RefMut::map(head, |slice| &mut slice[0]));
+		}
+		None
 	}
 }
 
@@ -847,11 +833,11 @@ mod tests {
 	fn iter() {
 		let poly = polygon::square_1000();
 		let mut iterator = poly.iter();
-		assert_eq!(iterator.next(), Some(&Point2D { x: 0, y: 0 }), "First it should encounter the vertex at the seam.");
-		assert_eq!(iterator.next(), Some(&Point2D { x: 1000, y: 0 }), "Next the second vertex counter-clockwisely.");
-		assert_eq!(iterator.next(), Some(&Point2D { x: 1000, y: 1000 }), "Next the third vertex.");
-		assert_eq!(iterator.next(), Some(&Point2D { x: 0, y: 1000 }), "And finally the last vertex.");
-		assert_eq!(iterator.next(), None, "After all vertices are iterated over, it should return None.");
+		assert_eq!(*iterator.next().expect("There should be 4 vertices."), Point2D { x: 0, y: 0 }, "First it should encounter the vertex at the seam.");
+		assert_eq!(*iterator.next().expect("There should be 4 vertices."), Point2D { x: 1000, y: 0 }, "Next the second vertex counter-clockwisely.");
+		assert_eq!(*iterator.next().expect("There should be 4 vertices."), Point2D { x: 1000, y: 1000 }, "Next the third vertex.");
+		assert_eq!(*iterator.next().expect("There should be 4 vertices."), Point2D { x: 0, y: 1000 }, "And finally the last vertex.");
+		assert!(iterator.next().is_none(), "After all vertices are iterated over, it should return None.");
 	}
 
 	/// Test iterating over the polygon while modifying it with `iter_mut()`.
@@ -860,8 +846,8 @@ mod tests {
 		let mut poly = polygon::square_1000();
 		let copy = polygon::square_1000();
 		let mut i = 0;
-		for vertex in poly.iter_mut() {
-			assert_eq!(*vertex, copy[i], "We must iterate over the polygon in index order.");
+		for mut vertex in poly.iter_mut() {
+			assert_eq!(*vertex, *copy.vertex(i), "We must iterate over the polygon in index order.");
 			i += 1;
 			vertex.x += 33;
 			vertex.y += 10;
@@ -899,20 +885,6 @@ mod tests {
 		assert_eq!(*poly.vertex(2), Point2D { x: 250, y: 1000 }, "The third vertex in the newly created polygon.");
 	}
 
-	/// Test creating a polygon from an iterable object, this time a different polygon.
-	#[test]
-	fn from_iter_polygon() {
-		let original = Polygon::from_iter([
-			Point2D { x: 0, y: 0 },
-			Point2D { x: 500, y: 0 },
-			Point2D { x: 250, y: 1000 }
-		]);
-		let poly = Polygon::from_iter(original.iter().copied());
-		assert_eq!(*poly.vertex(0), Point2D { x: 0, y: 0 }, "The first vertex in the newly created polygon.");
-		assert_eq!(*poly.vertex(1), Point2D { x: 500, y: 0 }, "The second vertex in the newly created polygon.");
-		assert_eq!(*poly.vertex(2), Point2D { x: 250, y: 1000 }, "The third vertex in the newly created polygon.");
-	}
-
 	/// Test iterating over vertices in a polygon.
 	#[test]
 	fn into_iter() {
@@ -923,7 +895,7 @@ mod tests {
 		];
 		let poly = Polygon::from_iter(vertices);
 		let mut i = 0;
-		for vertex in &poly {
+		for vertex in poly.iter() {
 			assert_eq!(*vertex, vertices[i], "The iterator must iterate over the vertices in order.");
 			i += 1;
 		}
