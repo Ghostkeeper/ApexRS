@@ -86,7 +86,7 @@ pub struct Polygon {
 	/// the GPU.
 	///
 	/// Before the first time that the polygon gets synced to the GPU, this will be `None`.
-	gpu_vertices: Rc<RefCell<Array<Coordinate>>>,
+	gpu_vertices: Rc<RefCell<Option<Array<Coordinate>>>>,
 
 	/// The up-to-date-ness of the vertex data on the CPU (host) or the GPU.
 	///
@@ -104,8 +104,8 @@ impl Polygon {
 	pub fn new() -> Self {
 		Polygon {
 			vertices: Rc::new(RefCell::new(vec!())),
-			gpu_vertices: Rc::new(RefCell::new(Array::new(0))),
-			sync_status: Rc::new(RefCell::new(sync_status::SyncStatus::SYNCED)),
+			gpu_vertices: Rc::new(RefCell::new(None)),
+			sync_status: Rc::new(RefCell::new(sync_status::SyncStatus::HOST)),
 		}
 	}
 
@@ -137,7 +137,7 @@ impl Polygon {
 	pub fn with_capacity(capacity: usize) -> Self {
 		Polygon {
 			vertices: Rc::new(RefCell::new(Vec::with_capacity(capacity))),
-			gpu_vertices: Rc::new(RefCell::new(Array::new(0))),
+			gpu_vertices: Rc::new(RefCell::new(None)),
 			sync_status: Rc::new(RefCell::new(sync_status::SyncStatus::HOST)),
 		}
 	}
@@ -315,13 +315,13 @@ impl Polygon {
 	/// //Insert a new vertex halfway.
 	/// poly.insert(3, Point2D { x: 500, y: 500 });
 	/// //The first 3 vertices are not moved.
-	/// assert_eq!(poly[0], Point2D { x: 0, y: 0 });
-	/// assert_eq!(poly[1], Point2D { x: 1000, y: 0 });
-	/// assert_eq!(poly[2], Point2D { x: 1000, y: 1000 });
+	/// assert_eq!(*poly.vertex(0), Point2D { x: 0, y: 0 });
+	/// assert_eq!(*poly.vertex(1), Point2D { x: 1000, y: 0 });
+	/// assert_eq!(*poly.vertex(2), Point2D { x: 1000, y: 1000 });
 	/// //Here is where the new vertex was inserted.
-	/// assert_eq!(poly[3], Point2D { x: 500, y: 500 });
+	/// assert_eq!(*poly.vertex(3), Point2D { x: 500, y: 500 });
 	/// //The remaining vertices were shifted.
-	/// assert_eq!(poly[4], Point2D { x: 0, y: 1000 });
+	/// assert_eq!(*poly.vertex(4), Point2D { x: 0, y: 1000 });
 	/// ```
 	pub fn insert(&mut self, index: usize, vertex: Point2D) {
 		self.host_vertices_mut().insert(index, vertex);
@@ -347,7 +347,7 @@ impl Polygon {
 	/// //Remove one of the vertices.
 	/// let removed_vertex = poly.remove(2);
 	/// assert_eq!(removed_vertex, Point2D { x: 1000, y: 1000 }); //This is the removed vertex.
-	/// assert_eq!(poly[2], Point2D { x: 0, y: 1000 }); //The last vertex has shifted in its place.
+	/// assert_eq!(*poly.vertex(2), Point2D { x: 0, y: 1000 }); //The last vertex has shifted in its place.
 	/// ```
 	pub fn remove(&mut self, index: usize) -> Point2D {
 		self.host_vertices_mut().remove(index)
@@ -386,10 +386,10 @@ impl Polygon {
 	/// 	Point2D { x: 333, y: 1000 }
 	/// ]);
 	/// let mut iter = poly.iter();
-	/// assert_eq!(iter.next(), Some(&Point2D { x: 0, y: 0 }));
-	/// assert_eq!(iter.next(), Some(&Point2D { x: 667, y: 0 })); //Counter-clockwise along the polygon's boundary.
-	/// assert_eq!(iter.next(), Some(&Point2D { x: 333, y: 1000 }));
-	/// assert_eq!(iter.next(), None); //It ran out of vertices, so it stops iterating here.
+	/// assert_eq!(*iter.next().expect("There should be 3 vertices."), Point2D { x: 0, y: 0 });
+	/// assert_eq!(*iter.next().expect("There should be 3 vertices."), Point2D { x: 667, y: 0 }); //Counter-clockwise along the polygon's boundary.
+	/// assert_eq!(*iter.next().expect("There should be 3 vertices."), Point2D { x: 333, y: 1000 });
+	/// assert!(iter.next().is_none()); //It ran out of vertices, so it stops iterating here.
 	/// ```
 	pub fn iter(&self) -> PolygonIterator {
 		PolygonIterator {
@@ -435,7 +435,7 @@ impl Polygon {
 	///
 	/// While this returns an ``Option`` due to the internal data structure in this polygon, the
 	/// resulting ``Option`` is guaranteed to be ``Some``.
-	pub(crate) fn gpu_vertices(&self) -> Ref<Array<Coordinate>> {
+	pub(crate) fn gpu_vertices(&self) -> Ref<Option<Array<Coordinate>>> {
 		if self.sync_status.borrow().eq(&sync_status::SyncStatus::HOST) { //GPU is outdated.
 			self.sync_host_to_gpu();
 		}
@@ -450,7 +450,7 @@ impl Polygon {
 	///
 	/// While this returns an ``Option`` due to the internal data structure in this polygon, the
 	/// resulting ``Option`` is guaranteed to be ``Some``.
-	pub(crate) fn gpu_vertices_mut(&mut self) -> RefMut<Array<Coordinate>> {
+	pub(crate) fn gpu_vertices_mut(&mut self) -> RefMut<Option<Array<Coordinate>>> {
 		if self.sync_status.borrow().eq(&sync_status::SyncStatus::HOST) { //GPU is outdated.
 			//self.sync_host_to_gpu();
 		}
@@ -463,58 +463,6 @@ impl Polygon {
 	fn sync_gpu_to_host(&self) {
 		//TODO.
 	}
-
-	/*/// Copy the vertex data from the host to the GPU, to prepare for processing it there.
-	///
-	/// This will allocate space for the data on the GPU if there is not enough space there yet. If
-	/// there is enough space, the existing space will be re-used.
-	///
-	/// This function assumes that the GPU data is outdated. If the host and GPU are already synced,
-	/// this will cause an unnecessary copy to the GPU. If the GPU was leading, then this will
-	/// overwrite the leading GPU data with the data on the host, effectively reversing the latest
-	/// changes to the data. So it is important to check first what the sync status is of these
-	/// vertices between the different devices.
-	fn sync_host_to_gpu(&mut self) {
-		//TODO: If the GPU memory already has enough space, copy without allocating new memory.
-		let num_vertices = self.len();
-		let mut coordinates = Vec::<Coordinate>::with_capacity(num_vertices * 2);
-		for vertex in self.vertices.borrow().iter() {
-			coordinates.push(vertex.x);
-			coordinates.push(vertex.y);
-		}
-
-		self.gpu_vertices.borrow_mut().replace(
-			Array::<Coordinate>::new(coordinates.as_slice(), arrayfire::Dim4::new(&[num_vertices as u64, 2, 1, 1]))
-		);
-		self.sync_status.replace(sync_status::SyncStatus::SYNCED); //They are now in sync.
-	}
-
-	/// Copy the vertex data from the GPU to the host, to prepare for processing it there.
-	///
-	/// This function assumes that the host data is outdated. If the host and GPU are already
-	/// synced, this will cause an unnecessary copy from the GPU to the host. If the host was
-	/// leading, then this will override the leading host data with the data on the GU, effectively
-	/// reversing the latest changes to the data. So it is important to check first what the sync
-	/// status is of these vertices between the different devices.
-	fn sync_gpu_to_host(&mut self) {
-		let mut host_verts = self.vertices.borrow_mut();
-		let gpu_verts = self.gpu_vertices.borrow();
-		let num_vertices = gpu_verts.as_ref().unwrap().dims()[0] as usize;
-
-		//Copy the coordinates into a 1D array.
-		let mut coordinates = Vec::<Coordinate>::with_capacity(num_vertices * 2);
-		gpu_verts.as_ref().unwrap().host(&mut coordinates);
-
-		//Unwrap the 1D array as vertices.
-		let num_host_verts = host_verts.len();
-		if num_vertices > num_host_verts {
-			host_verts.reserve(num_vertices - num_host_verts);
-		}
-		for i in 0..num_vertices {
-			host_verts[i] = Point2D { x: coordinates[i * 2], y: coordinates[i * 2 + 1] };
-		}
-		self.sync_status.replace(sync_status::SyncStatus::SYNCED); //They are now in sync.
-	}*/
 }
 
 impl TwoDimensional for Polygon {
@@ -552,15 +500,15 @@ impl FromIterator<Point2D> for Polygon {
 	/// 	Point2D { x: 100, y: 0 },
 	/// 	Point2D { x: 50, y: 100 }
 	/// ]);
-	/// assert_eq!(poly[0], Point2D { x: 0, y: 0 });
-	/// assert_eq!(poly[1], Point2D { x: 100, y: 0 });
-	/// assert_eq!(poly[2], Point2D { x: 50, y: 100 });
+	/// assert_eq!(*poly.vertex(0), Point2D { x: 0, y: 0 });
+	/// assert_eq!(*poly.vertex(1), Point2D { x: 100, y: 0 });
+	/// assert_eq!(*poly.vertex(2), Point2D { x: 50, y: 100 });
 	/// ```
 	fn from_iter<T>(iter: T) -> Self
 			where T: IntoIterator<Item = Point2D> {
 		Polygon {
 			vertices: Rc::new(RefCell::new(Vec::from_iter(iter))),
-			gpu_vertices: Rc::new(RefCell::new(Array::new(0))),
+			gpu_vertices: Rc::new(RefCell::new(None)),
 			sync_status: Rc::new(RefCell::new(sync_status::SyncStatus::HOST)),
 		}
 	}
@@ -602,7 +550,7 @@ impl fmt::Debug for Polygon {
 ///
 /// This class is not an actual iterator but merely implements `IntoIterator`, consuming it to
 /// become an actual iterator but keeping the reference alive.
-struct PolygonIterator<'a> {
+pub struct PolygonIterator<'a> {
 	vertices_ref: Option<Ref<'a, [Point2D]>>,
 }
 
