@@ -225,12 +225,12 @@ impl Polygon {
 		self.host_vertices().len()
 	}
 
-	pub fn vertex(&self, index: usize) -> Ref<Point2D> {
+	pub fn vertex<'a>(&'a self, index: usize) -> Ref<'a, Point2D> {
 		self.sync_gpu_to_host();
 		Ref::map(self.vertices.borrow(), |verts| &verts[index])
 	}
 
-	pub fn vertex_mut(&mut self, index: usize) -> RefMut<Point2D> {
+	pub fn vertex_mut<'a>(&'a mut self, index: usize) -> RefMut<'a, Point2D> {
 		self.sync_gpu_to_host();
 		RefMut::map(self.vertices.borrow_mut(), |verts| &mut verts[index])
 	}
@@ -391,13 +391,13 @@ impl Polygon {
 	/// assert_eq!(*iter.next().expect("There should be 3 vertices."), Point2D { x: 333, y: 1000 });
 	/// assert!(iter.next().is_none()); //It ran out of vertices, so it stops iterating here.
 	/// ```
-	pub fn iter(&self) -> PolygonIterator {
+	pub fn iter<'a>(&'a self) -> PolygonIterator<'a> {
 		PolygonIterator {
 			vertices_ref: Some(Ref::map(self.vertices.borrow(), |v| &v[..])),
 		}
 	}
 
-	pub fn iter_mut(&mut self) -> PolygonIteratorMut {
+	pub fn iter_mut<'a>(&'a mut self) -> PolygonIteratorMut<'a> {
 		PolygonIteratorMut {
 			vertices_ref: Some(RefMut::map(self.vertices.borrow_mut(), |v| &mut v[..])),
 		}
@@ -435,7 +435,7 @@ impl Polygon {
 	///
 	/// While this returns an ``Option`` due to the internal data structure in this polygon, the
 	/// resulting ``Option`` is guaranteed to be ``Some``.
-	pub(crate) fn gpu_vertices(&self) -> Ref<Option<Array<Coordinate>>> {
+	pub(crate) fn gpu_vertices<'a>(&'a self) -> Ref<'a, Option<Array<Coordinate>>> {
 		if self.sync_status.borrow().eq(&sync_status::SyncStatus::HOST) { //GPU is outdated.
 			self.sync_host_to_gpu();
 		}
@@ -450,7 +450,7 @@ impl Polygon {
 	///
 	/// While this returns an ``Option`` due to the internal data structure in this polygon, the
 	/// resulting ``Option`` is guaranteed to be ``Some``.
-	pub(crate) fn gpu_vertices_mut(&mut self) -> RefMut<Option<Array<Coordinate>>> {
+	pub(crate) fn gpu_vertices_mut<'a>(&'a mut self) -> RefMut<'a, Option<Array<Coordinate>>> {
 		if self.sync_status.borrow().eq(&sync_status::SyncStatus::HOST) { //GPU is outdated.
 			//self.sync_host_to_gpu();
 		}
@@ -575,7 +575,7 @@ impl<'a> Iterator for PolygonIterator<'a> {
 	}
 }
 
-struct PolygonIteratorMut<'a> {
+pub struct PolygonIteratorMut<'a> {
 	vertices_ref: Option<RefMut<'a, [Point2D]>>,
 }
 
