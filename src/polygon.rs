@@ -20,6 +20,7 @@ use crate::Coordinate;
 use crate::Point2D; //The vertices of the Polygon are Point2D.
 use crate::Shape2D; //This is a 2D shape.
 use crate::TwoDimensional; //This is a two-dimensional object.
+use crate::detail::gpu::GPU; //To perform calculations on the GPU.
 use crate::detail::sync_status; //To track whether the GPU or CPU copies are up-to-date.
 use crate::operations::translate; //To translate the polygons.
 

@@ -6,10 +6,16 @@
  * You should have received a copy of the GNU Affero General Public License along with this library. If not, see <https://gnu.org/licenses/>.
  */
 
-//! This module provides additional things for the library that should not be exposed to the public.
-//!
-//! The files in this module are separated from the rest, to make it easier to find what you need in
-//! the source code of this library.
+//! Defines resources that help to track the state of the GPU during computations.
 
-pub(crate) mod sync_status;
-pub(crate) mod gpu;
+use pollster;
+use std::sync::LazyLock;
+use wgpu::{Device, DeviceDescriptor, Instance, InstanceDescriptor, Queue, RequestAdapterOptions};
+
+pub(crate) static WGPU: LazyLock<Instance> = LazyLock::new(|| {
+	Instance::new(&InstanceDescriptor::default())
+});
+pub(crate) static GPU: LazyLock<(Device, Queue)> = LazyLock::new(|| {
+	let adapter = pollster::block_on(WGPU.request_adapter(&RequestAdapterOptions::default())).expect("Failed to find a graphics card adapter.");
+	pollster::block_on(adapter.request_device(&DeviceDescriptor::default())).expect("Failed to create GPU device.")
+});
