@@ -12,7 +12,8 @@ use std::cell::{Ref, RefCell, RefMut}; //For interior mutability to keep CPU and
 use std::fmt; //You can print polygons as text.
 use std::iter::FromIterator; //Constructing polygons from iterable lists of vertices.
 use std::rc::Rc; //For interior mutability to keep CPU and GPU in sync.
-use wgpu::Buffer; //For computing on the GPU.
+use wgpu::{Buffer, BufferUsages}; //For computing on the GPU.
+use wgpu::util::{BufferInitDescriptor, DeviceExt};
 
 use crate::Area; //To return the polygon's surface area.
 use crate::Convexity; //To return the polygon's convexity.
@@ -87,7 +88,7 @@ pub struct Polygon {
 	/// the GPU.
 	///
 	/// Before the first time that the polygon gets synced to the GPU, this will be `None`.
-	gpu_vertices: Rc<RefCell<Option<Buffer>>>,
+	gpu_vertices_: Rc<RefCell<Option<Buffer>>>,
 
 	/// The up-to-date-ness of the vertex data on the CPU (host) or the GPU.
 	///
@@ -105,7 +106,7 @@ impl Polygon {
 	pub fn new() -> Self {
 		Polygon {
 			vertices: Rc::new(RefCell::new(vec!())),
-			gpu_vertices: Rc::new(RefCell::new(None)),
+			gpu_vertices_: Rc::new(RefCell::new(None)),
 			sync_status: Rc::new(RefCell::new(sync_status::SyncStatus::HOST)),
 		}
 	}
@@ -138,7 +139,7 @@ impl Polygon {
 	pub fn with_capacity(capacity: usize) -> Self {
 		Polygon {
 			vertices: Rc::new(RefCell::new(Vec::with_capacity(capacity))),
-			gpu_vertices: Rc::new(RefCell::new(None)),
+			gpu_vertices_: Rc::new(RefCell::new(None)),
 			sync_status: Rc::new(RefCell::new(sync_status::SyncStatus::HOST)),
 		}
 	}
@@ -461,7 +462,7 @@ impl Polygon {
 		if self.sync_status.borrow().eq(&sync_status::SyncStatus::HOST) { //GPU is outdated.
 			self.sync_host_to_gpu();
 		}
-		self.gpu_vertices.borrow()
+		self.gpu_vertices_.borrow()
 	}
 
 	/// Obtain the vertices of this polygon on the GPU, allowing their modification.
@@ -476,7 +477,7 @@ impl Polygon {
 		if self.sync_status.borrow().eq(&sync_status::SyncStatus::HOST) { //GPU is outdated.
 			self.sync_host_to_gpu();
 		}
-		self.gpu_vertices.borrow_mut()
+		self.gpu_vertices_.borrow_mut()
 	}
 
 	/// Synchronise the vertex data of this polygon from the host's memory to the GPU.
@@ -485,7 +486,13 @@ impl Polygon {
 	/// ``sync_status`` is set to ``HOST``. If the ``sync_status`` is set to ``GPU`` or ``SYNCED``,
 	/// it will have no effect.
 	fn sync_host_to_gpu(&self) {
-		//TODO.
+		self.gpu_vertices_.borrow_mut().replace(GPU.0.create_buffer_init(&BufferInitDescriptor {
+			label: None,
+			contents: bytemuck::cast_slice(self.host_vertices().as_slice()),
+			usage: BufferUsages::STORAGE,
+		}));
+		let mut status = self.sync_status.borrow_mut();
+		*status = sync_status::SyncStatus::SYNCED;
 	}
 
 	/// Synchronise the vertex data of this polygon from the GPU's memory to the host.
@@ -542,7 +549,7 @@ impl FromIterator<Point2D> for Polygon {
 			where T: IntoIterator<Item = Point2D> {
 		Polygon {
 			vertices: Rc::new(RefCell::new(Vec::from_iter(iter))),
-			gpu_vertices: Rc::new(RefCell::new(None)),
+			gpu_vertices_: Rc::new(RefCell::new(None)),
 			sync_status: Rc::new(RefCell::new(sync_status::SyncStatus::HOST)),
 		}
 	}

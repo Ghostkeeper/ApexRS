@@ -8,6 +8,8 @@
 
 //! Defines a struct that represents single points in a 2-dimensional space.
 
+use bytemuck::{Pod, Zeroable}; //Point2D is plain-old-data.
+
 use crate::Area; //To implement Shape2D.
 use crate::Convexity; //To implement Shape2D.
 use crate::Coordinate; //The position of the point is stored with coordinates.
@@ -56,6 +58,10 @@ impl TwoDimensional for Point2D {
 		self.y += dy;
 	}
 }
+
+//Two traits implemented for bytemuck, required to send these objects to the GPU.
+unsafe impl Zeroable for Point2D {}
+unsafe impl Pod for Point2D {}
 
 impl_op_ex!(+ |a: &Point2D, b: &Point2D| -> Point2D { Point2D::new(a.x + b.x, a.y + b.y) });
 impl_op_ex!(- |a: &Point2D, b: &Point2D| -> Point2D { Point2D::new(a.x - b.x, a.y - b.y) });
