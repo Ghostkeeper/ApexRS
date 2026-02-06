@@ -12,7 +12,7 @@ use std::cell::{Ref, RefCell, RefMut}; //For interior mutability to keep CPU and
 use std::fmt; //You can print polygons as text.
 use std::iter::FromIterator; //Constructing polygons from iterable lists of vertices.
 use std::rc::Rc; //For interior mutability to keep CPU and GPU in sync.
-use cubecl::prelude::Array;  //GPU processing.
+use wgpu::Buffer; //For computing on the GPU.
 
 use crate::Area; //To return the polygon's surface area.
 use crate::Convexity; //To return the polygon's convexity.
@@ -86,7 +86,7 @@ pub struct Polygon {
 	/// the GPU.
 	///
 	/// Before the first time that the polygon gets synced to the GPU, this will be `None`.
-	gpu_vertices: Rc<RefCell<Option<Array<Coordinate>>>>,
+	gpu_vertices: Rc<RefCell<Option<Buffer>>>,
 
 	/// The up-to-date-ness of the vertex data on the CPU (host) or the GPU.
 	///
@@ -456,7 +456,7 @@ impl Polygon {
 	///
 	/// While this returns an ``Option`` due to the internal data structure in this polygon, the
 	/// resulting ``Option`` is guaranteed to be ``Some``.
-	pub(crate) fn gpu_vertices<'a>(&'a self) -> Ref<'a, Option<Array<Coordinate>>> {
+	pub(crate) fn gpu_vertices<'a>(&'a self) -> Ref<'a, Option<Buffer>> {
 		if self.sync_status.borrow().eq(&sync_status::SyncStatus::HOST) { //GPU is outdated.
 			self.sync_host_to_gpu();
 		}
@@ -471,7 +471,7 @@ impl Polygon {
 	///
 	/// While this returns an ``Option`` due to the internal data structure in this polygon, the
 	/// resulting ``Option`` is guaranteed to be ``Some``.
-	pub(crate) fn gpu_vertices_mut<'a>(&'a mut self) -> RefMut<'a, Option<Array<Coordinate>>> {
+	pub(crate) fn gpu_vertices_mut<'a>(&'a mut self) -> RefMut<'a, Option<Buffer>> {
 		if self.sync_status.borrow().eq(&sync_status::SyncStatus::HOST) { //GPU is outdated.
 			self.sync_host_to_gpu();
 		}
