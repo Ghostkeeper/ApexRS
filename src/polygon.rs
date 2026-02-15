@@ -229,13 +229,11 @@ impl Polygon {
 	}
 
 	pub fn vertex<'a>(&'a self, index: usize) -> Ref<'a, Point2D> {
-		self.sync_gpu_to_host();
-		Ref::map(self.vertices.borrow(), |verts| &verts[index])
+		Ref::map(self.host_vertices(), |verts| &verts[index])
 	}
 
 	pub fn vertex_mut<'a>(&'a mut self, index: usize) -> RefMut<'a, Point2D> {
-		self.sync_gpu_to_host();
-		RefMut::map(self.vertices.borrow_mut(), |verts| &mut verts[index])
+		RefMut::map(self.host_vertices_mut(), |verts| &mut verts[index])
 	}
 
 	/// Add an extra vertex to this polygon.
