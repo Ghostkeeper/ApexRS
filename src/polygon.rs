@@ -8,11 +8,12 @@
 
 //! Defines the Polygon struct.
 
+use futures_channel::oneshot; //For getting the results from async GPU calls.
 use std::cell::{Ref, RefCell, RefMut}; //For interior mutability to keep CPU and GPU in sync.
 use std::fmt; //You can print polygons as text.
 use std::iter::FromIterator; //Constructing polygons from iterable lists of vertices.
 use std::rc::Rc; //For interior mutability to keep CPU and GPU in sync.
-use wgpu::{Buffer, BufferUsages}; //For computing on the GPU.
+use wgpu::{Buffer, BufferUsages, MapMode, PollType}; //For computing on the GPU.
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 
 use crate::Area; //To return the polygon's surface area.
@@ -489,10 +490,9 @@ impl Polygon {
 		self.gpu_vertices_.borrow_mut().replace(GPU.0.create_buffer_init(&BufferInitDescriptor {
 			label: None,
 			contents: bytemuck::cast_slice(self.host_vertices().as_slice()),
-			usage: BufferUsages::STORAGE,
+			usage: BufferUsages::STORAGE | BufferUsages::MAP_READ,
 		}));
-		let mut status = self.sync_status.borrow_mut();
-		*status = sync_status::SyncStatus::SYNCED;
+		*self.sync_status.borrow_mut() = sync_status::SyncStatus::SYNCED;
 	}
 
 	/// Synchronise the vertex data of this polygon from the GPU's memory to the host.
@@ -502,7 +502,16 @@ impl Polygon {
 	/// ``sync_status`` is set to ``GPU``. If the ``sync_status`` is set to ``HOST`` or ``SYNCED``,
 	/// it will have no effect.
 	fn sync_gpu_to_host(&self) {
-		//TODO.
+		self.gpu_vertices_
+			.borrow()
+			.as_ref()
+			.expect("The GPU needs to have data before we can synchronise it to the host.")
+			.slice(..)
+			.map_async(MapMode::Read, |result| {});
+		let _ = GPU.0.poll(PollType::wait_indefinitely());
+		let slice: &[u8] = &self.gpu_vertices_.borrow().as_ref().unwrap().slice(..).get_mapped_range();
+		*self.vertices.borrow_mut() = bytemuck::cast_slice(slice).to_vec();
+		*self.sync_status.borrow_mut() = sync_status::SyncStatus::SYNCED;
 	}
 }
 
