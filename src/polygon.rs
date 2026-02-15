@@ -228,10 +228,64 @@ impl Polygon {
 		self.host_vertices().len()
 	}
 
+	/// Get a reference to a vertex in the polygon.
+	///
+	/// The vertex is a point where two of the edges meet. The polygon consists of a chain of
+	/// vertices connected by edges. The vertices are addressed by an index, starting from the seam
+	/// of the polygon, numbering from 0.
+	///
+	/// Using the vertex, you can get the coordinates of this corner of the polygon.
+	///
+	/// # Arguments
+	/// * `index` - The index of the vertex to address.
+	///
+	/// # Examples
+	/// ```
+	/// use apex::{Point2D, Polygon};
+	/// //When we access the vertices, it will be indexed in the same order as it is constructed.
+	/// let poly = Polygon::from_iter([
+	/// 	Point2D { x: 0, y: 0 },
+	/// 	Point2D { x: 100, y: 0 },
+	/// 	Point2D { x: 50, y: 87 },
+	/// ]);
+	/// //Now let's get the vertices.
+	/// assert_eq!(*poly.vertex(0), Point2D{ x: 0, y: 0 }, "Accessing the 0th index gets the vertex at the seam of the polygon.");
+	/// assert_eq!(*poly.vertex(1), Point2D{ x: 100, y: 0 }, "Accessing the 1st index gets the next down the list.");
+	/// assert_eq!(*poly.vertex(2), Point2D{ x: 50, y: 87 }, "Accessing the 2nd vertex gets the next vertex (in this case the last).");
+	/// //Accessing poly.vertex(3) would panic, since it's out of range.
+	/// ```
 	pub fn vertex<'a>(&'a self, index: usize) -> Ref<'a, Point2D> {
 		Ref::map(self.host_vertices(), |verts| &verts[index])
 	}
 
+	/// Get a mutable reference to a vertex in the polygon.
+	///
+	/// The vertex is a point where two of the edges meet. The polygon consists of a chain of
+	/// vertices connected by edges. The vertices are addressed by an index, starting from the seam
+	/// of the polygon, numbering from 0.
+	///
+	/// The reference to the vertex is mutable, and changing the contents of the reference will
+	/// cause that vertex of the polygon to change.
+	///
+	/// # Arguments
+	/// * `index` - The index of the vertex to address.
+	///
+	/// # Examples
+	/// ```
+	/// use apex::{Point2D, Polygon};
+	/// //When we access the vertices, it will be indexed in the same order as it is constructed.
+	/// let mut poly = Polygon::from_iter([
+	/// 	Point2D { x: 0, y: 0 },
+	/// 	Point2D { x: 100, y: 0 },
+	/// 	Point2D { x: 50, y: 87 },
+	/// ]);
+	/// //Now let's get the vertices.
+	/// assert_eq!(*poly.vertex_mut(0), Point2D{ x: 0, y: 0 }, "This gets the vertex at the seam. Although the reference is mutable, we're not mutating it here.");
+	/// *poly.vertex_mut(1) = Point2D { x: 200, y: 200 }; //We can change the vertices this way.
+	/// assert_eq!(*poly.vertex(0), Point2D{ x: 0, y: 0 }, "The 0th vertex didn't change.");
+	/// assert_eq!(*poly.vertex(1), Point2D{ x: 200, y: 200 }, "The 1st vertex was mutated.");
+	/// assert_eq!(*poly.vertex(2), Point2D{ x: 50, y: 87 }, "The 2nd vertex didn't change.");
+	/// ```
 	pub fn vertex_mut<'a>(&'a mut self, index: usize) -> RefMut<'a, Point2D> {
 		RefMut::map(self.host_vertices_mut(), |verts| &mut verts[index])
 	}
@@ -488,7 +542,7 @@ impl Polygon {
 		self.gpu_vertices_.borrow_mut().replace(GPU.0.create_buffer_init(&BufferInitDescriptor {
 			label: None,
 			contents: bytemuck::cast_slice(self.host_vertices().as_slice()),
-			usage: BufferUsages::STORAGE | BufferUsages::MAP_READ,
+			usage: BufferUsages::COPY_DST | BufferUsages::MAP_READ,
 		}));
 		*self.sync_status.borrow_mut() = sync_status::SyncStatus::SYNCED;
 	}
@@ -505,7 +559,7 @@ impl Polygon {
 			.as_ref()
 			.expect("The GPU needs to have data before we can synchronise it to the host.")
 			.slice(..)
-			.map_async(MapMode::Read, |result| {});
+			.map_async(MapMode::Read, |_| {});
 		let _ = GPU.0.poll(PollType::wait_indefinitely());
 		let slice: &[u8] = &self.gpu_vertices_.borrow().as_ref().unwrap().slice(..).get_mapped_range();
 		*self.vertices.borrow_mut() = bytemuck::cast_slice(slice).to_vec();

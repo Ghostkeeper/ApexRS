@@ -83,6 +83,37 @@ pub fn translate_polygon_mt(polygon: &mut Polygon, dx: Coordinate, dy: Coordinat
 	);
 }
 
+/// Move a polygon by a certain delta coordinate.
+///
+/// This implementation runs on the GPU to use its massively parallel processing ability to move the
+/// polygon quickly.
+///
+/// # Aruments
+/// * `dx` - How far to move the object in the X direction. Use a positive number to increase the X
+/// position, or a negative number to reduce the X position.
+/// * `dy` - How far to move the object in the Y direction. Use a positive number to increase the Y
+/// position, or a negative number to reduce the Y position.
+///
+/// # Examples
+/// ```
+/// use apex::{Point2D, Polygon, TwoDimensional};
+/// //Create a triangular polygon.
+/// let mut poly = Polygon::from_iter([
+/// 	Point2D { x: 0, y: 0 },
+/// 	Point2D { x: 100, y: 0 },
+/// 	Point2D { x: 67, y: 100 }
+/// ]);
+/// //Move the polygon.
+/// apex::operations::translate::translate_polygon_gpu(&mut poly, 100, -150);
+/// //Now, all of the vertices will have moved.
+/// assert_eq!(*poly.vertex(0), Point2D { x: 100, y: -150 });
+/// assert_eq!(*poly.vertex(1), Point2D { x: 200, y: -150 });
+/// assert_eq!(*poly.vertex(2), Point2D { x: 167, y: -50 });
+/// ```
+pub fn translate_polygon_gpu(polygon: &mut Polygon, dx: Coordinate, dy: Coordinate) {
+	let vertices = polygon.gpu_vertices().as_ref().expect("Failed to upload the polygon to the GPU.");
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
