@@ -10,12 +10,16 @@
 
 use pollster;
 use std::sync::LazyLock;
-use wgpu::{Device, DeviceDescriptor, Instance, InstanceDescriptor, Queue, RequestAdapterOptions};
+use wgpu::{Device, DeviceDescriptor, DownlevelFlags, Instance, InstanceDescriptor, Queue, RequestAdapterOptions};
 
 pub(crate) static WGPU: LazyLock<Instance> = LazyLock::new(|| {
 	Instance::new(&InstanceDescriptor::default())
 });
 pub(crate) static GPU: LazyLock<(Device, Queue)> = LazyLock::new(|| {
 	let adapter = pollster::block_on(WGPU.request_adapter(&RequestAdapterOptions::default())).expect("Failed to find a graphics card adapter.");
+	let downlevel = adapter.get_downlevel_capabilities();
+	if !downlevel.flags.contains(DownlevelFlags::COMPUTE_SHADERS) {
+		panic!("Adapter does not support compute shaders.");
+	}
 	pollster::block_on(adapter.request_device(&DeviceDescriptor::default())).expect("Failed to create GPU device.")
 });

@@ -8,7 +8,6 @@
 
 //! Defines the Polygon struct.
 
-use futures_channel::oneshot; //For getting the results from async GPU calls.
 use std::cell::{Ref, RefCell, RefMut}; //For interior mutability to keep CPU and GPU in sync.
 use std::fmt; //You can print polygons as text.
 use std::iter::FromIterator; //Constructing polygons from iterable lists of vertices.
@@ -89,7 +88,13 @@ pub struct Polygon {
 	/// the GPU.
 	///
 	/// Before the first time that the polygon gets synced to the GPU, this will be `None`.
-	gpu_vertices_: Rc<RefCell<Option<Buffer>>>,
+	gpu_buffer: Rc<RefCell<Option<Buffer>>>,
+
+	/// A WGPU buffer used to transfer the vertex data between the CPU (host) and the GPU.
+	///
+	/// Sometimes this buffer will contain the vertex data, but it cannot be relied on to be
+	/// up-to-date.
+	transfer_buffer: Rc<RefCell<Option<Buffer>>>,
 
 	/// The up-to-date-ness of the vertex data on the CPU (host) or the GPU.
 	///
@@ -107,7 +112,8 @@ impl Polygon {
 	pub fn new() -> Self {
 		Polygon {
 			vertices: Rc::new(RefCell::new(vec!())),
-			gpu_vertices_: Rc::new(RefCell::new(None)),
+			gpu_buffer: Rc::new(RefCell::new(None)),
+			transfer_buffer: Rc::new(RefCell::new(None)),
 			sync_status: Rc::new(RefCell::new(sync_status::SyncStatus::HOST)),
 		}
 	}
@@ -140,7 +146,8 @@ impl Polygon {
 	pub fn with_capacity(capacity: usize) -> Self {
 		Polygon {
 			vertices: Rc::new(RefCell::new(Vec::with_capacity(capacity))),
-			gpu_vertices_: Rc::new(RefCell::new(None)),
+			gpu_buffer: Rc::new(RefCell::new(None)),
+			transfer_buffer: Rc::new(RefCell::new(None)),
 			sync_status: Rc::new(RefCell::new(sync_status::SyncStatus::HOST)),
 		}
 	}
@@ -515,7 +522,7 @@ impl Polygon {
 		if self.sync_status.borrow().eq(&sync_status::SyncStatus::HOST) { //GPU is outdated.
 			self.sync_host_to_gpu();
 		}
-		self.gpu_vertices_.borrow()
+		self.gpu_buffer.borrow()
 	}
 
 	/// Obtain the vertices of this polygon on the GPU, allowing their modification.
@@ -530,7 +537,7 @@ impl Polygon {
 		if self.sync_status.borrow().eq(&sync_status::SyncStatus::HOST) { //GPU is outdated.
 			self.sync_host_to_gpu();
 		}
-		self.gpu_vertices_.borrow_mut()
+		self.gpu_buffer.borrow_mut()
 	}
 
 	/// Synchronise the vertex data of this polygon from the host's memory to the GPU.
@@ -539,10 +546,10 @@ impl Polygon {
 	/// ``sync_status`` is set to ``HOST``. If the ``sync_status`` is set to ``GPU`` or ``SYNCED``,
 	/// it will have no effect.
 	fn sync_host_to_gpu(&self) {
-		self.gpu_vertices_.borrow_mut().replace(GPU.0.create_buffer_init(&BufferInitDescriptor {
+		self.gpu_buffer.borrow_mut().replace(GPU.0.create_buffer_init(&BufferInitDescriptor {
 			label: None,
 			contents: bytemuck::cast_slice(self.host_vertices().as_slice()),
-			usage: BufferUsages::COPY_DST | BufferUsages::MAP_READ,
+			usage: BufferUsages::STORAGE | BufferUsages::COPY_SRC | BufferUsages::COPY_DST, //Both reading and writing.
 		}));
 		*self.sync_status.borrow_mut() = sync_status::SyncStatus::SYNCED;
 	}
@@ -554,14 +561,14 @@ impl Polygon {
 	/// ``sync_status`` is set to ``GPU``. If the ``sync_status`` is set to ``HOST`` or ``SYNCED``,
 	/// it will have no effect.
 	fn sync_gpu_to_host(&self) {
-		self.gpu_vertices_
+		self.gpu_buffer
 			.borrow()
 			.as_ref()
 			.expect("The GPU needs to have data before we can synchronise it to the host.")
 			.slice(..)
 			.map_async(MapMode::Read, |_| {});
 		let _ = GPU.0.poll(PollType::wait_indefinitely());
-		let slice: &[u8] = &self.gpu_vertices_.borrow().as_ref().unwrap().slice(..).get_mapped_range();
+		let slice: &[u8] = &self.gpu_buffer.borrow().as_ref().unwrap().slice(..).get_mapped_range();
 		*self.vertices.borrow_mut() = bytemuck::cast_slice(slice).to_vec();
 		*self.sync_status.borrow_mut() = sync_status::SyncStatus::SYNCED;
 	}
@@ -610,7 +617,8 @@ impl FromIterator<Point2D> for Polygon {
 			where T: IntoIterator<Item = Point2D> {
 		Polygon {
 			vertices: Rc::new(RefCell::new(Vec::from_iter(iter))),
-			gpu_vertices_: Rc::new(RefCell::new(None)),
+			gpu_buffer: Rc::new(RefCell::new(None)),
+			transfer_buffer: Rc::new(RefCell::new(None)),
 			sync_status: Rc::new(RefCell::new(sync_status::SyncStatus::HOST)),
 		}
 	}

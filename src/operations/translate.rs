@@ -9,11 +9,28 @@
 //! This module contains the implementations of operations to translate (move) geometric objects.
 
 use std::cmp;
+use std::num::NonZeroU64;
 use rayon::prelude::*; //For multi-threaded implementations.
+use wgpu::{
+	BindGroupDescriptor,
+	BindGroupEntry,
+	BindGroupLayoutDescriptor,
+	BindGroupLayoutEntry,
+	BindingType,
+	BufferBindingType,
+	CommandEncoderDescriptor,
+	ComputePassDescriptor,
+	ComputePipelineDescriptor,
+	include_wgsl,
+	PipelineCompilationOptions,
+	PipelineLayoutDescriptor,
+	ShaderStages,
+}; //For GPU operations.
 
 use crate::Coordinate; //As parameter for how far to translate.
 use crate::Polygon; //Translate polygons.
 use crate::TwoDimensional; //The translate function is part of TwoDimensional.
+use crate::detail::gpu::GPU; //To perform calculations on the GPU.
 
 /// Move a polygon by a certain delta coordinate.
 ///
@@ -112,6 +129,55 @@ pub fn translate_polygon_mt(polygon: &mut Polygon, dx: Coordinate, dy: Coordinat
 /// ```
 pub fn translate_polygon_gpu(polygon: &mut Polygon, dx: Coordinate, dy: Coordinate) {
 	let vertices = polygon.gpu_vertices().as_ref().expect("Failed to upload the polygon to the GPU.");
+	let shader = GPU.0.create_shader_module(include_wgsl!("translate_polygon.wgsl"));
+	let bind_group_layout = GPU.0.create_bind_group_layout(&BindGroupLayoutDescriptor {
+		label: None,
+		entries: &[
+			BindGroupLayoutEntry {
+				binding: 0,
+				visibility: ShaderStages::COMPUTE,
+				ty: BindingType::Buffer {
+					ty: BufferBindingType::Storage { read_only: false },
+					min_binding_size: Some(NonZeroU64::new(2).unwrap()),
+					has_dynamic_offset: false,
+				},
+				count: None,
+			},
+		],
+	});
+	let bind_group = GPU.0.create_bind_group(&BindGroupDescriptor {
+		label: None,
+		layout: &bind_group_layout,
+		entries: &[
+			BindGroupEntry {
+				binding: 0,
+				resource: vertices.as_entire_binding(),
+			},
+		],
+	});
+	let pipeline_layout = GPU.0.create_pipeline_layout(&PipelineLayoutDescriptor {
+		label: None,
+		bind_group_layouts: &[&bind_group_layout],
+		immediate_size: 0,
+	});
+	let pipeline = GPU.0.create_compute_pipeline(&ComputePipelineDescriptor {
+		label: None,
+		layout: Some(&pipeline_layout),
+		module: &shader,
+		entry_point: Some("translate"),
+		compilation_options: PipelineCompilationOptions::default(),
+		cache: None,
+	});
+	let mut encoder = GPU.0.create_command_encoder(&CommandEncoderDescriptor {
+		label: None,
+	});
+	let mut compute_pass = encoder.begin_compute_pass(&ComputePassDescriptor {
+		label: None,
+		timestamp_writes: None,
+	});
+	compute_pass.set_pipeline(&pipeline);
+	compute_pass.set_bind_group(0, &bind_group, &[]);
+
 }
 
 #[cfg(test)]
