@@ -102,7 +102,7 @@ pub struct Polygon {
 	/// the GPU is, or whether both are in sync (so both are the most up-to-date version).
 	///
 	/// If the CPU version is the most up-to-date,
-	sync_status: Rc<RefCell<sync_status::SyncStatus>>,
+	pub(crate) sync_status: Rc<RefCell<sync_status::SyncStatus>>,
 }
 
 impl Polygon {

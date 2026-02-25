@@ -30,6 +30,7 @@ use wgpu::{
 use crate::Coordinate; //As parameter for how far to translate.
 use crate::Polygon; //Translate polygons.
 use crate::TwoDimensional; //The translate function is part of TwoDimensional.
+use crate::detail::sync_status::SyncStatus; //To change the sync status.
 use crate::detail::gpu::GPU; //To perform calculations on the GPU.
 
 /// Move a polygon by a certain delta coordinate.
@@ -128,8 +129,7 @@ pub fn translate_polygon_mt(polygon: &mut Polygon, dx: Coordinate, dy: Coordinat
 /// assert_eq!(*poly.vertex(2), Point2D { x: 167, y: -50 });
 /// ```
 pub fn translate_polygon_gpu(polygon: &mut Polygon, dx: Coordinate, dy: Coordinate) {
-	let vertices = polygon.gpu_vertices().as_ref().expect("Failed to upload the polygon to the GPU.");
-	let shader = GPU.0.create_shader_module(include_wgsl!("translate_polygon.wgsl"));
+	let translate_module = GPU.0.create_shader_module(include_wgsl!("translate_polygon.wgsl"));
 	let bind_group_layout = GPU.0.create_bind_group_layout(&BindGroupLayoutDescriptor {
 		label: None,
 		entries: &[
@@ -138,7 +138,7 @@ pub fn translate_polygon_gpu(polygon: &mut Polygon, dx: Coordinate, dy: Coordina
 				visibility: ShaderStages::COMPUTE,
 				ty: BindingType::Buffer {
 					ty: BufferBindingType::Storage { read_only: false },
-					min_binding_size: Some(NonZeroU64::new(2).unwrap()),
+					min_binding_size: Some(NonZeroU64::new(4).unwrap()),
 					has_dynamic_offset: false,
 				},
 				count: None,
@@ -151,7 +151,7 @@ pub fn translate_polygon_gpu(polygon: &mut Polygon, dx: Coordinate, dy: Coordina
 		entries: &[
 			BindGroupEntry {
 				binding: 0,
-				resource: vertices.as_entire_binding(),
+				resource: polygon.gpu_vertices().as_ref().expect("Failed to upload the polygon to the GPU.").as_entire_binding(),
 			},
 		],
 	});
@@ -163,7 +163,7 @@ pub fn translate_polygon_gpu(polygon: &mut Polygon, dx: Coordinate, dy: Coordina
 	let pipeline = GPU.0.create_compute_pipeline(&ComputePipelineDescriptor {
 		label: None,
 		layout: Some(&pipeline_layout),
-		module: &shader,
+		module: &translate_module,
 		entry_point: Some("translate"),
 		compilation_options: PipelineCompilationOptions::default(),
 		cache: None,
@@ -177,7 +177,12 @@ pub fn translate_polygon_gpu(polygon: &mut Polygon, dx: Coordinate, dy: Coordina
 	});
 	compute_pass.set_pipeline(&pipeline);
 	compute_pass.set_bind_group(0, &bind_group, &[]);
+	compute_pass.dispatch_workgroups(64, 1, 1);
+	drop(compute_pass);
+	let command_buffer = encoder.finish();
 
+	*polygon.sync_status.borrow_mut() = SyncStatus::GPU;
+	GPU.1.submit([command_buffer]);
 }
 
 #[cfg(test)]
