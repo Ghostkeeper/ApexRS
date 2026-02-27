@@ -1,6 +1,6 @@
 /*
  * Library for performing massively parallel computations on polygons.
- * Copyright (C) 2023 Ghostkeeper
+ * Copyright (C) 2026 Ghostkeeper
  * This library is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
  * This library is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for details.
  * You should have received a copy of the GNU Affero General Public License along with this library. If not, see <https://gnu.org/licenses/>.
@@ -18,6 +18,7 @@ use wgpu::{
 	BindGroupLayoutEntry,
 	BindingType,
 	BufferBindingType,
+	BufferDescriptor,
 	CommandEncoderDescriptor,
 	ComputePassDescriptor,
 	ComputePipelineDescriptor,
@@ -179,6 +180,18 @@ pub fn translate_polygon_gpu(polygon: &mut Polygon, dx: Coordinate, dy: Coordina
 	compute_pass.set_bind_group(0, &bind_group, &[]);
 	compute_pass.dispatch_workgroups(64, 1, 1);
 	drop(compute_pass);
+	let buffer_size = polygon.gpu_vertices().as_ref().expect("The GPU needs to have data before we can synchronise it to the host.").size();
+	polygon.transfer_buffer.borrow_mut().replace(GPU.0.create_buffer(&BufferDescriptor {
+		label: None,
+		size: buffer_size,
+		usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+		mapped_at_creation: false,
+	}));
+	encoder.copy_buffer_to_buffer(
+		polygon.gpu_vertices().as_ref().expect("Failed to get the result from the GPU."), 0,
+		polygon.transfer_buffer.borrow().as_ref().unwrap(), 0,
+		buffer_size
+	);
 	let command_buffer = encoder.finish();
 
 	*polygon.sync_status.borrow_mut() = SyncStatus::GPU;

@@ -12,7 +12,7 @@ use std::cell::{Ref, RefCell, RefMut}; //For interior mutability to keep CPU and
 use std::fmt; //You can print polygons as text.
 use std::iter::FromIterator; //Constructing polygons from iterable lists of vertices.
 use std::rc::Rc; //For interior mutability to keep CPU and GPU in sync.
-use wgpu::{Buffer, BufferUsages, MapMode, PollType}; //For computing on the GPU.
+use wgpu::{Buffer, BufferDescriptor, BufferUsages, MapMode, PollType}; //For computing on the GPU.
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 
 use crate::Area; //To return the polygon's surface area.
@@ -94,7 +94,7 @@ pub struct Polygon {
 	///
 	/// Sometimes this buffer will contain the vertex data, but it cannot be relied on to be
 	/// up-to-date.
-	transfer_buffer: Rc<RefCell<Option<Buffer>>>,
+	pub(crate) transfer_buffer: Rc<RefCell<Option<Buffer>>>,
 
 	/// The up-to-date-ness of the vertex data on the CPU (host) or the GPU.
 	///
@@ -549,7 +549,7 @@ impl Polygon {
 		self.gpu_buffer.borrow_mut().replace(GPU.0.create_buffer_init(&BufferInitDescriptor {
 			label: None,
 			contents: bytemuck::cast_slice(self.host_vertices().as_slice()),
-			usage: BufferUsages::STORAGE | BufferUsages::COPY_SRC | BufferUsages::COPY_DST, //Both reading and writing.
+			usage: BufferUsages::STORAGE | BufferUsages::COPY_SRC, //Both reading and writing.
 		}));
 		*self.sync_status.borrow_mut() = sync_status::SyncStatus::SYNCED;
 	}
@@ -561,14 +561,14 @@ impl Polygon {
 	/// ``sync_status`` is set to ``GPU``. If the ``sync_status`` is set to ``HOST`` or ``SYNCED``,
 	/// it will have no effect.
 	fn sync_gpu_to_host(&self) {
-		self.gpu_buffer
+		self.transfer_buffer
 			.borrow()
 			.as_ref()
 			.expect("The GPU needs to have data before we can synchronise it to the host.")
 			.slice(..)
 			.map_async(MapMode::Read, |_| {});
 		let _ = GPU.0.poll(PollType::wait_indefinitely());
-		let slice: &[u8] = &self.gpu_buffer.borrow().as_ref().unwrap().slice(..).get_mapped_range();
+		let slice: &[u8] = &self.transfer_buffer.borrow().as_ref().unwrap().slice(..).get_mapped_range();
 		*self.vertices.borrow_mut() = bytemuck::cast_slice(slice).to_vec();
 		*self.sync_status.borrow_mut() = sync_status::SyncStatus::SYNCED;
 	}
