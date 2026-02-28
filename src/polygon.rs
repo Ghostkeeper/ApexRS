@@ -565,12 +565,25 @@ impl Polygon {
 	/// ``sync_status`` is set to ``GPU``. If the ``sync_status`` is set to ``HOST`` or ``SYNCED``,
 	/// it will have no effect.
 	fn sync_gpu_to_host(&self) {
-		self.transfer_buffer
-			.borrow()
-			.as_ref()
-			.expect("The GPU needs to have data before we can synchronise it to the host.")
-			.slice(..)
-			.map_async(MapMode::Read, |_| {});
+		let mut encoder = GPU.0.create_command_encoder(&CommandEncoderDescriptor {
+			label: None,
+		});
+		let buffer_size = self.gpu_vertices().as_ref().expect("The GPU needs to have data before we can synchronise it to the host.").size();
+		self.transfer_buffer.borrow_mut().replace(GPU.0.create_buffer(&BufferDescriptor {
+			label: None,
+			size: buffer_size,
+			usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+			mapped_at_creation: false,
+		}));
+		encoder.copy_buffer_to_buffer(
+			self.gpu_vertices().as_ref().unwrap(), 0,
+			self.transfer_buffer.borrow().as_ref().unwrap(), 0,
+			buffer_size,
+		);
+		let command_buffer = encoder.finish(); //Finish the compilation.
+		GPU.1.submit([command_buffer]); //Execute the commands.
+
+		self.transfer_buffer.borrow().as_ref().unwrap().slice(..).map_async(MapMode::Read, |_| {});
 		let _ = GPU.0.poll(PollType::wait_indefinitely());
 		let slice: &[u8] = &self.transfer_buffer.borrow().as_ref().unwrap().slice(..).get_mapped_range();
 		*self.vertices.borrow_mut() = bytemuck::cast_slice(slice).to_vec();
@@ -580,8 +593,8 @@ impl Polygon {
 	/// Execute a compute kernel on the GPU that would mutate the polygon.
 	///
 	/// This creates a uniform buffer for the parameters, a binding group layout, a binding group,
-	/// a pipeline layout, a pipeline, an encoder and a compute pass, and then dispatches that
-	/// compute pass.
+	/// a pipeline layout, a pipeline, an encoder and a compute pass. It then uses that encoder to
+	/// gather up all of these instructions for the GPU and submits that to the device.
 	///
 	/// The kernel is a bit restricted, for the purpose of calling this function easier:
 	/// * The entrypoint of the kernel must be called `main`. That's the function we'll call from
@@ -671,19 +684,6 @@ impl Polygon {
 		compute_pass.set_bind_group(0, &bind_group, &[]);
 		compute_pass.dispatch_workgroups(64, 1, 1);
 		drop(compute_pass); //Now that we've dispatched the workgroups, we can drop the compute pass so that we can access the encoder again.
-		//Copy the results to the transfer buffer so that we can access it from the CPU again.
-		let buffer_size = self.gpu_vertices().as_ref().expect("The GPU needs to have data before we can synchronise it to the host.").size();
-		self.transfer_buffer.borrow_mut().replace(GPU.0.create_buffer(&BufferDescriptor {
-			label: None,
-			size: buffer_size,
-			usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-			mapped_at_creation: false,
-		}));
-		encoder.copy_buffer_to_buffer(
-			self.gpu_vertices().as_ref().expect("Failed to get the result from the GPU."), 0,
-			self.transfer_buffer.borrow().as_ref().unwrap(), 0,
-			buffer_size
-		);
 		let command_buffer = encoder.finish(); //Finish the compilation.
 
 		*self.sync_status.borrow_mut() = sync_status::SyncStatus::GPU; //From here on out, the CPU data may be out of date.
