@@ -15,7 +15,7 @@ use std::num::NonZeroU64; //For communicating buffer sizes to the GPU.
 use std::rc::Rc; //For interior mutability to keep CPU and GPU in sync.
 use wgpu::{BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry,
 	BindingType, Buffer, BufferBindingType, BufferDescriptor, BufferUsages, CommandEncoderDescriptor,
-	ComputePassDescriptor, ComputePipelineDescriptor, include_wgsl, MapMode, PipelineCompilationOptions,
+	ComputePassDescriptor, ComputePipelineDescriptor, MapMode, PipelineCompilationOptions,
 	PipelineLayoutDescriptor, PollType, ShaderModule, ShaderStages}; //For computing on the GPU.
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 
@@ -98,7 +98,7 @@ pub struct Polygon {
 	///
 	/// Sometimes this buffer will contain the vertex data, but it cannot be relied on to be
 	/// up-to-date.
-	pub(crate) transfer_buffer: Rc<RefCell<Option<Buffer>>>,
+	transfer_buffer: Rc<RefCell<Option<Buffer>>>,
 
 	/// The up-to-date-ness of the vertex data on the CPU (host) or the GPU.
 	///
@@ -106,7 +106,7 @@ pub struct Polygon {
 	/// the GPU is, or whether both are in sync (so both are the most up-to-date version).
 	///
 	/// If the CPU version is the most up-to-date,
-	pub(crate) sync_status: Rc<RefCell<sync_status::SyncStatus>>,
+	sync_status: Rc<RefCell<sync_status::SyncStatus>>,
 }
 
 impl Polygon {
