@@ -91,3 +91,43 @@ pub fn scale_polygon_mt(polygon: &mut Polygon, x: f64, y: f64) {
         )
     );
 }
+
+/// The shader for scaling polygons on the GPU.
+static SCALE_POLYGON_SHADER: LazyLock<ShaderModule> = LazyLock::new(|| {
+    GPU.device.create_shader_module(include_wgsl!("scale_polygon.wgsl"))
+});
+
+/// Scale a polygon by a certain scale factor.
+///
+/// This implementation runs on the GPU to use its massively parallel processing ability to scale
+/// the polygon quickly.
+///
+/// # Arguments
+/// * `x` - The scaling factor for the X axis. Use a number greater than 1 to make the polygon
+/// wider, or smaller than 1 to make the polygon smaller. Use a negative number to mirror the
+/// polygon horizontally.
+/// * `y` - The scaling factor for the Y axis. Use a number greater than 1 to make the polygon
+/// taller, or smaller than 1 to make the polygon shorter. Use a negative number to mirror the
+/// polygon vertically.
+///
+/// # Examples
+/// ```
+/// use apex::{Point2D, Polygon, TwoDimensional};
+/// //Create a triangular polygon.
+/// let mut poly = Polygon::from_iter([
+///     Point2D { x: 0, y: 0 },
+///     Point2D { x: 100, y: 0 },
+///     Point2D { x: 67, y: 100},
+/// ]);
+/// //Scale the polygon.
+/// apex::operations::scale::scale_polygon_gpu(&mut poly, 2.0, 1.5);
+/// //Now, the polygon will be scaled to be bigger.
+/// assert_eq!(*poly.vertex(0), Point2D { x: 0, y: 0 });
+/// assert_eq!(*poly.vertex(1), Point2D { x: 200, y: 0 });
+/// assert_eq!(*poly.vertex(2), Point2D { x: 134, y: 150 });
+/// ```
+pub fn scale_polygon_gpu(polygon: &mut Polygon, x: f64, y: f64) {
+    let parameters = [x, y];
+    let uniform_buffer = bytemuck::cast_slice(&parameters);
+    polygon.execute_gpu_kernel_mut(&SCALE_POLYGON_SHADER, uniform_buffer);
+}
