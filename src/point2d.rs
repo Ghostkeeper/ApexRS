@@ -58,6 +58,11 @@ impl TwoDimensional for Point2D {
 		self.x += dx;
 		self.y += dy;
 	}
+
+	fn scale(&mut self, x: f64, y: f64) {
+		self.x = (self.x as f64 * x).round() as i32;
+		self.y = (self.y as f64 * y).round() as i32;
+	}
 }
 
 //Two traits implemented for bytemuck, required to send these objects to the GPU.

@@ -17,4 +17,5 @@
 //! to read. The methods in the geometric objects will simply call these free functions to implement
 //! them.
 
+pub mod scale;
 pub mod translate;

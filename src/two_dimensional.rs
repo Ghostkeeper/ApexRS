@@ -27,7 +27,31 @@ pub trait TwoDimensional {
 	/// ```
 	/// use apex::{Point2D, TwoDimensional};
 	/// let mut point = Point2D{ x: 100, y: 500 }; //Create a two-dimensional object, such as Point2D.
-	/// point.translate(50, -130); //The point's position is now [150, 370].
+	/// point.translate(50, -130);
+	/// assert_eq!(point, Point2D { x: 150, y: 370 });
 	/// ```
 	fn translate(&mut self, dx: Coordinate, dy: Coordinate);
+
+	/// Scale the object away from the coordinate origin.
+	///
+	/// This causes the object to become bigger or smaller, and simultaneously to move away from or
+	/// closer to the coordinate origin. It can also cause the object to appear squished or
+	/// stretched, because the scale factors can be different between the X and the Y axis.
+	///
+	/// # Arguments
+	/// * `x` - The scaling factor for the X axis. Use a number greater than 1 to make the object
+	/// wider, or smaller than 1 to make the object smaller. Use a negative number to mirror the
+	/// object horizontally.
+	/// * `y` - The scaling factor for the Y axis. Use a number greater than 1 to make the object
+	/// taller, or smaller than 1 to make the object shorter. Use a negative number to mirror the
+	/// object vertically.
+	///
+	/// # Examples
+	/// ```
+	/// use apex::{Point2D, TwoDimensional};
+	/// let mut point = Point2D { x: 100, y: 500 }; //Create a two-dimensional object, such as Point2D.
+	/// point.scale(2.0, -0.5);
+	/// assert_eq!(point, Point2D { x: 200, y: -250 });
+	/// ```
+	fn scale(&mut self, x: f64, y: f64);
 }

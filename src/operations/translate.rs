@@ -9,14 +9,13 @@
 //! This module contains the implementations of operations to translate (move) geometric objects.
 
 use std::cmp;
-use std::sync::LazyLock;
+use std::sync::LazyLock; //For storing shaders in a cache.
 use rayon::prelude::*; //For multi-threaded implementations.
 use wgpu::{include_wgsl, ShaderModule}; //For loading the translate GPU kernel.
 
-
 use crate::Coordinate; //As parameter for how far to translate.
 use crate::Polygon; //Translate polygons.
-use crate::TwoDimensional; //The translate function is part of TwoDimensional.
+use crate::TwoDimensional; //The translate operation is part of TwoDimensional.
 use crate::detail::gpu::GPU; //To perform calculations on the GPU.
 
 /// Move a polygon by a certain delta coordinate.

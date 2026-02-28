@@ -27,7 +27,7 @@ use crate::Shape2D; //This is a 2D shape.
 use crate::TwoDimensional; //This is a two-dimensional object.
 use crate::detail::gpu::GPU; //To perform calculations on the GPU.
 use crate::detail::sync_status; //To track whether the GPU or CPU copies are up-to-date.
-use crate::operations::translate; //To translate the polygons.
+use crate::operations::{scale, translate}; //To translate the polygons.
 
 /// A plane figure consisting of a single contour of straight line segments.
 ///
@@ -683,6 +683,9 @@ impl Polygon {
 impl TwoDimensional for Polygon {
 	fn translate(&mut self, dx: Coordinate, dy: Coordinate) {
 		translate::translate_polygon_st(self, dx, dy);
+	}
+	fn scale(&mut self, x: f64, y: f64) {
+		scale::scale_polygon_st(self, x, y);
 	}
 }
 
