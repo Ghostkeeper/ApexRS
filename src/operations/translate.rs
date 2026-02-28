@@ -9,33 +9,13 @@
 //! This module contains the implementations of operations to translate (move) geometric objects.
 
 use std::cmp;
-use std::num::NonZeroU64;
 use rayon::prelude::*; //For multi-threaded implementations.
-use wgpu::{
-	BindGroupDescriptor,
-	BindGroupEntry,
-	BindGroupLayoutDescriptor,
-	BindGroupLayoutEntry,
-	BindingType,
-	BufferBindingType,
-	BufferDescriptor,
-	BufferUsages,
-	CommandEncoderDescriptor,
-	ComputePassDescriptor,
-	ComputePipelineDescriptor,
-	include_wgsl,
-	PipelineCompilationOptions,
-	PipelineLayoutDescriptor,
-	ShaderStages,
-}; //For GPU operations.
-use wgpu::util::{BufferInitDescriptor, DeviceExt};
+use wgpu::include_wgsl; //For loading the translate GPU kernel.
 
 
 use crate::Coordinate; //As parameter for how far to translate.
-use crate::Point2D; //Translating by vector.
 use crate::Polygon; //Translate polygons.
 use crate::TwoDimensional; //The translate function is part of TwoDimensional.
-use crate::detail::sync_status::SyncStatus; //To change the sync status.
 use crate::detail::gpu::GPU; //To perform calculations on the GPU.
 
 /// Move a polygon by a certain delta coordinate.
@@ -137,7 +117,7 @@ pub fn translate_polygon_gpu(polygon: &mut Polygon, dx: Coordinate, dy: Coordina
 	let shader_module = GPU.0.create_shader_module(include_wgsl!("translate_polygon.wgsl"));
 	let parameters = [dx, dy];
 	let uniform_buffer = bytemuck::cast_slice(&parameters);
-	polygon.execute_gpu_kernel(&shader_module, uniform_buffer);
+	polygon.execute_gpu_kernel_mut(&shader_module, uniform_buffer);
 }
 
 #[cfg(test)]

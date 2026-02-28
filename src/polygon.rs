@@ -577,35 +577,47 @@ impl Polygon {
 		*self.sync_status.borrow_mut() = sync_status::SyncStatus::SYNCED;
 	}
 
-	/// Execute a compute kernel on the GPU.
+	/// Execute a compute kernel on the GPU that would mutate the polygon.
 	///
 	/// This creates a uniform buffer for the parameters, a binding group layout, a binding group,
 	/// a pipeline layout, a pipeline, an encoder and a compute pass, and then dispatches that
 	/// compute pass.
 	///
+	/// The kernel is a bit restricted, for the purpose of calling this function easier:
+	/// * The entrypoint of the kernel must be called `main`. That's the function we'll call from
+	///   the compute pipeline.
+	/// * The kernel will have two buffers bound to it: binding 0 will be the uniform buffer, and
+	///   binding 1 will be the vertex data of this polygon.
+	///
 	/// # Arguments
 	/// * `shader_module` - The kernel to execute on the GPU.
 	/// * `uniform_data` - Uniform data to pass to the GPU in order to configure parameters to the
-	/// kernel.
-	pub(crate) fn execute_gpu_kernel(&self, shader_module: &ShaderModule, uniform_data: &[u8]) {
+	///   kernel.
+	pub(crate) fn execute_gpu_kernel_mut(&mut self, shader_module: &ShaderModule, uniform_data: &[u8]) {
+		//The parameters of the kernel are communicated via Uniforms, in this uniform buffer.
 		let uniform_buffer = GPU.0.create_buffer_init(&BufferInitDescriptor {
 			label: None,
 			contents: uniform_data,
 			usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
 		});
+
+		//All data communicated to execute the kernel is put in buffers.
+		//We need to tell the GPU what these buffers are, where to find them and how to call them in the shader.
 		let bind_group_layout = GPU.0.create_bind_group_layout(&BindGroupLayoutDescriptor {
 			label: None,
 			entries: &[
+				//In binding position 0: The uniform buffer.
 				BindGroupLayoutEntry {
 					binding: 0,
 					visibility: ShaderStages::COMPUTE,
 					ty: BindingType::Buffer {
 						ty: BufferBindingType::Uniform { },
-						min_binding_size: Some(NonZeroU64::new(8).unwrap()),
+						min_binding_size: Some(NonZeroU64::new(uniform_data.len() as u64).unwrap()),
 						has_dynamic_offset: false,
 					},
 					count: None,
 				},
+				//In binding position 1: The vertex data.
 				BindGroupLayoutEntry {
 					binding: 1,
 					visibility: ShaderStages::COMPUTE,
@@ -618,6 +630,7 @@ impl Polygon {
 				},
 			],
 		});
+		//Then bind the actual buffers according to the layout above.
 		let bind_group = GPU.0.create_bind_group(&BindGroupDescriptor {
 			label: None,
 			layout: &bind_group_layout,
@@ -632,6 +645,8 @@ impl Polygon {
 				},
 			],
 		});
+
+		//Also communicated to the GPU is the pipeline: Compiled code telling it what to do.
 		let pipeline_layout = GPU.0.create_pipeline_layout(&PipelineLayoutDescriptor {
 			label: None,
 			bind_group_layouts: &[&bind_group_layout],
@@ -655,7 +670,8 @@ impl Polygon {
 		compute_pass.set_pipeline(&pipeline);
 		compute_pass.set_bind_group(0, &bind_group, &[]);
 		compute_pass.dispatch_workgroups(64, 1, 1);
-		drop(compute_pass);
+		drop(compute_pass); //Now that we've dispatched the workgroups, we can drop the compute pass so that we can access the encoder again.
+		//Copy the results to the transfer buffer so that we can access it from the CPU again.
 		let buffer_size = self.gpu_vertices().as_ref().expect("The GPU needs to have data before we can synchronise it to the host.").size();
 		self.transfer_buffer.borrow_mut().replace(GPU.0.create_buffer(&BufferDescriptor {
 			label: None,
@@ -668,10 +684,10 @@ impl Polygon {
 			self.transfer_buffer.borrow().as_ref().unwrap(), 0,
 			buffer_size
 		);
-		let command_buffer = encoder.finish();
+		let command_buffer = encoder.finish(); //Finish the compilation.
 
-		*self.sync_status.borrow_mut() = sync_status::SyncStatus::GPU;
-		GPU.1.submit([command_buffer]);
+		*self.sync_status.borrow_mut() = sync_status::SyncStatus::GPU; //From here on out, the CPU data may be out of date.
+		GPU.1.submit([command_buffer]); //Execute the commands.
 	}
 }
 
