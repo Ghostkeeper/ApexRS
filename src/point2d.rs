@@ -1,6 +1,6 @@
 /*
  * Library for performing massively parallel computations on polygons.
- * Copyright (C) 2023 Ghostkeeper
+ * Copyright (C) 2026 Ghostkeeper
  * This library is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
  * This library is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for details.
  * You should have received a copy of the GNU Affero General Public License along with this library. If not, see <https://gnu.org/licenses/>.
@@ -27,7 +27,8 @@ use crate::Shape2D; //A point is a shape, with a bounded (zero) area.
 /// useful for certain geometric algorithms. When compared, points with lower X coordinates will be
 /// considered lower. If points have the same X coordinate, points with lower Y coordinates will be
 /// considered lower. Thus the points are compared lexicographically with X before Y.
-#[derive(Debug, Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Eq, Ord, PartialEq, PartialOrd, Pod, Zeroable)]
 pub struct Point2D {
 	/// The projection of this point on the X dimension.
 	pub x: Coordinate,
@@ -60,8 +61,8 @@ impl TwoDimensional for Point2D {
 }
 
 //Two traits implemented for bytemuck, required to send these objects to the GPU.
-unsafe impl Zeroable for Point2D {}
-unsafe impl Pod for Point2D {}
+// unsafe impl Zeroable for Point2D {}
+// unsafe impl Pod for Point2D {}
 
 impl_op_ex!(+ |a: &Point2D, b: &Point2D| -> Point2D { Point2D::new(a.x + b.x, a.y + b.y) });
 impl_op_ex!(- |a: &Point2D, b: &Point2D| -> Point2D { Point2D::new(a.x - b.x, a.y - b.y) });
