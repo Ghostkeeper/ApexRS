@@ -114,7 +114,7 @@ pub fn translate_polygon_mt(polygon: &mut Polygon, dx: Coordinate, dy: Coordinat
 /// assert_eq!(*poly.vertex(2), Point2D { x: 167, y: -50 });
 /// ```
 pub fn translate_polygon_gpu(polygon: &mut Polygon, dx: Coordinate, dy: Coordinate) {
-	let shader_module = GPU.0.create_shader_module(include_wgsl!("translate_polygon.wgsl"));
+	let shader_module = GPU.device.create_shader_module(include_wgsl!("translate_polygon.wgsl"));
 	let parameters = [dx, dy];
 	let uniform_buffer = bytemuck::cast_slice(&parameters);
 	polygon.execute_gpu_kernel_mut(&shader_module, uniform_buffer);

@@ -12,14 +12,31 @@ use pollster;
 use std::sync::LazyLock;
 use wgpu::{Device, DeviceDescriptor, DownlevelFlags, Instance, InstanceDescriptor, Queue, RequestAdapterOptions};
 
+
+/// All the resources that belong to a particular graphics card.
+///
+/// This contains the objects that we need to control a graphics card: One device to store memory
+/// with, upload and download data, and one queue to send instructions to.
+pub struct GPUResources {
+	/// WGPU's "Device" construct, which is used to interact with the GPU's memory.
+	pub device: Device,
+
+	/// WGPU's "Queue" construct, which is used to send instructions to the device.
+	pub queue: Queue,
+}
+
+/// The WGPU instance is the entrypoint for all GPU operations.
 pub(crate) static WGPU: LazyLock<Instance> = LazyLock::new(|| {
 	Instance::new(&InstanceDescriptor::default())
 });
-pub(crate) static GPU: LazyLock<(Device, Queue)> = LazyLock::new(|| {
+
+/// The resources to access the default GPU.
+pub(crate) static GPU: LazyLock<GPUResources> = LazyLock::new(|| {
 	let adapter = pollster::block_on(WGPU.request_adapter(&RequestAdapterOptions::default())).expect("Failed to find a graphics card adapter.");
 	let downlevel = adapter.get_downlevel_capabilities();
 	if !downlevel.flags.contains(DownlevelFlags::COMPUTE_SHADERS) {
 		panic!("Adapter does not support compute shaders.");
 	}
-	pollster::block_on(adapter.request_device(&DeviceDescriptor::default())).expect("Failed to create GPU device.")
+	let (device, queue) = pollster::block_on(adapter.request_device(&DeviceDescriptor::default())).expect("Failed to create GPU device.");
+	GPUResources { device, queue }
 });

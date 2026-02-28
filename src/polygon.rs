@@ -539,7 +539,7 @@ impl Polygon {
 	/// ``sync_status`` is set to ``HOST``. If the ``sync_status`` is set to ``GPU`` or ``SYNCED``,
 	/// it will have no effect.
 	fn sync_host_to_gpu(&self) {
-		self.gpu_buffer.borrow_mut().replace(GPU.0.create_buffer_init(&BufferInitDescriptor {
+		self.gpu_buffer.borrow_mut().replace(GPU.device.create_buffer_init(&BufferInitDescriptor {
 			label: None,
 			contents: bytemuck::cast_slice(self.host_vertices().as_slice()),
 			usage: BufferUsages::STORAGE | BufferUsages::COPY_SRC, //Both reading and writing.
@@ -554,11 +554,11 @@ impl Polygon {
 	/// ``sync_status`` is set to ``GPU``. If the ``sync_status`` is set to ``HOST`` or ``SYNCED``,
 	/// it will have no effect.
 	fn sync_gpu_to_host(&self) {
-		let mut encoder = GPU.0.create_command_encoder(&CommandEncoderDescriptor {
+		let mut encoder = GPU.device.create_command_encoder(&CommandEncoderDescriptor {
 			label: None,
 		});
 		let buffer_size = self.gpu_vertices().as_ref().expect("The GPU needs to have data before we can synchronise it to the host.").size();
-		self.transfer_buffer.borrow_mut().replace(GPU.0.create_buffer(&BufferDescriptor {
+		self.transfer_buffer.borrow_mut().replace(GPU.device.create_buffer(&BufferDescriptor {
 			label: None,
 			size: buffer_size,
 			usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
@@ -570,10 +570,10 @@ impl Polygon {
 			buffer_size,
 		);
 		let command_buffer = encoder.finish(); //Finish the compilation.
-		GPU.1.submit([command_buffer]); //Execute the commands.
+		GPU.queue.submit([command_buffer]); //Execute the commands.
 
 		self.transfer_buffer.borrow().as_ref().unwrap().slice(..).map_async(MapMode::Read, |_| {});
-		let _ = GPU.0.poll(PollType::wait_indefinitely());
+		let _ = GPU.device.poll(PollType::wait_indefinitely());
 		let slice: &[u8] = &self.transfer_buffer.borrow().as_ref().unwrap().slice(..).get_mapped_range();
 		*self.vertices.borrow_mut() = bytemuck::cast_slice(slice).to_vec();
 		*self.sync_status.borrow_mut() = sync_status::SyncStatus::SYNCED;
@@ -597,7 +597,7 @@ impl Polygon {
 	///   kernel.
 	pub(crate) fn execute_gpu_kernel_mut(&mut self, shader_module: &ShaderModule, uniform_data: &[u8]) {
 		//The parameters of the kernel are communicated via Uniforms, in this uniform buffer.
-		let uniform_buffer = GPU.0.create_buffer_init(&BufferInitDescriptor {
+		let uniform_buffer = GPU.device.create_buffer_init(&BufferInitDescriptor {
 			label: None,
 			contents: uniform_data,
 			usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
@@ -605,7 +605,7 @@ impl Polygon {
 
 		//All data communicated to execute the kernel is put in buffers.
 		//We need to tell the GPU what these buffers are, where to find them and how to call them in the shader.
-		let bind_group_layout = GPU.0.create_bind_group_layout(&BindGroupLayoutDescriptor {
+		let bind_group_layout = GPU.device.create_bind_group_layout(&BindGroupLayoutDescriptor {
 			label: None,
 			entries: &[
 				//In binding position 0: The uniform buffer.
@@ -633,7 +633,7 @@ impl Polygon {
 			],
 		});
 		//Then bind the actual buffers according to the layout above.
-		let bind_group = GPU.0.create_bind_group(&BindGroupDescriptor {
+		let bind_group = GPU.device.create_bind_group(&BindGroupDescriptor {
 			label: None,
 			layout: &bind_group_layout,
 			entries: &[
@@ -649,12 +649,12 @@ impl Polygon {
 		});
 
 		//Also communicated to the GPU is the pipeline: Compiled code telling it what to do.
-		let pipeline_layout = GPU.0.create_pipeline_layout(&PipelineLayoutDescriptor {
+		let pipeline_layout = GPU.device.create_pipeline_layout(&PipelineLayoutDescriptor {
 			label: None,
 			bind_group_layouts: &[&bind_group_layout],
 			immediate_size: 0,
 		});
-		let pipeline = GPU.0.create_compute_pipeline(&ComputePipelineDescriptor {
+		let pipeline = GPU.device.create_compute_pipeline(&ComputePipelineDescriptor {
 			label: None,
 			layout: Some(&pipeline_layout),
 			module: &shader_module,
@@ -662,7 +662,7 @@ impl Polygon {
 			compilation_options: PipelineCompilationOptions::default(),
 			cache: None,
 		});
-		let mut encoder = GPU.0.create_command_encoder(&CommandEncoderDescriptor {
+		let mut encoder = GPU.device.create_command_encoder(&CommandEncoderDescriptor {
 			label: None,
 		});
 		let mut compute_pass = encoder.begin_compute_pass(&ComputePassDescriptor {
@@ -676,7 +676,7 @@ impl Polygon {
 		let command_buffer = encoder.finish(); //Finish the compilation.
 
 		*self.sync_status.borrow_mut() = sync_status::SyncStatus::GPU; //From here on out, the CPU data may be out of date.
-		GPU.1.submit([command_buffer]); //Execute the commands.
+		GPU.queue.submit([command_buffer]); //Execute the commands.
 	}
 }
 
