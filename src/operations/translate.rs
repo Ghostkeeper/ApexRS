@@ -9,8 +9,9 @@
 //! This module contains the implementations of operations to translate (move) geometric objects.
 
 use std::cmp;
+use std::sync::LazyLock;
 use rayon::prelude::*; //For multi-threaded implementations.
-use wgpu::include_wgsl; //For loading the translate GPU kernel.
+use wgpu::{include_wgsl, ShaderModule}; //For loading the translate GPU kernel.
 
 
 use crate::Coordinate; //As parameter for how far to translate.
@@ -86,6 +87,10 @@ pub fn translate_polygon_mt(polygon: &mut Polygon, dx: Coordinate, dy: Coordinat
 	);
 }
 
+static TRANSLATE_POLYGON_SHADER: LazyLock<ShaderModule> = LazyLock::new(|| {
+	GPU.device.create_shader_module(include_wgsl!("translate_polygon.wgsl"))
+});
+
 /// Move a polygon by a certain delta coordinate.
 ///
 /// This implementation runs on the GPU to use its massively parallel processing ability to move the
@@ -114,10 +119,9 @@ pub fn translate_polygon_mt(polygon: &mut Polygon, dx: Coordinate, dy: Coordinat
 /// assert_eq!(*poly.vertex(2), Point2D { x: 167, y: -50 });
 /// ```
 pub fn translate_polygon_gpu(polygon: &mut Polygon, dx: Coordinate, dy: Coordinate) {
-	let shader_module = GPU.device.create_shader_module(include_wgsl!("translate_polygon.wgsl"));
 	let parameters = [dx, dy];
 	let uniform_buffer = bytemuck::cast_slice(&parameters);
-	polygon.execute_gpu_kernel_mut(&shader_module, uniform_buffer);
+	polygon.execute_gpu_kernel_mut(&TRANSLATE_POLYGON_SHADER, uniform_buffer);
 }
 
 #[cfg(test)]
