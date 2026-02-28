@@ -19,6 +19,7 @@ use wgpu::{
 	BindingType,
 	BufferBindingType,
 	BufferDescriptor,
+	BufferUsages,
 	CommandEncoderDescriptor,
 	ComputePassDescriptor,
 	ComputePipelineDescriptor,
@@ -27,8 +28,11 @@ use wgpu::{
 	PipelineLayoutDescriptor,
 	ShaderStages,
 }; //For GPU operations.
+use wgpu::util::{BufferInitDescriptor, DeviceExt};
+
 
 use crate::Coordinate; //As parameter for how far to translate.
+use crate::Point2D; //Translating by vector.
 use crate::Polygon; //Translate polygons.
 use crate::TwoDimensional; //The translate function is part of TwoDimensional.
 use crate::detail::sync_status::SyncStatus; //To change the sync status.
@@ -130,12 +134,28 @@ pub fn translate_polygon_mt(polygon: &mut Polygon, dx: Coordinate, dy: Coordinat
 /// assert_eq!(*poly.vertex(2), Point2D { x: 167, y: -50 });
 /// ```
 pub fn translate_polygon_gpu(polygon: &mut Polygon, dx: Coordinate, dy: Coordinate) {
+	let translation_vector = Point2D { x: dx, y: dy };
+	let uniform_buffer = GPU.0.create_buffer_init(&BufferInitDescriptor {
+		label: None,
+		contents: bytemuck::cast_slice(&[translation_vector]),
+		usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+	});
 	let translate_module = GPU.0.create_shader_module(include_wgsl!("translate_polygon.wgsl"));
 	let bind_group_layout = GPU.0.create_bind_group_layout(&BindGroupLayoutDescriptor {
 		label: None,
 		entries: &[
 			BindGroupLayoutEntry {
 				binding: 0,
+				visibility: ShaderStages::COMPUTE,
+				ty: BindingType::Buffer {
+					ty: BufferBindingType::Uniform { },
+					min_binding_size: Some(NonZeroU64::new(8).unwrap()),
+					has_dynamic_offset: false,
+				},
+				count: None,
+			},
+			BindGroupLayoutEntry {
+				binding: 1,
 				visibility: ShaderStages::COMPUTE,
 				ty: BindingType::Buffer {
 					ty: BufferBindingType::Storage { read_only: false },
@@ -152,6 +172,10 @@ pub fn translate_polygon_gpu(polygon: &mut Polygon, dx: Coordinate, dy: Coordina
 		entries: &[
 			BindGroupEntry {
 				binding: 0,
+				resource: uniform_buffer.as_entire_binding(),
+			},
+			BindGroupEntry {
+				binding: 1,
 				resource: polygon.gpu_vertices().as_ref().expect("Failed to upload the polygon to the GPU.").as_entire_binding(),
 			},
 		],
