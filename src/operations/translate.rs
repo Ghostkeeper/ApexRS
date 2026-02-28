@@ -86,6 +86,7 @@ pub fn translate_polygon_mt(polygon: &mut Polygon, dx: Coordinate, dy: Coordinat
 	);
 }
 
+/// The shader for translating polygons on the GPU.
 static TRANSLATE_POLYGON_SHADER: LazyLock<ShaderModule> = LazyLock::new(|| {
 	GPU.device.create_shader_module(include_wgsl!("translate_polygon.wgsl"))
 });
