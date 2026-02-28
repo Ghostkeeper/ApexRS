@@ -522,26 +522,15 @@ impl Polygon {
 	///
 	/// While this returns an ``Option`` due to the internal data structure in this polygon, the
 	/// resulting ``Option`` is guaranteed to be ``Some``.
+	///
+	/// There is no mutable version of this function because the GPU buffers are detached from this
+	/// polygon in CPU memory. Mutability has to be enforced through the operations that may modify
+	/// the polygonal data.
 	pub(crate) fn gpu_vertices<'a>(&'a self) -> Ref<'a, Option<Buffer>> {
 		if self.sync_status.borrow().eq(&sync_status::SyncStatus::HOST) { //GPU is outdated.
 			self.sync_host_to_gpu();
 		}
 		self.gpu_buffer.borrow()
-	}
-
-	/// Obtain the vertices of this polygon on the GPU, allowing their modification.
-	///
-	/// If the latest version of the vertices is in the host rather than the GPU, it will be copied
-	/// to the GPU first. If the latest version of the vertices is in the GPU (or they are in sync),
-	/// it will simply give a reference to those.
-	///
-	/// While this returns an ``Option`` due to the internal data structure in this polygon, the
-	/// resulting ``Option`` is guaranteed to be ``Some``.
-	pub(crate) fn gpu_vertices_mut<'a>(&'a mut self) -> RefMut<'a, Option<Buffer>> {
-		if self.sync_status.borrow().eq(&sync_status::SyncStatus::HOST) { //GPU is outdated.
-			self.sync_host_to_gpu();
-		}
-		self.gpu_buffer.borrow_mut()
 	}
 
 	/// Synchronise the vertex data of this polygon from the host's memory to the GPU.
