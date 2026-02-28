@@ -17,7 +17,7 @@ struct TranslationVector {
 var<storage, read_write> coordinates: array<i32>;
 
 @compute @workgroup_size(64)
-fn translate(@builtin(global_invocation_id) global_id: vec3<u32>) {
+fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let index = global_id.x;
     let num_coords = arrayLength(&coordinates);
     if(index >= num_coords) {

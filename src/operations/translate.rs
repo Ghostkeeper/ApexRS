@@ -134,92 +134,10 @@ pub fn translate_polygon_mt(polygon: &mut Polygon, dx: Coordinate, dy: Coordinat
 /// assert_eq!(*poly.vertex(2), Point2D { x: 167, y: -50 });
 /// ```
 pub fn translate_polygon_gpu(polygon: &mut Polygon, dx: Coordinate, dy: Coordinate) {
-	let translation_vector = Point2D { x: dx, y: dy };
-	let uniform_buffer = GPU.0.create_buffer_init(&BufferInitDescriptor {
-		label: None,
-		contents: bytemuck::cast_slice(&[translation_vector]),
-		usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-	});
-	let translate_module = GPU.0.create_shader_module(include_wgsl!("translate_polygon.wgsl"));
-	let bind_group_layout = GPU.0.create_bind_group_layout(&BindGroupLayoutDescriptor {
-		label: None,
-		entries: &[
-			BindGroupLayoutEntry {
-				binding: 0,
-				visibility: ShaderStages::COMPUTE,
-				ty: BindingType::Buffer {
-					ty: BufferBindingType::Uniform { },
-					min_binding_size: Some(NonZeroU64::new(8).unwrap()),
-					has_dynamic_offset: false,
-				},
-				count: None,
-			},
-			BindGroupLayoutEntry {
-				binding: 1,
-				visibility: ShaderStages::COMPUTE,
-				ty: BindingType::Buffer {
-					ty: BufferBindingType::Storage { read_only: false },
-					min_binding_size: Some(NonZeroU64::new(4).unwrap()),
-					has_dynamic_offset: false,
-				},
-				count: None,
-			},
-		],
-	});
-	let bind_group = GPU.0.create_bind_group(&BindGroupDescriptor {
-		label: None,
-		layout: &bind_group_layout,
-		entries: &[
-			BindGroupEntry {
-				binding: 0,
-				resource: uniform_buffer.as_entire_binding(),
-			},
-			BindGroupEntry {
-				binding: 1,
-				resource: polygon.gpu_vertices().as_ref().expect("Failed to upload the polygon to the GPU.").as_entire_binding(),
-			},
-		],
-	});
-	let pipeline_layout = GPU.0.create_pipeline_layout(&PipelineLayoutDescriptor {
-		label: None,
-		bind_group_layouts: &[&bind_group_layout],
-		immediate_size: 0,
-	});
-	let pipeline = GPU.0.create_compute_pipeline(&ComputePipelineDescriptor {
-		label: None,
-		layout: Some(&pipeline_layout),
-		module: &translate_module,
-		entry_point: Some("translate"),
-		compilation_options: PipelineCompilationOptions::default(),
-		cache: None,
-	});
-	let mut encoder = GPU.0.create_command_encoder(&CommandEncoderDescriptor {
-		label: None,
-	});
-	let mut compute_pass = encoder.begin_compute_pass(&ComputePassDescriptor {
-		label: None,
-		timestamp_writes: None,
-	});
-	compute_pass.set_pipeline(&pipeline);
-	compute_pass.set_bind_group(0, &bind_group, &[]);
-	compute_pass.dispatch_workgroups(64, 1, 1);
-	drop(compute_pass);
-	let buffer_size = polygon.gpu_vertices().as_ref().expect("The GPU needs to have data before we can synchronise it to the host.").size();
-	polygon.transfer_buffer.borrow_mut().replace(GPU.0.create_buffer(&BufferDescriptor {
-		label: None,
-		size: buffer_size,
-		usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-		mapped_at_creation: false,
-	}));
-	encoder.copy_buffer_to_buffer(
-		polygon.gpu_vertices().as_ref().expect("Failed to get the result from the GPU."), 0,
-		polygon.transfer_buffer.borrow().as_ref().unwrap(), 0,
-		buffer_size
-	);
-	let command_buffer = encoder.finish();
-
-	*polygon.sync_status.borrow_mut() = SyncStatus::GPU;
-	GPU.1.submit([command_buffer]);
+	let shader_module = GPU.0.create_shader_module(include_wgsl!("translate_polygon.wgsl"));
+	let parameters = [dx, dy];
+	let uniform_buffer = bytemuck::cast_slice(&parameters);
+	polygon.execute_gpu_kernel(&shader_module, uniform_buffer);
 }
 
 #[cfg(test)]

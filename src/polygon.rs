@@ -11,8 +11,12 @@
 use std::cell::{Ref, RefCell, RefMut}; //For interior mutability to keep CPU and GPU in sync.
 use std::fmt; //You can print polygons as text.
 use std::iter::FromIterator; //Constructing polygons from iterable lists of vertices.
+use std::num::NonZeroU64; //For communicating buffer sizes to the GPU.
 use std::rc::Rc; //For interior mutability to keep CPU and GPU in sync.
-use wgpu::{Buffer, BufferDescriptor, BufferUsages, MapMode, PollType}; //For computing on the GPU.
+use wgpu::{BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry,
+	BindingType, Buffer, BufferBindingType, BufferDescriptor, BufferUsages, CommandEncoderDescriptor,
+	ComputePassDescriptor, ComputePipelineDescriptor, include_wgsl, MapMode, PipelineCompilationOptions,
+	PipelineLayoutDescriptor, PollType, ShaderModule, ShaderStages}; //For computing on the GPU.
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 
 use crate::Area; //To return the polygon's surface area.
@@ -571,6 +575,103 @@ impl Polygon {
 		let slice: &[u8] = &self.transfer_buffer.borrow().as_ref().unwrap().slice(..).get_mapped_range();
 		*self.vertices.borrow_mut() = bytemuck::cast_slice(slice).to_vec();
 		*self.sync_status.borrow_mut() = sync_status::SyncStatus::SYNCED;
+	}
+
+	/// Execute a compute kernel on the GPU.
+	///
+	/// This creates a uniform buffer for the parameters, a binding group layout, a binding group,
+	/// a pipeline layout, a pipeline, an encoder and a compute pass, and then dispatches that
+	/// compute pass.
+	///
+	/// # Arguments
+	/// * `shader_module` - The kernel to execute on the GPU.
+	/// * `uniform_data` - Uniform data to pass to the GPU in order to configure parameters to the
+	/// kernel.
+	pub(crate) fn execute_gpu_kernel(&self, shader_module: &ShaderModule, uniform_data: &[u8]) {
+		let uniform_buffer = GPU.0.create_buffer_init(&BufferInitDescriptor {
+			label: None,
+			contents: uniform_data,
+			usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+		});
+		let bind_group_layout = GPU.0.create_bind_group_layout(&BindGroupLayoutDescriptor {
+			label: None,
+			entries: &[
+				BindGroupLayoutEntry {
+					binding: 0,
+					visibility: ShaderStages::COMPUTE,
+					ty: BindingType::Buffer {
+						ty: BufferBindingType::Uniform { },
+						min_binding_size: Some(NonZeroU64::new(8).unwrap()),
+						has_dynamic_offset: false,
+					},
+					count: None,
+				},
+				BindGroupLayoutEntry {
+					binding: 1,
+					visibility: ShaderStages::COMPUTE,
+					ty: BindingType::Buffer {
+						ty: BufferBindingType::Storage { read_only: false },
+						min_binding_size: Some(NonZeroU64::new(4).unwrap()),
+						has_dynamic_offset: false,
+					},
+					count: None,
+				},
+			],
+		});
+		let bind_group = GPU.0.create_bind_group(&BindGroupDescriptor {
+			label: None,
+			layout: &bind_group_layout,
+			entries: &[
+				BindGroupEntry {
+					binding: 0,
+					resource: uniform_buffer.as_entire_binding(),
+				},
+				BindGroupEntry {
+					binding: 1,
+					resource: self.gpu_vertices().as_ref().expect("Failed to upload the polygon to the GPU.").as_entire_binding(),
+				},
+			],
+		});
+		let pipeline_layout = GPU.0.create_pipeline_layout(&PipelineLayoutDescriptor {
+			label: None,
+			bind_group_layouts: &[&bind_group_layout],
+			immediate_size: 0,
+		});
+		let pipeline = GPU.0.create_compute_pipeline(&ComputePipelineDescriptor {
+			label: None,
+			layout: Some(&pipeline_layout),
+			module: &shader_module,
+			entry_point: Some("main"),
+			compilation_options: PipelineCompilationOptions::default(),
+			cache: None,
+		});
+		let mut encoder = GPU.0.create_command_encoder(&CommandEncoderDescriptor {
+			label: None,
+		});
+		let mut compute_pass = encoder.begin_compute_pass(&ComputePassDescriptor {
+			label: None,
+			timestamp_writes: None,
+		});
+		compute_pass.set_pipeline(&pipeline);
+		compute_pass.set_bind_group(0, &bind_group, &[]);
+		compute_pass.dispatch_workgroups(64, 1, 1);
+		drop(compute_pass);
+		let buffer_size = self.gpu_vertices().as_ref().expect("The GPU needs to have data before we can synchronise it to the host.").size();
+		self.transfer_buffer.borrow_mut().replace(GPU.0.create_buffer(&BufferDescriptor {
+			label: None,
+			size: buffer_size,
+			usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+			mapped_at_creation: false,
+		}));
+		encoder.copy_buffer_to_buffer(
+			self.gpu_vertices().as_ref().expect("Failed to get the result from the GPU."), 0,
+			self.transfer_buffer.borrow().as_ref().unwrap(), 0,
+			buffer_size
+		);
+		let command_buffer = encoder.finish();
+
+		*self.sync_status.borrow_mut() = sync_status::SyncStatus::GPU;
+		GPU.1.submit([command_buffer]);
 	}
 }
 
