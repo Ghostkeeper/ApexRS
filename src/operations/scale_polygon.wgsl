@@ -25,8 +25,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     }
 
     if index % 2 == 0 { //Translate X coordinate.
-        coordinates[index] = (coordinates[index] as f64 * scale_factors.x).round() as i32;
+        coordinates[index] = i32(round(f64(coordinates[index]) * scale_factors.x));
     } else { //Translate Y coordinate.
-        coordinates[index] = (coordinates[index] as f64 * scale_factors.y).round() as i32;
+        coordinates[index] = i32(round(f64(coordinates[index]) * scale_factors.y));
     }
 }
