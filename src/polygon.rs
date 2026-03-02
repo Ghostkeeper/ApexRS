@@ -684,7 +684,7 @@ impl TwoDimensional for Polygon {
 	fn translate(&mut self, dx: Coordinate, dy: Coordinate) {
 		translate::translate_polygon_st(self, dx, dy);
 	}
-	fn scale(&mut self, x: f64, y: f64) {
+	fn scale(&mut self, x: f32, y: f32) {
 		scale::scale_polygon_st(self, x, y);
 	}
 }

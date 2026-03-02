@@ -7,8 +7,8 @@
  */
 
 struct ScaleFactors {
-    x: f64,
-    y: f64,
+    x: f32,
+    y: f32,
 }
 
 @group(0) @binding(0) var<uniform> scale_factors: ScaleFactors;
@@ -25,8 +25,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     }
 
     if index % 2 == 0 { //Translate X coordinate.
-        coordinates[index] = i32(round(f64(coordinates[index]) * scale_factors.x));
+        coordinates[index] = i32(round(f32(coordinates[index]) * scale_factors.x));
     } else { //Translate Y coordinate.
-        coordinates[index] = i32(round(f64(coordinates[index]) * scale_factors.y));
+        coordinates[index] = i32(round(f32(coordinates[index]) * scale_factors.y));
     }
 }

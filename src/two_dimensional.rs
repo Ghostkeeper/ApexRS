@@ -53,5 +53,5 @@ pub trait TwoDimensional {
 	/// point.scale(2.0, -0.5);
 	/// assert_eq!(point, Point2D { x: 200, y: -250 });
 	/// ```
-	fn scale(&mut self, x: f64, y: f64);
+	fn scale(&mut self, x: f32, y: f32);
 }

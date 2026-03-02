@@ -59,9 +59,9 @@ impl TwoDimensional for Point2D {
 		self.y += dy;
 	}
 
-	fn scale(&mut self, x: f64, y: f64) {
-		self.x = (self.x as f64 * x).round() as i32;
-		self.y = (self.y as f64 * y).round() as i32;
+	fn scale(&mut self, x: f32, y: f32) {
+		self.x = (self.x as f32 * x).round() as i32;
+		self.y = (self.y as f32 * y).round() as i32;
 	}
 }
 

@@ -48,7 +48,7 @@ use crate::detail::gpu::GPU; //To perform calculations on the GPU.
 /// assert_eq!(*poly.vertex(1), Point2D { x: 200, y: 0 });
 /// assert_eq!(*poly.vertex(2), Point2D { x: 134, y: 150 });
 /// ```
-pub fn scale_polygon_st(polygon: &mut Polygon, x: f64, y: f64) {
+pub fn scale_polygon_st(polygon: &mut Polygon, x: f32, y: f32) {
     for vertex in polygon.host_vertices_mut().iter_mut() {
         vertex.scale(x, y);
     }
@@ -83,7 +83,7 @@ pub fn scale_polygon_st(polygon: &mut Polygon, x: f64, y: f64) {
 /// assert_eq!(*poly.vertex(1), Point2D { x: 200, y: 0 });
 /// assert_eq!(*poly.vertex(2), Point2D { x: 134, y: 150 });
 /// ```
-pub fn scale_polygon_mt(polygon: &mut Polygon, x: f64, y: f64) {
+pub fn scale_polygon_mt(polygon: &mut Polygon, x: f32, y: f32) {
     let chunk_size = cmp::max(10000, polygon.host_vertices().len() / current_num_threads());
     polygon.host_vertices_mut().par_chunks_mut(chunk_size).for_each(
         |slice| slice.iter_mut().for_each(
@@ -126,7 +126,7 @@ static SCALE_POLYGON_SHADER: LazyLock<ShaderModule> = LazyLock::new(|| {
 /// assert_eq!(*poly.vertex(1), Point2D { x: 200, y: 0 });
 /// assert_eq!(*poly.vertex(2), Point2D { x: 134, y: 150 });
 /// ```
-pub fn scale_polygon_gpu(polygon: &mut Polygon, x: f64, y: f64) {
+pub fn scale_polygon_gpu(polygon: &mut Polygon, x: f32, y: f32) {
     let parameters = [x, y];
     let uniform_buffer = bytemuck::cast_slice(&parameters);
     polygon.execute_gpu_kernel_mut(&SCALE_POLYGON_SHADER, uniform_buffer);
