@@ -6,16 +6,24 @@
  * You should have received a copy of the GNU Affero General Public License along with this library. If not, see <https://gnu.org/licenses/>.
  */
 
+/// The structure of the uniform buffer is a combination of two floats: The X and Y scale factors.
 struct ScaleFactors {
+    /// The scale factor in the X direction.
     x: f32,
+
+    /// The scale factor in the Y direction.
     y: f32,
 }
-
 @group(0) @binding(0) var<uniform> scale_factors: ScaleFactors;
 
+/// The structure of the first binding is an array of coordinates.
+///
+/// There should always be an even number of coordinates: one X, Y pair for each vertex of the
+/// polygon to scale.
 @group(0) @binding(1)
 var<storage, read_write> coordinates: array<i32>;
 
+/// Perform the scale operation on the polygon in-place.
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let index = global_id.x;
@@ -24,9 +32,9 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         return;
     }
 
-    if index % 2 == 0 { //Translate X coordinate.
+    if index % 2 == 0 { //Scale X coordinate.
         coordinates[index] = i32(round(f32(coordinates[index]) * scale_factors.x));
-    } else { //Translate Y coordinate.
+    } else { //Scale Y coordinate.
         coordinates[index] = i32(round(f32(coordinates[index]) * scale_factors.y));
     }
 }

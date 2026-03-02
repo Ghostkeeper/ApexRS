@@ -15,7 +15,6 @@ use rayon::iter::ParallelIterator; //For multi-threaded implementations.
 use rayon::prelude::ParallelSliceMut; //For multi-threaded implementations.
 use wgpu::{include_wgsl, ShaderModule}; //For loading the translate GPU kernel.
 
-use crate::Coordinate; //As parameter for how much to scale.
 use crate::Polygon; //Translate polygons.
 use crate::TwoDimensional; //The scale operation is part of TwoDimensional.
 use crate::detail::gpu::GPU; //To perform calculations on the GPU.

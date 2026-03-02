@@ -13,10 +13,26 @@ use std::fmt; //You can print polygons as text.
 use std::iter::FromIterator; //Constructing polygons from iterable lists of vertices.
 use std::num::NonZeroU64; //For communicating buffer sizes to the GPU.
 use std::rc::Rc; //For interior mutability to keep CPU and GPU in sync.
-use wgpu::{BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry,
-	BindingType, Buffer, BufferBindingType, BufferDescriptor, BufferUsages, CommandEncoderDescriptor,
-	ComputePassDescriptor, ComputePipelineDescriptor, MapMode, PipelineCompilationOptions,
-	PipelineLayoutDescriptor, PollType, ShaderModule, ShaderStages}; //For computing on the GPU.
+use wgpu::{ //For computing on the GPU.
+	BindGroupDescriptor,
+	BindGroupEntry,
+	BindGroupLayoutDescriptor,
+	BindGroupLayoutEntry,
+	BindingType,
+	Buffer,
+	BufferBindingType,
+	BufferDescriptor,
+	BufferUsages,
+	CommandEncoderDescriptor,
+	ComputePassDescriptor,
+	ComputePipelineDescriptor,
+	MapMode,
+	PipelineCompilationOptions,
+	PipelineLayoutDescriptor,
+	PollType,
+	ShaderModule,
+	ShaderStages
+};
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 
 use crate::Area; //To return the polygon's surface area.
@@ -26,7 +42,7 @@ use crate::Point2D; //The vertices of the Polygon are Point2D.
 use crate::Shape2D; //This is a 2D shape.
 use crate::TwoDimensional; //This is a two-dimensional object.
 use crate::detail::gpu::GPU; //To perform calculations on the GPU.
-use crate::detail::sync_status; //To track whether the GPU or CPU copies are up-to-date.
+use crate::detail::sync_status::SyncStatus; //To track whether the GPU or CPU copies are up-to-date.
 use crate::operations::{scale, translate}; //To translate the polygons.
 
 /// A plane figure consisting of a single contour of straight line segments.
@@ -106,7 +122,7 @@ pub struct Polygon {
 	/// the GPU is, or whether both are in sync (so both are the most up-to-date version).
 	///
 	/// If the CPU version is the most up-to-date,
-	sync_status: Rc<RefCell<sync_status::SyncStatus>>,
+	sync_status: Rc<RefCell<SyncStatus>>,
 }
 
 impl Polygon {
@@ -118,7 +134,7 @@ impl Polygon {
 			vertices: Rc::new(RefCell::new(vec!())),
 			gpu_buffer: Rc::new(RefCell::new(None)),
 			transfer_buffer: Rc::new(RefCell::new(None)),
-			sync_status: Rc::new(RefCell::new(sync_status::SyncStatus::HOST)),
+			sync_status: Rc::new(RefCell::new(SyncStatus::HOST)),
 		}
 	}
 
@@ -152,7 +168,7 @@ impl Polygon {
 			vertices: Rc::new(RefCell::new(Vec::with_capacity(capacity))),
 			gpu_buffer: Rc::new(RefCell::new(None)),
 			transfer_buffer: Rc::new(RefCell::new(None)),
-			sync_status: Rc::new(RefCell::new(sync_status::SyncStatus::HOST)),
+			sync_status: Rc::new(RefCell::new(SyncStatus::HOST)),
 		}
 	}
 
@@ -496,7 +512,7 @@ impl Polygon {
 	/// to the host's RAM. If the latest version of the vertices is on the CPU (or they are in
 	/// sync), it will simply give a reference to those.
 	pub(crate) fn host_vertices<'a>(&'a self) -> Ref<'a, Vec<Point2D>> {
-		if self.sync_status.borrow().eq(&sync_status::SyncStatus::GPU) { //Host is outdated.
+		if self.sync_status.borrow().eq(&SyncStatus::GPU) { //Host is outdated.
 			self.sync_gpu_to_host();
 		}
 		self.vertices.borrow()
@@ -508,7 +524,7 @@ impl Polygon {
 	/// to the host's RAM. If the latest version of the vertices is on the CPU (or they are in
 	/// sync), it will simply give a reference to those.
 	pub(crate) fn host_vertices_mut<'a>(&'a mut self) -> RefMut<'a, Vec<Point2D>> {
-		if self.sync_status.borrow().eq(&sync_status::SyncStatus::GPU) { //Host is outdated.
+		if self.sync_status.borrow().eq(&SyncStatus::GPU) { //Host is outdated.
 			self.sync_gpu_to_host();
 		}
 		self.vertices.borrow_mut()
@@ -527,7 +543,7 @@ impl Polygon {
 	/// polygon in CPU memory. Mutability has to be enforced through the operations that may modify
 	/// the polygonal data.
 	pub(crate) fn gpu_vertices<'a>(&'a self) -> Ref<'a, Option<Buffer>> {
-		if self.sync_status.borrow().eq(&sync_status::SyncStatus::HOST) { //GPU is outdated.
+		if self.sync_status.borrow().eq(&SyncStatus::HOST) { //GPU is outdated.
 			self.sync_host_to_gpu();
 		}
 		self.gpu_buffer.borrow()
@@ -544,7 +560,7 @@ impl Polygon {
 			contents: bytemuck::cast_slice(self.host_vertices().as_slice()),
 			usage: BufferUsages::STORAGE | BufferUsages::COPY_SRC, //Both reading and writing.
 		}));
-		*self.sync_status.borrow_mut() = sync_status::SyncStatus::SYNCED;
+		*self.sync_status.borrow_mut() = SyncStatus::SYNCED;
 	}
 
 	/// Synchronise the vertex data of this polygon from the GPU's memory to the host.
@@ -576,7 +592,7 @@ impl Polygon {
 		let _ = GPU.device.poll(PollType::wait_indefinitely());
 		let slice: &[u8] = &self.transfer_buffer.borrow().as_ref().unwrap().slice(..).get_mapped_range();
 		*self.vertices.borrow_mut() = bytemuck::cast_slice(slice).to_vec();
-		*self.sync_status.borrow_mut() = sync_status::SyncStatus::SYNCED;
+		*self.sync_status.borrow_mut() = SyncStatus::SYNCED;
 	}
 
 	/// Execute a compute kernel on the GPU that would mutate the polygon.
@@ -675,15 +691,77 @@ impl Polygon {
 		drop(compute_pass); //Now that we've dispatched the workgroups, we can drop the compute pass so that we can access the encoder again.
 		let command_buffer = encoder.finish(); //Finish the compilation.
 
-		*self.sync_status.borrow_mut() = sync_status::SyncStatus::GPU; //From here on out, the CPU data may be out of date.
+		*self.sync_status.borrow_mut() = SyncStatus::GPU; //From here on out, the CPU data may be out of date.
 		GPU.queue.submit([command_buffer]); //Execute the commands.
 	}
 }
 
 impl TwoDimensional for Polygon {
+	/// Move the polygon across the two-dimensional space.
+	///
+	/// This causes the position of the polygon to change, but doesn't otherwise transform it. The
+	/// polygon is not rotated, scaled or deformed in any way.
+	///
+	/// The polygon is translated in-place, causing the polygon to be modified.
+	///
+	/// # Arguments
+	/// * `dx` - How far to move the polygon in the X direction. Use a positive number to increase
+	/// the X position, or a negative number to reduce the X position.
+	/// * `dy` - How far to move the polygon in the Y direction. Use a positive number to increase
+	/// the Y position, or a negative number to reduce the Y position.
+	///
+	/// # Examples
+	/// ```
+	/// use apex::{Point2D, Polygon, TwoDimensional};
+	/// //Create a triangular polygon.
+	/// let mut poly = Polygon::from_iter([
+	/// 	Point2D { x: 0, y: 0 },
+	/// 	Point2D { x: 100, y: 0 },
+	/// 	Point2D { x: 67, y: 100 }
+	/// ]);
+	/// //Move the polygon.
+	/// poly.translate(100, -150);
+	/// //Now, all of the vertices will have moved.
+	/// assert_eq!(*poly.vertex(0), Point2D { x: 100, y: -150 });
+	/// assert_eq!(*poly.vertex(1), Point2D { x: 200, y: -150 });
+	/// assert_eq!(*poly.vertex(2), Point2D { x: 167, y: -50 });
+	/// ```
 	fn translate(&mut self, dx: Coordinate, dy: Coordinate) {
 		translate::translate_polygon_st(self, dx, dy);
 	}
+
+	/// Scale the polygon away from the coordinate origin.
+	///
+	/// This causes the polygon to become bigger or smaller, and simultaneously to move away from or
+	/// closer to the coordinate origin. It can also cause the shape to appear squished or
+	/// stretched, because the scale factors can be different between the X and the Y axis.
+	///
+	/// The polygon is scaled in-place, causing the polygon to be modified.
+	///
+	/// # Arguments
+	/// * `x` - The scaling factor for the X axis. Use a number greater than 1 to make the polygon
+	/// wider, or smaller than 1 to make the polygon smaller. Use a negative number to mirror the
+	/// polygon horizontally.
+	/// * `y` - The scaling factor for the Y axis. Use a number greater than 1 to make the polygon
+	/// taller, or smaller than 1 to make the polygon shorter. Use a negative number to mirror the
+	/// polygon vertically.
+	///
+	/// # Examples
+	/// ```
+	/// use apex::{Point2D, Polygon, TwoDimensional};
+	/// //Create a triangular polygon.
+	/// let mut poly = Polygon::from_iter([
+	///     Point2D { x: 0, y: 0 },
+	///     Point2D { x: 100, y: 0 },
+	///     Point2D { x: 67, y: 100},
+	/// ]);
+	/// //Scale the polygon.
+	/// poly.scale(2.0, 1.5);
+	/// //Now, the polygon will be scaled to be bigger.
+	/// assert_eq!(*poly.vertex(0), Point2D { x: 0, y: 0 });
+	/// assert_eq!(*poly.vertex(1), Point2D { x: 200, y: 0 });
+	/// assert_eq!(*poly.vertex(2), Point2D { x: 134, y: 150 });
+	/// ```
 	fn scale(&mut self, x: f32, y: f32) {
 		scale::scale_polygon_st(self, x, y);
 	}
@@ -728,7 +806,7 @@ impl FromIterator<Point2D> for Polygon {
 			vertices: Rc::new(RefCell::new(Vec::from_iter(iter))),
 			gpu_buffer: Rc::new(RefCell::new(None)),
 			transfer_buffer: Rc::new(RefCell::new(None)),
-			sync_status: Rc::new(RefCell::new(sync_status::SyncStatus::HOST)),
+			sync_status: Rc::new(RefCell::new(SyncStatus::HOST)),
 		}
 	}
 }

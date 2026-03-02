@@ -38,6 +38,11 @@ pub struct Point2D {
 }
 
 impl Point2D {
+	/// Construct a new point in 2D space.
+	///
+	/// # Arguments
+	/// * `x` - The coordinate along the first dimension where the point will be located.
+	/// * `y` - The coordinate along the second dimension where the point will be located.
 	fn new(x: Coordinate, y: Coordinate) -> Point2D {
 		Point2D { x, y }
 	}
@@ -54,20 +59,54 @@ impl Shape2D for Point2D {
 }
 
 impl TwoDimensional for Point2D {
+	/// Move the point across the two-dimensional space.
+	///
+	/// This causes the position of the point to change. The point is modified in-place.
+	///
+	/// # Arguments
+	/// * `dx` - How far to move the point in the X direction. Use a positive number to increase the
+	/// X position, or a negative number to reduce the X position.
+	/// * `dy` - How far to move the point in the Y direction. Use a positive number to increase the
+	/// Y position, or a negative number to reduce the Y position.
+	///
+	/// # Examples
+	/// ```
+	/// use apex::{Point2D, TwoDimensional};
+	/// let mut point = Point2D{ x: 100, y: 500 };
+	/// point.translate(50, -130);
+	/// assert_eq!(point, Point2D { x: 150, y: 370 });
+	/// ```
 	fn translate(&mut self, dx: Coordinate, dy: Coordinate) {
 		self.x += dx;
 		self.y += dy;
 	}
 
+	/// Scale the point away from the coordinate origin.
+	///
+	/// This causes the point to move away from or closer to the coordinate origin.
+	///
+	/// The point is modified in-place.
+	///
+	/// # Arguments
+	/// * `x` - The scaling factor for the X axis. Use a number greater than 1 to move the point
+	/// farther away from the coordinate origin, or smaller than 1 to move it closer. Use a negative
+	/// number to mirror the position horizontally.
+	/// * `y` - The scaling factor for the Y axis. Use a number greater than 1 to move the point
+	/// farther away from the coordinate origin, or smaller than 1 to move it closer. Use a negative
+	/// number to mirror the position horizontally.
+	///
+	/// # Examples
+	/// ```
+	/// use apex::{Point2D, TwoDimensional};
+	/// let mut point = Point2D { x: 100, y: 500 };
+	/// point.scale(2.0, -0.5);
+	/// assert_eq!(point, Point2D { x: 200, y: -250 });
+	/// ```
 	fn scale(&mut self, x: f32, y: f32) {
 		self.x = (self.x as f32 * x).round() as i32;
 		self.y = (self.y as f32 * y).round() as i32;
 	}
 }
-
-//Two traits implemented for bytemuck, required to send these objects to the GPU.
-// unsafe impl Zeroable for Point2D {}
-// unsafe impl Pod for Point2D {}
 
 impl_op_ex!(+ |a: &Point2D, b: &Point2D| -> Point2D { Point2D::new(a.x + b.x, a.y + b.y) });
 impl_op_ex!(- |a: &Point2D, b: &Point2D| -> Point2D { Point2D::new(a.x - b.x, a.y - b.y) });

@@ -6,16 +6,25 @@
  * You should have received a copy of the GNU Affero General Public License along with this library. If not, see <https://gnu.org/licenses/>.
  */
 
+/// The structure of the uniform buffer is a combination of two integers: The delta-X and delta-Y.
 struct TranslationVector {
+    /// The delta-X to move the polygon in the X direction.
     x: i32,
+
+    /// The delta-Y to move the polygon in the Y direction.
     y: i32,
 }
-
 @group(0) @binding(0) var<uniform> translation_vector: TranslationVector;
 
+
+/// The structure of the first binding is an array of coordinates.
+///
+/// There should always be an even number of coordinates: one X, Y pair for each vertex of the
+/// polygon to scale.
 @group(0) @binding(1)
 var<storage, read_write> coordinates: array<i32>;
 
+/// Perform the translate operation on the polygon in-place.
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let index = global_id.x;
