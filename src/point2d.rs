@@ -15,6 +15,7 @@ use crate::Convexity; //To implement Shape2D.
 use crate::Coordinate; //The position of the point is stored with coordinates.
 use crate::TwoDimensional; //This point is in two-dimensional space.
 use crate::Shape2D; //A point is a shape, with a bounded (zero) area.
+use crate::coordinate::round; //To properly round after transformations.
 
 /// Specifies a point in 2D space.
 ///
@@ -103,8 +104,8 @@ impl TwoDimensional for Point2D {
 	/// assert_eq!(point, Point2D { x: 200, y: -250 });
 	/// ```
 	fn scale(&mut self, x: f32, y: f32) {
-		self.x = (self.x as f32 * x).round() as i32;
-		self.y = (self.y as f32 * y).round() as i32;
+		self.x = round(self.x as f32 * x);
+		self.y = round(self.y as f32 * y);
 	}
 }
 
@@ -159,6 +160,42 @@ mod tests {
 		point.translate(-500, 1000);
 		assert_eq!(point.x, 20000 + 100 - 500, "We further moved the X coordinate into the negative direction by 500.");
 		assert_eq!(point.y, -10000 - 200 + 1000, "We further moved the Y coordinate into the positive direction by 1000.");
+	}
+
+	#[test]
+	/// Test scaling a point to be larger.
+	fn point2d_scale_larger() {
+		let mut point = Point2D { x: 1000, y: -200 };
+		point.scale(2.0, 3.5);
+		assert_eq!(point.x, 2000, "We scaled the X coordinate by 2, so 1000 * 2 = 2000.");
+		assert_eq!(point.y, -700, "We scaled the Y coordinate by 3.5, so -200 * 3.5 = -700.");
+	}
+
+	#[test]
+	/// Test scaling a point to be smaller.
+	fn point2d_scale_smaller() {
+		let mut point = Point2D { x: -1000, y: 200 };
+		point.scale(0.5, 0.7);
+		assert_eq!(point.x, -500, "We scaled the X coordinate by 0.5, so -1000 * 0.5 = -500.");
+		assert_eq!(point.y, 140, "We scaled the Y coordinate by 0.7, so 200 * 0.7 = 140.");
+	}
+
+	#[test]
+	/// Test scaling a point to be mirrored around the origin.
+	fn point2d_scale_negative() {
+		let mut point = Point2D { x: 40000, y: -90 };
+		point.scale(-0.2, -25.0);
+		assert_eq!(point.x, -8000, "We scaled the X coordinate by -0.2, so 40000 * -0.2 = -8000.");
+		assert_eq!(point.y, 2250, "We scaled the Y coordinate by -25, so -90 * -25 = 2250.");
+	}
+
+	#[test]
+	/// Test proper rounding and rounding errors when scaling.
+	fn point2d_scale_rounding() {
+		let mut point = Point2D { x: 1, y: 25 };
+		point.scale(4.5, -0.5);
+		assert_eq!(point.x, 5, "1 * 4.5 would be 4.5, which gets rounded up to 5.");
+		assert_eq!(point.y, -12, "25 * -0.5 would be -12.5, which gets rounded up to -12.");
 	}
 
 	#[test]

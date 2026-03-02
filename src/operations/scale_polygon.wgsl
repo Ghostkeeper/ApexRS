@@ -23,6 +23,22 @@ struct ScaleFactors {
 @group(0) @binding(1)
 var<storage, read_write> coordinates: array<i32>;
 
+/// Round fractional coordinate points to the nearest coordinate.
+///
+/// Rounding coordinates is done slightly non-standard in order to maintain better accuracy: It is
+/// always rounded half-up. If we were to round half-away-from-zero, or round half-to-even, moving a
+/// shape may cause its size to change.
+///
+/// # Arguments
+/// * `coordinate` - The coordinate to round, representing as a floating-point value.
+fn round(coordinate: f32) -> i32 {
+    if fract(coordinate) >= 0.5 {
+        return i32(ceil(coordinate));
+    } else {
+        return i32(floor(coordinate));
+    }
+}
+
 /// Perform the scale operation on the polygon in-place.
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
@@ -33,8 +49,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     }
 
     if index % 2 == 0 { //Scale X coordinate.
-        coordinates[index] = i32(round(f32(coordinates[index]) * scale_factors.x));
+        coordinates[index] = round(f32(coordinates[index]) * scale_factors.x);
     } else { //Scale Y coordinate.
-        coordinates[index] = i32(round(f32(coordinates[index]) * scale_factors.y));
+        coordinates[index] = round(f32(coordinates[index]) * scale_factors.y);
     }
 }

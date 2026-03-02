@@ -1,6 +1,6 @@
 /*
  * Library for performing massively parallel computations on polygons.
- * Copyright (C) 2023 Ghostkeeper
+ * Copyright (C) 2026 Ghostkeeper
  * This library is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
  * This library is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for details.
  * You should have received a copy of the GNU Affero General Public License along with this library. If not, see <https://gnu.org/licenses/>.
@@ -17,6 +17,37 @@
 /// The type is 32-bits to allow for single-width entries in graphics card integer processors.
 /// Anything else kills performance.
 pub type Coordinate = i32;
+
+/// Round fractional coordinate points to the nearest coordinate.
+///
+/// Rounding coordinates is done slightly non-standard in order to maintain better accuracy: It is
+/// always rounded half-up. If we were to round half-away-from-zero, or round half-to-even, moving a
+/// shape may cause its size to change.
+///
+/// # Arguments
+/// * `coordinate` - The coordinate to round, representing as a floating-point value.
+///
+/// # Examples
+/// ```
+/// use apex::coordinate::round;
+/// let close_down = round(3.1);
+/// assert_eq!(close_down, 3);
+/// let close_up = round(2.9);
+/// assert_eq!(close_up, 3);
+/// let half_up_even = round(3.5);
+/// assert_eq!(half_up_even, 4);
+/// let half_up_odd = round(4.5);
+/// assert_eq!(half_up_odd, 5);
+/// let half_up_negative = round(-3.5);
+/// assert_eq!(half_up_negative, -3);
+/// ```
+pub fn round(coordinate: f32) -> Coordinate {
+    if coordinate.fract().abs() >= 0.5 {
+        return coordinate.ceil() as Coordinate;
+    } else {
+        return coordinate.floor() as Coordinate;
+    }
+}
 
 /// The type used to store the size of areas in 2D space.
 ///
