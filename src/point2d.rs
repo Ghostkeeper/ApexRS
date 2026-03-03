@@ -44,7 +44,7 @@ impl Point2D {
 	/// # Arguments
 	/// * `x` - The coordinate along the first dimension where the point will be located.
 	/// * `y` - The coordinate along the second dimension where the point will be located.
-	fn new(x: Coordinate, y: Coordinate) -> Point2D {
+	pub fn new(x: Coordinate, y: Coordinate) -> Point2D {
 		Point2D { x, y }
 	}
 }
@@ -109,9 +109,9 @@ impl TwoDimensional for Point2D {
 	/// point.scale(2.0, -0.5);
 	/// assert_eq!(point, Point2D { x: 200, y: -250 });
 	/// ```
-	fn scale(&mut self, x: f32, y: f32) {
-		self.x = round(self.x as f32 * x);
-		self.y = round(self.y as f32 * y);
+	fn scale(&mut self, x: f64, y: f64) {
+		self.x = round(self.x as f64 * x);
+		self.y = round(self.y as f64 * y);
 	}
 }
 

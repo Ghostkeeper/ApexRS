@@ -762,7 +762,7 @@ impl TwoDimensional for Polygon {
 	/// assert_eq!(*poly.vertex(1), Point2D { x: 200, y: 0 });
 	/// assert_eq!(*poly.vertex(2), Point2D { x: 134, y: 150 });
 	/// ```
-	fn scale(&mut self, x: f32, y: f32) {
+	fn scale(&mut self, x: f64, y: f64) {
 		scale::scale_polygon_st(self, x, y);
 	}
 }

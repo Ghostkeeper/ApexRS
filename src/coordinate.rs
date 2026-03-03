@@ -41,7 +41,7 @@ pub type Coordinate = i32;
 /// let half_up_negative = round(-3.5);
 /// assert_eq!(half_up_negative, -3);
 /// ```
-pub fn round(coordinate: f32) -> Coordinate {
+pub fn round(coordinate: f64) -> Coordinate {
     if coordinate.fract().abs() >= 0.5 {
         return coordinate.ceil() as Coordinate;
     } else {
