@@ -10,6 +10,7 @@
 
 use bytemuck::{Pod, Zeroable}; //Point2D is plain-old-data.
 
+use crate::Angle; //To implement TwoDimensional.
 use crate::Area; //To implement Shape2D.
 use crate::Convexity; //To implement Shape2D.
 use crate::Coordinate; //The position of the point is stored with coordinates.
@@ -112,6 +113,32 @@ impl TwoDimensional for Point2D {
 	fn scale(&mut self, x: f64, y: f64) {
 		self.x = round(self.x as f64 * x);
 		self.y = round(self.y as f64 * y);
+	}
+
+	/// Rotate the point around the coordinate origin.
+	///
+	/// The rotation is mathematically around the 0,0 origin rather than around its own centre. The
+	/// rotation is counter-clockwise, so a rotation of 0.1 rad will cause the object to rotate
+	/// slightly counter-clockwise, while a rotation of 6.1 rad (almost 2 pi) will cause the object
+	/// to rotate slightly clockwise.
+	///
+	/// # Arguments
+	/// * `angle` - The amount of counter-clockwise rotation to apply, in radians.
+	///
+	/// # Examples
+	/// ```
+	/// use apex::{Angle, Point2D, TwoDimensional};
+	/// let mut point = Point2D { x: 100, y: 0 }; //Create a point with initially only an X-offset.
+	/// point.rotate(Angle::new(std::f64::consts::PI * 0.25)); //Rotate by 45 degrees.
+	/// assert_eq!(point, Point2D { x: 71, y: 71 }); //Now rotated counter-clockwisely to 100/sqrt(2).
+	/// ```
+	fn rotate(&mut self, angle: Angle) {
+		let cosine = angle.cos();
+		let sine = angle.sin();
+		//Calculate X first without adjusting the real X, so that we can use the old value for the Y too.
+		let new_x = round(self.x as f64 * cosine - self.y as f64 * sine);
+		self.y = round(self.x as f64 * sine + self.y as f64 * cosine);
+		self.x = new_x;
 	}
 }
 

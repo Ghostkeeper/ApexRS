@@ -10,6 +10,9 @@
 
 #[macro_use] extern crate auto_ops;
 
+pub mod angle;
+pub use angle::*;
+
 pub mod convexity;
 pub use convexity::*;
 

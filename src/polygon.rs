@@ -35,6 +35,7 @@ use wgpu::{ //For computing on the GPU.
 };
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 
+use crate::Angle; //To implement TwoDimensional.
 use crate::Area; //To return the polygon's surface area.
 use crate::Convexity; //To return the polygon's convexity.
 use crate::Coordinate;
@@ -43,7 +44,7 @@ use crate::Shape2D; //This is a 2D shape.
 use crate::TwoDimensional; //This is a two-dimensional object.
 use crate::detail::gpu::GPU; //To perform calculations on the GPU.
 use crate::detail::sync_status::SyncStatus; //To track whether the GPU or CPU copies are up-to-date.
-use crate::operations::{scale, translate}; //To translate the polygons.
+use crate::operations::{rotate, scale, translate}; //To translate the polygons.
 
 /// A plane figure consisting of a single contour of straight line segments.
 ///
@@ -764,6 +765,10 @@ impl TwoDimensional for Polygon {
 	/// ```
 	fn scale(&mut self, x: f64, y: f64) {
 		scale::scale_polygon_st(self, x, y);
+	}
+
+	fn rotate(&mut self, angle: Angle) {
+		rotate::rotate_polygon_st(self, angle.clone());
 	}
 }
 

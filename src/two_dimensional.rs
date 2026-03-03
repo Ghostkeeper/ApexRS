@@ -1,11 +1,12 @@
 /*
  * Library for performing massively parallel computations on polygons.
- * Copyright (C) 2023 Ghostkeeper
+ * Copyright (C) 2026 Ghostkeeper
  * This library is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
  * This library is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for details.
  * You should have received a copy of the GNU Affero General Public License along with this library. If not, see <https://gnu.org/licenses/>.
  */
 
+use crate::Angle; //To rotate objects.
 use crate::Coordinate; //To transform objects across the two-dimensional space.
 
 /// This trait is for geometrical objects that are in a two-dimensional space.
@@ -54,4 +55,23 @@ pub trait TwoDimensional {
 	/// assert_eq!(point, Point2D { x: 200, y: -250 });
 	/// ```
 	fn scale(&mut self, x: f64, y: f64);
+
+	/// Rotate the object around the coordinate origin.
+	///
+	/// The rotation is mathematically around the 0,0 origin rather than around its own centre. The
+	/// rotation is counter-clockwise, so a rotation of 0.1 rad will cause the object to rotate
+	/// slightly counter-clockwise, while a rotation of 6.1 rad (almost 2 pi) will cause the object
+	/// to rotate slightly clockwise.
+	///
+	/// # Arguments
+	/// * `angle` - The amount of counter-clockwise rotation to apply, in radians.
+	///
+	/// # Examples
+	/// ```
+	/// use apex::{Angle, Point2D, TwoDimensional};
+	/// let mut point = Point2D { x: 100, y: 0 }; //Create a point with initially only an X-offset.
+	/// point.rotate(Angle::new(std::f64::consts::PI * 0.25)); //Rotate by 45 degrees.
+	/// assert_eq!(point, Point2D { x: 71, y: 71 }); //Now rotated counter-clockwisely to 100/sqrt(2).
+	/// ```
+	fn rotate(&mut self, angle: Angle);
 }
