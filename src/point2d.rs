@@ -50,10 +50,16 @@ impl Point2D {
 }
 
 impl Shape2D for Point2D {
+	/// Get the surface area of the point.
+	///
+	/// Points have no surface area, so this will always return 0.
 	fn area(&self) -> Area {
 		return 0; //A point has no area.
 	}
 
+	/// Get the convexity of the point.
+	///
+	/// Points don't have any dimensions or surface area, so they are always degenerate.
 	fn convexity(&self) -> Convexity {
 		return Convexity::DEGENERATE; //Points are degenerate shapes.
 	}
