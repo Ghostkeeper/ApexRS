@@ -6,13 +6,62 @@
  * You should have received a copy of the GNU Affero General Public License along with this library. If not, see <https://gnu.org/licenses/>.
  */
 
+struct EmulatedF64 {
+    high: f32,
+    low: f32,
+    _pad_a: f32,
+    _pad_b: f32,
+}
+
+fn split(a: f32) -> EmulatedF64 {
+    let splitter = 4097.0;
+    let t = a * splitter;
+    let high = t - (t - a);
+    let low = a - high;
+    return EmulatedF64(high, low, 0.0, 0.0);
+}
+
+fn split_i32(a: i32) -> EmulatedF64 {
+    let high = f32(a);
+    let low = f32(a - i32(high));
+    return EmulatedF64(high, low, 0.0, 0.0);
+}
+
+fn twoprod(a: f32, b: f32) -> EmulatedF64 {
+    let p = a * b;
+    let a_split = split(a);
+    let b_split = split(b);
+    let err = (a_split.high * b_split.high - p) + a_split.high * b_split.low + a_split.low * b_split.high + a_split.low * b_split.low;
+    return EmulatedF64(p, err, 0.0, 0.0);
+}
+
+fn quicktwosum(a: f32, b: f32) -> EmulatedF64 {
+    let s = a + b;
+    let e = b - (s - a);
+    return EmulatedF64(s, e, 0.0, 0.0);
+}
+
+fn mul(lhs: EmulatedF64, rhs: EmulatedF64) -> EmulatedF64 {
+    var p = twoprod(lhs.high, rhs.high);
+    p.low += lhs.high * rhs.low;
+    p.low += lhs.low * rhs.high;
+    return quicktwosum(p.high, p.low);
+}
+
+fn round(value: EmulatedF64) -> i32 {
+	let high_part = i32(select(floor(value.high), ceil(value.high), value.high < 0.0));
+	let low_part = i32(select(floor(value.low), ceil(value.low), value.low < 0.0));
+	let remainders = i32((f32(high_part) - value.high) + (f32(low_part) - value.low) + 0.5);
+	return high_part + low_part + remainders;
+}
+
 /// The structure of the uniform buffer is a combination of two floats: The X and Y scale factors.
 struct ScaleFactors {
     /// The scale factor in the X direction.
-    x: f32,
+    x: EmulatedF64,
 
     /// The scale factor in the Y direction.
-    y: f32,
+    y: EmulatedF64,
 }
 @group(0) @binding(0) var<uniform> scale_factors: ScaleFactors;
 
@@ -23,22 +72,6 @@ struct ScaleFactors {
 @group(0) @binding(1)
 var<storage, read_write> coordinates: array<i32>;
 
-/// Round fractional coordinate points to the nearest coordinate.
-///
-/// Rounding coordinates is done slightly non-standard in order to maintain better accuracy: It is
-/// always rounded half-up. If we were to round half-away-from-zero, or round half-to-even, moving a
-/// shape may cause its size to change.
-///
-/// # Arguments
-/// * `coordinate` - The coordinate to round, representing as a floating-point value.
-fn round(coordinate: f32) -> i32 {
-    if fract(coordinate) >= 0.5 {
-        return i32(ceil(coordinate));
-    } else {
-        return i32(floor(coordinate));
-    }
-}
-
 /// Perform the scale operation on the polygon in-place.
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
@@ -48,9 +81,10 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         return;
     }
 
+    let to_f64 = split_i32(coordinates[index]);
     if index % 2 == 0 { //Scale X coordinate.
-        coordinates[index] = round(f32(coordinates[index]) * scale_factors.x);
+        coordinates[index] = round(mul(to_f64, scale_factors.x));
     } else { //Scale Y coordinate.
-        coordinates[index] = round(f32(coordinates[index]) * scale_factors.y);
+        coordinates[index] = round(mul(to_f64, scale_factors.y));
     }
 }

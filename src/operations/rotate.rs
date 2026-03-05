@@ -19,6 +19,7 @@ use crate::Angle; //To measure how much to rotate objects.
 use crate::coordinate::round; //To accurately round coordinates after rotating them.
 use crate::Polygon; //Translate polygons.
 use crate::TwoDimensional; //The rotate operation is part of TwoDimensional.
+use crate::detail::emulated_f64::EmulatedF64; //To get greater accuracy on the GPU.
 use crate::detail::gpu::GPU; //To perform calculations on the GPU.
 
 /// Rotate a polygon around the coordinate origin by a certain angle.
@@ -123,7 +124,9 @@ static ROTATE_POLYGON_SHADER: LazyLock<ShaderModule> = LazyLock::new(|| {
 /// assert_eq!(*poly.vertex(2), Point2D { x: -24, y: 118 });
 /// ```
 pub fn rotate_polygon_gpu(polygon: &mut Polygon, angle: Angle) {
-    let parameters = [angle];
+	let cosine = EmulatedF64::new(angle.cos());
+	let sine = EmulatedF64::new(angle.sin());
+    let parameters = [sine, cosine];
     let uniform_buffer = bytemuck::cast_slice(&parameters);
     polygon.execute_gpu_kernel_mut(&ROTATE_POLYGON_SHADER, uniform_buffer);
 }

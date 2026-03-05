@@ -11,5 +11,6 @@
 //! The files in this module are separated from the rest, to make it easier to find what you need in
 //! the source code of this library.
 
-pub(crate) mod sync_status;
+pub(crate) mod emulated_f64;
 pub(crate) mod gpu;
+pub(crate) mod sync_status;

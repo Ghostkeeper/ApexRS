@@ -17,6 +17,7 @@ use wgpu::{include_wgsl, ShaderModule}; //For loading the translate GPU kernel.
 
 use crate::Polygon; //Translate polygons.
 use crate::TwoDimensional; //The scale operation is part of TwoDimensional.
+use crate::detail::emulated_f64::EmulatedF64; //To get high accuracy on the GPU.
 use crate::detail::gpu::GPU; //To perform calculations on the GPU.
 
 /// Scale a polygon by a certain scale factor.
@@ -126,7 +127,7 @@ static SCALE_POLYGON_SHADER: LazyLock<ShaderModule> = LazyLock::new(|| {
 /// assert_eq!(*poly.vertex(2), Point2D { x: 134, y: 150 });
 /// ```
 pub fn scale_polygon_gpu(polygon: &mut Polygon, x: f64, y: f64) {
-    let parameters = [x, y];
+    let parameters = [EmulatedF64::new(x), EmulatedF64::new(y)];
     let uniform_buffer = bytemuck::cast_slice(&parameters);
     polygon.execute_gpu_kernel_mut(&SCALE_POLYGON_SHADER, uniform_buffer);
 }
