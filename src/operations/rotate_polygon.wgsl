@@ -86,28 +86,30 @@ struct RotationTrigonometry {
 }
 @group(0) @binding(0) var<uniform> rotation_trigonometry: RotationTrigonometry;
 
+struct Vertex {
+    x: i32,
+    y: i32,
+}
+
 /// The structure of the first binding is an array of coordinates.
 ///
 /// There should always be an even number of coordinates: one X, Y pair for each vertex of the
 /// polygon to scale.
 @group(0) @binding(1)
-var<storage, read_write> coordinates: array<i32>;
+var<storage, read_write> vertices: array<Vertex>;
 
 /// Perform the scale operation on the polygon in-place.
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let index = global_id.x;
-    let num_coords = arrayLength(&coordinates);
-    if(index >= num_coords) {
+    let num_verts = arrayLength(&vertices);
+    if(index >= num_verts) {
         return;
     }
 
-    let as_f64 = split_i32(coordinates[index]);
-    if index % 2 == 0 { //Rotate X coordinate.
-        let y = split_i32(coordinates[index + 1]);
-        coordinates[index] = round(sub(mul(as_f64, rotation_trigonometry.cosine), mul(y, rotation_trigonometry.sine)));
-    } else { //Scale Y coordinate.
-        let x = split_i32(coordinates[index - 1]);
-        coordinates[index] = round(add(mul(x, rotation_trigonometry.sine), mul(as_f64, rotation_trigonometry.cosine)));
-    }
+    let vertex = vertices[index];
+    let x = split_i32(vertices[index].x);
+    let y = split_i32(vertices[index].y);
+    vertices[index].x = round(sub(mul(x, rotation_trigonometry.cosine), mul(y, rotation_trigonometry.sine)));
+    vertices[index].y = round(add(mul(x, rotation_trigonometry.sine), mul(y, rotation_trigonometry.cosine)));
 }

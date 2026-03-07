@@ -619,7 +619,6 @@ impl Polygon {
 			contents: uniform_data,
 			usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
 		});
-		println!("%%%%%%%%%%%% uniform data len {}", uniform_data.len() as u64);
 
 		//All data communicated to execute the kernel is put in buffers.
 		//We need to tell the GPU what these buffers are, where to find them and how to call them in the shader.
@@ -643,7 +642,7 @@ impl Polygon {
 					visibility: ShaderStages::COMPUTE,
 					ty: BindingType::Buffer {
 						ty: BufferBindingType::Storage { read_only: false },
-						min_binding_size: Some(NonZeroU64::new(4).unwrap()),
+						min_binding_size: Some(NonZeroU64::new(8).unwrap()),
 						has_dynamic_offset: false,
 					},
 					count: None,

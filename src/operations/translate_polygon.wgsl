@@ -16,26 +16,27 @@ struct TranslationVector {
 }
 @group(0) @binding(0) var<uniform> translation_vector: TranslationVector;
 
+struct Vertex {
+    x: i32,
+    y: i32,
+}
 
 /// The structure of the first binding is an array of coordinates.
 ///
 /// There should always be an even number of coordinates: one X, Y pair for each vertex of the
 /// polygon to scale.
 @group(0) @binding(1)
-var<storage, read_write> coordinates: array<i32>;
+var<storage, read_write> vertices: array<Vertex>;
 
 /// Perform the translate operation on the polygon in-place.
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let index = global_id.x;
-    let num_coords = arrayLength(&coordinates);
-    if(index >= num_coords) {
+    let num_verts = arrayLength(&vertices);
+    if(index >= num_verts) {
         return;
     }
 
-    if index % 2 == 0 { //Translate X coordinate.
-        coordinates[index] += translation_vector.x;
-    } else { //Translate Y coordinate.
-        coordinates[index] += translation_vector.y;
-    }
+    vertices[index].x += translation_vector.x;
+    vertices[index].y += translation_vector.y;
 }
