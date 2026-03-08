@@ -45,6 +45,7 @@ impl EmulatedF64 {
 		let high_part = if self.high < 0.0 {self.high.ceil()} else {self.high.floor()} as i32;
 		let low_part = if self.low < 0.0 {self.low.ceil()} else {self.low.floor()} as i32;
 		let remainders = ((high_part as f32 - self.high) + (low_part as f32 - self.low) + 0.5) as i32;
+		println!("high part: {}, low_part: {}, remainders: {}", high_part, low_part, remainders);
 		high_part + low_part + remainders
 	}
 
@@ -207,15 +208,17 @@ mod tests {
 	#[test_case(0.71; "A fraction")]
 	#[test_case(0.4999999999; "Almost 0.5")]
 	#[test_case(0.5000000001; "Just over 0.5")]
-	#[test_case(-0.4999999999; "Almost -0.5")]
-	#[test_case(-0.5000000001; "Just under -0.5")]
+	#[test_case(0.5; "Exactly 0.5")]
+	#[test_case(-0.4999999999; "Almost negative 0.5")]
+	#[test_case(-0.5000000001; "Just under negative 0.5")]
+	#[test_case(-0.5; "Exactly negative 0.5")]
 	#[test_case(1_000_000_000.01; "Just over a billion")]
 	#[test_case(123456789.0; "f32 rounds to 123456792, f64 doesn't")]
 	#[test_case(3.141592653589793; "Pi")]
 	#[test_case(-123456789.0; "Big negative")]
 	fn round(value: f64) {
 		let emulated = EmulatedF64::from(value);
-		let converted: f64 = emulated.into();
-		assert_float_absolute_eq!(value, converted);
+		let rounded = emulated.round();
+		assert_eq!(rounded, value.round() as i32);
 	}
 }
