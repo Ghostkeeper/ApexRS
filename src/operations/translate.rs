@@ -153,9 +153,9 @@ mod tests {
 	}
 
 	/// Test moving a polygon by a certain offset.
-	#[test_case(250, 0    ; "x_positive")]
-	#[test_case(0,   -300 ; "y_negative")]
-	#[test_case(-40, 70   ; "mixed")]
+	#[test_case(250, 0; "x_positive")]
+	#[test_case(0, -300; "y_negative")]
+	#[test_case(-40, 70; "mixed")]
 	fn translate_polygon_vector(x: i32, y: i32) {
 		let original = crate::test::data::polygon::square_1000(); //An original to compare to.
 		let mut poly = crate::test::data::polygon::square_1000(); //A copy that we can translate.

@@ -752,9 +752,9 @@ impl TwoDimensional for Polygon {
 	/// use apex::{Point2D, Polygon, TwoDimensional};
 	/// //Create a triangular polygon.
 	/// let mut poly = Polygon::from_iter([
-	///     Point2D { x: 0, y: 0 },
-	///     Point2D { x: 100, y: 0 },
-	///     Point2D { x: 67, y: 100},
+	/// 	Point2D { x: 0, y: 0 },
+	/// 	Point2D { x: 100, y: 0 },
+	/// 	Point2D { x: 67, y: 100},
 	/// ]);
 	/// //Scale the polygon.
 	/// poly.scale(2.0, 1.5);

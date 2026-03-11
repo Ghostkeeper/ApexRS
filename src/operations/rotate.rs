@@ -34,9 +34,9 @@ use crate::detail::gpu::GPU; //To perform calculations on the GPU.
 /// use apex::{Angle, Point2D, Polygon, TwoDimensional};
 /// //Create a triangular polygon.
 /// let mut poly = Polygon::from_iter([
-///     Point2D { x: 0, y: 0 },
-///     Point2D { x: 100, y: 0 },
-///     Point2D { x: 67, y: 100},
+/// 	Point2D { x: 0, y: 0 },
+/// 	Point2D { x: 100, y: 0 },
+/// 	Point2D { x: 67, y: 100},
 /// ]);
 /// //Rotate the polygon.
 /// apex::operations::rotate::rotate_polygon_st(&mut poly, Angle::degrees(45.0));
@@ -48,11 +48,11 @@ use crate::detail::gpu::GPU; //To perform calculations on the GPU.
 pub fn rotate_polygon_st(polygon: &mut Polygon, angle: Angle) {
 	let cosine = angle.cos();
 	let sine = angle.sin();
-    for vertex in polygon.host_vertices_mut().iter_mut() {
+	for vertex in polygon.host_vertices_mut().iter_mut() {
 		let new_x = round(vertex.x as f64 * cosine - vertex.y as f64 * sine);
 		vertex.y = round(vertex.x as f64 * sine + vertex.y as f64 * cosine);
 		vertex.x = new_x;
-    }
+	}
 }
 
 /// Rotate a polygon around the coordinate origin by a certain angle.
@@ -68,9 +68,9 @@ pub fn rotate_polygon_st(polygon: &mut Polygon, angle: Angle) {
 /// use apex::{Angle, Point2D, Polygon, TwoDimensional};
 /// //Create a triangular polygon.
 /// let mut poly = Polygon::from_iter([
-///     Point2D { x: 0, y: 0 },
-///     Point2D { x: 100, y: 0 },
-///     Point2D { x: 67, y: 100},
+/// 	Point2D { x: 0, y: 0 },
+/// 	Point2D { x: 100, y: 0 },
+/// 	Point2D { x: 67, y: 100},
 /// ]);
 /// //Rotate the polygon.
 /// apex::operations::rotate::rotate_polygon_mt(&mut poly, Angle::degrees(45.0));
@@ -82,21 +82,21 @@ pub fn rotate_polygon_st(polygon: &mut Polygon, angle: Angle) {
 pub fn rotate_polygon_mt(polygon: &mut Polygon, angle: Angle) {
 	let cosine = angle.cos();
 	let sine = angle.sin();
-    let chunk_size = cmp::max(10000, polygon.host_vertices().len() / current_num_threads());
-    polygon.host_vertices_mut().par_chunks_mut(chunk_size).for_each(
-        |slice| slice.iter_mut().for_each(
-            |vertex| {
+	let chunk_size = cmp::max(10000, polygon.host_vertices().len() / current_num_threads());
+	polygon.host_vertices_mut().par_chunks_mut(chunk_size).for_each(
+		|slice| slice.iter_mut().for_each(
+			|vertex| {
 				let new_x = round(vertex.x as f64 * cosine - vertex.y as f64 * sine);
 				vertex.y = round(vertex.x as f64 * sine + vertex.y as f64 * cosine);
 				vertex.x = new_x;
 			}
-        )
-    );
+		)
+	);
 }
 
 /// The shader for rotating polygons on the GPU.
 static ROTATE_POLYGON_SHADER: LazyLock<ShaderModule> = LazyLock::new(|| {
-    GPU.device.create_shader_module(include_wgsl!("rotate_polygon.wgsl"))
+	GPU.device.create_shader_module(include_wgsl!("rotate_polygon.wgsl"))
 });
 
 /// Rotate a polygon around the coordinate origin by a certain angle.
@@ -112,9 +112,9 @@ static ROTATE_POLYGON_SHADER: LazyLock<ShaderModule> = LazyLock::new(|| {
 /// use apex::{Angle, Point2D, Polygon, TwoDimensional};
 /// //Create a triangular polygon.
 /// let mut poly = Polygon::from_iter([
-///     Point2D { x: 0, y: 0 },
-///     Point2D { x: 100, y: 0 },
-///     Point2D { x: 67, y: 100},
+/// 	Point2D { x: 0, y: 0 },
+/// 	Point2D { x: 100, y: 0 },
+/// 	Point2D { x: 67, y: 100},
 /// ]);
 /// //Rotate the polygon.
 /// apex::operations::rotate::rotate_polygon_gpu(&mut poly, Angle::degrees(45.0));
@@ -126,7 +126,7 @@ static ROTATE_POLYGON_SHADER: LazyLock<ShaderModule> = LazyLock::new(|| {
 pub fn rotate_polygon_gpu(polygon: &mut Polygon, angle: Angle) {
 	let cosine = EmulatedF64::new(angle.cos());
 	let sine = EmulatedF64::new(angle.sin());
-    let parameters = [sine, cosine];
-    let uniform_buffer = bytemuck::cast_slice(&parameters);
-    polygon.execute_gpu_kernel_mut(&ROTATE_POLYGON_SHADER, uniform_buffer);
+	let parameters = [sine, cosine];
+	let uniform_buffer = bytemuck::cast_slice(&parameters);
+	polygon.execute_gpu_kernel_mut(&ROTATE_POLYGON_SHADER, uniform_buffer);
 }

@@ -84,21 +84,21 @@ impl EmulatedF64 {
 		high_int + low_int + remainders
 	}
 
-    fn split(a: f32) -> EmulatedF64 {
-        let splitter = 4097.0;
-        let t = a * splitter;
-        let high = t - (t - a);
-        let low = a - high;
-        EmulatedF64 { high: high, low: low, _pad_a: 0.0, _pad_b: 0.0 }
-    }
+	fn split(a: f32) -> EmulatedF64 {
+		let splitter = 4097.0;
+		let t = a * splitter;
+		let high = t - (t - a);
+		let low = a - high;
+		EmulatedF64 { high: high, low: low, _pad_a: 0.0, _pad_b: 0.0 }
+	}
 
-    fn twoprod(a: f32, b: f32) -> EmulatedF64 {
-        let p = a * b;
-        let a_split = Self::split(a);
-        let b_split = Self::split(b);
-        let err = (a_split.high * b_split.high - p) + a_split.high * b_split.low + a_split.low * b_split.high + a_split.low * b_split.low;
-        EmulatedF64 { high: p, low: err, _pad_a: 0.0, _pad_b: 0.0 }
-    }
+	fn twoprod(a: f32, b: f32) -> EmulatedF64 {
+		let p = a * b;
+		let a_split = Self::split(a);
+		let b_split = Self::split(b);
+		let err = (a_split.high * b_split.high - p) + a_split.high * b_split.low + a_split.low * b_split.high + a_split.low * b_split.low;
+		EmulatedF64 { high: p, low: err, _pad_a: 0.0, _pad_b: 0.0 }
+	}
 
 	fn twosum(a: f32, b: f32) -> EmulatedF64 {
 		let s = a + b;
@@ -107,11 +107,11 @@ impl EmulatedF64 {
 		EmulatedF64 { high: s, low: e, _pad_a: 0.0, _pad_b: 0.0 }
 	}
 
-    fn quicktwosum(a: f32, b: f32) -> EmulatedF64 {
-        let s = a + b;
-        let e = b - (s - a);
-        EmulatedF64 { high: s, low: e, _pad_a: 0.0, _pad_b: 0.0 }
-    }
+	fn quicktwosum(a: f32, b: f32) -> EmulatedF64 {
+		let s = a + b;
+		let e = b - (s - a);
+		EmulatedF64 { high: s, low: e, _pad_a: 0.0, _pad_b: 0.0 }
+	}
 }
 
 impl From<f64> for EmulatedF64 {
@@ -135,13 +135,13 @@ impl Into<f64> for EmulatedF64 {
 }
 
 impl Mul for EmulatedF64 {
-    type Output = Self;
-    fn mul(self, rhs: Self) -> Self::Output {
-        let mut p = Self::twoprod(self.high, rhs.high);
-        p.low += self.high * rhs.low;
-        p.low += self.low * rhs.high;
-        Self::quicktwosum(p.high, p.low)
-    }
+	type Output = Self;
+	fn mul(self, rhs: Self) -> Self::Output {
+		let mut p = Self::twoprod(self.high, rhs.high);
+		p.low += self.high * rhs.low;
+		p.low += self.low * rhs.high;
+		Self::quicktwosum(p.high, p.low)
+	}
 }
 
 impl Add for EmulatedF64 {

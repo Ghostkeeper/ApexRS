@@ -37,9 +37,9 @@ use crate::detail::gpu::GPU; //To perform calculations on the GPU.
 /// use apex::{Point2D, Polygon, TwoDimensional};
 /// //Create a triangular polygon.
 /// let mut poly = Polygon::from_iter([
-///     Point2D { x: 0, y: 0 },
-///     Point2D { x: 100, y: 0 },
-///     Point2D { x: 67, y: 100},
+/// 	Point2D { x: 0, y: 0 },
+/// 	Point2D { x: 100, y: 0 },
+/// 	Point2D { x: 67, y: 100},
 /// ]);
 /// //Scale the polygon.
 /// apex::operations::scale::scale_polygon_st(&mut poly, 2.0, 1.5);
@@ -49,9 +49,9 @@ use crate::detail::gpu::GPU; //To perform calculations on the GPU.
 /// assert_eq!(*poly.vertex(2), Point2D { x: 134, y: 150 });
 /// ```
 pub fn scale_polygon_st(polygon: &mut Polygon, x: f64, y: f64) {
-    for vertex in polygon.host_vertices_mut().iter_mut() {
-        vertex.scale(x, y);
-    }
+	for vertex in polygon.host_vertices_mut().iter_mut() {
+		vertex.scale(x, y);
+	}
 }
 
 /// Scale a polygon by a certain scale factor.
@@ -72,9 +72,9 @@ pub fn scale_polygon_st(polygon: &mut Polygon, x: f64, y: f64) {
 /// use apex::{Point2D, Polygon, TwoDimensional};
 /// //Create a triangular polygon.
 /// let mut poly = Polygon::from_iter([
-///     Point2D { x: 0, y: 0 },
-///     Point2D { x: 100, y: 0 },
-///     Point2D { x: 67, y: 100},
+/// 	Point2D { x: 0, y: 0 },
+/// 	Point2D { x: 100, y: 0 },
+/// 	Point2D { x: 67, y: 100},
 /// ]);
 /// //Scale the polygon.
 /// apex::operations::scale::scale_polygon_mt(&mut poly, 2.0, 1.5);
@@ -84,17 +84,17 @@ pub fn scale_polygon_st(polygon: &mut Polygon, x: f64, y: f64) {
 /// assert_eq!(*poly.vertex(2), Point2D { x: 134, y: 150 });
 /// ```
 pub fn scale_polygon_mt(polygon: &mut Polygon, x: f64, y: f64) {
-    let chunk_size = cmp::max(10000, polygon.host_vertices().len() / current_num_threads());
-    polygon.host_vertices_mut().par_chunks_mut(chunk_size).for_each(
-        |slice| slice.iter_mut().for_each(
-            |vertex| vertex.scale(x, y)
-        )
-    );
+	let chunk_size = cmp::max(10000, polygon.host_vertices().len() / current_num_threads());
+	polygon.host_vertices_mut().par_chunks_mut(chunk_size).for_each(
+		|slice| slice.iter_mut().for_each(
+			|vertex| vertex.scale(x, y)
+		)
+	);
 }
 
 /// The shader for scaling polygons on the GPU.
 static SCALE_POLYGON_SHADER: LazyLock<ShaderModule> = LazyLock::new(|| {
-    GPU.device.create_shader_module(include_wgsl!("scale_polygon.wgsl"))
+	GPU.device.create_shader_module(include_wgsl!("scale_polygon.wgsl"))
 });
 
 /// Scale a polygon by a certain scale factor.
@@ -115,9 +115,9 @@ static SCALE_POLYGON_SHADER: LazyLock<ShaderModule> = LazyLock::new(|| {
 /// use apex::{Point2D, Polygon, TwoDimensional};
 /// //Create a triangular polygon.
 /// let mut poly = Polygon::from_iter([
-///     Point2D { x: 0, y: 0 },
-///     Point2D { x: 100, y: 0 },
-///     Point2D { x: 67, y: 100},
+/// 	Point2D { x: 0, y: 0 },
+/// 	Point2D { x: 100, y: 0 },
+/// 	Point2D { x: 67, y: 100},
 /// ]);
 /// //Scale the polygon.
 /// apex::operations::scale::scale_polygon_gpu(&mut poly, 2.0, 1.5);
@@ -127,7 +127,7 @@ static SCALE_POLYGON_SHADER: LazyLock<ShaderModule> = LazyLock::new(|| {
 /// assert_eq!(*poly.vertex(2), Point2D { x: 134, y: 150 });
 /// ```
 pub fn scale_polygon_gpu(polygon: &mut Polygon, x: f64, y: f64) {
-    let parameters = [EmulatedF64::new(x), EmulatedF64::new(y)];
-    let uniform_buffer = bytemuck::cast_slice(&parameters);
-    polygon.execute_gpu_kernel_mut(&SCALE_POLYGON_SHADER, uniform_buffer);
+	let parameters = [EmulatedF64::new(x), EmulatedF64::new(y)];
+	let uniform_buffer = bytemuck::cast_slice(&parameters);
+	polygon.execute_gpu_kernel_mut(&SCALE_POLYGON_SHADER, uniform_buffer);
 }

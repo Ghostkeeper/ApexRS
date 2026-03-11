@@ -8,17 +8,17 @@
 
 /// The structure of the uniform buffer is a combination of two integers: The delta-X and delta-Y.
 struct TranslationVector {
-    /// The delta-X to move the polygon in the X direction.
-    x: i32,
+	/// The delta-X to move the polygon in the X direction.
+	x: i32,
 
-    /// The delta-Y to move the polygon in the Y direction.
-    y: i32,
+	/// The delta-Y to move the polygon in the Y direction.
+	y: i32,
 }
 @group(0) @binding(0) var<uniform> translation_vector: TranslationVector;
 
 struct Vertex {
-    x: i32,
-    y: i32,
+	x: i32,
+	y: i32,
 }
 
 /// The structure of the first binding is an array of coordinates.
@@ -31,12 +31,12 @@ var<storage, read_write> vertices: array<Vertex>;
 /// Perform the translate operation on the polygon in-place.
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
-    let index = global_id.x;
-    let num_verts = arrayLength(&vertices);
-    if(index >= num_verts) {
-        return;
-    }
+	let index = global_id.x;
+	let num_verts = arrayLength(&vertices);
+	if(index >= num_verts) {
+		return;
+	}
 
-    vertices[index].x += translation_vector.x;
-    vertices[index].y += translation_vector.y;
+	vertices[index].x += translation_vector.x;
+	vertices[index].y += translation_vector.y;
 }

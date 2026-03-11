@@ -7,45 +7,45 @@
  */
 
 struct EmulatedF64 {
-    high: f32,
-    low: f32,
-    _pad_a: f32,
-    _pad_b: f32,
+	high: f32,
+	low: f32,
+	_pad_a: f32,
+	_pad_b: f32,
 }
 
 fn split(a: f32) -> EmulatedF64 {
-    let splitter = 4097.0;
-    let t = a * splitter;
-    let high = t - (t - a);
-    let low = a - high;
-    return EmulatedF64(high, low, 0.0, 0.0);
+	let splitter = 4097.0;
+	let t = a * splitter;
+	let high = t - (t - a);
+	let low = a - high;
+	return EmulatedF64(high, low, 0.0, 0.0);
 }
 
 fn split_i32(a: i32) -> EmulatedF64 {
-    let high = f32(a);
-    let low = f32(a - i32(high));
-    return EmulatedF64(high, low, 0.0, 0.0);
+	let high = f32(a);
+	let low = f32(a - i32(high));
+	return EmulatedF64(high, low, 0.0, 0.0);
 }
 
 fn twoprod(a: f32, b: f32) -> EmulatedF64 {
-    let p = a * b;
-    let a_split = split(a);
-    let b_split = split(b);
-    let err = (a_split.high * b_split.high - p) + a_split.high * b_split.low + a_split.low * b_split.high + a_split.low * b_split.low;
-    return EmulatedF64(p, err, 0.0, 0.0);
+	let p = a * b;
+	let a_split = split(a);
+	let b_split = split(b);
+	let err = (a_split.high * b_split.high - p) + a_split.high * b_split.low + a_split.low * b_split.high + a_split.low * b_split.low;
+	return EmulatedF64(p, err, 0.0, 0.0);
 }
 
 fn quicktwosum(a: f32, b: f32) -> EmulatedF64 {
-    let s = a + b;
-    let e = b - (s - a);
-    return EmulatedF64(s, e, 0.0, 0.0);
+	let s = a + b;
+	let e = b - (s - a);
+	return EmulatedF64(s, e, 0.0, 0.0);
 }
 
 fn mul(lhs: EmulatedF64, rhs: EmulatedF64) -> EmulatedF64 {
-    var p = twoprod(lhs.high, rhs.high);
-    p.low += lhs.high * rhs.low;
-    p.low += lhs.low * rhs.high;
-    return quicktwosum(p.high, p.low);
+	var p = twoprod(lhs.high, rhs.high);
+	p.low += lhs.high * rhs.low;
+	p.low += lhs.low * rhs.high;
+	return quicktwosum(p.high, p.low);
 }
 
 fn round(value: EmulatedF64) -> i32 {
@@ -57,17 +57,17 @@ fn round(value: EmulatedF64) -> i32 {
 
 /// The structure of the uniform buffer is a combination of two floats: The X and Y scale factors.
 struct ScaleFactors {
-    /// The scale factor in the X direction.
-    x: EmulatedF64,
+	/// The scale factor in the X direction.
+	x: EmulatedF64,
 
-    /// The scale factor in the Y direction.
-    y: EmulatedF64,
+	/// The scale factor in the Y direction.
+	y: EmulatedF64,
 }
 @group(0) @binding(0) var<uniform> scale_factors: ScaleFactors;
 
 struct Vertex {
-    x: i32,
-    y: i32,
+	x: i32,
+	y: i32,
 }
 
 /// The structure of the first binding is an array of coordinates.
@@ -80,14 +80,14 @@ var<storage, read_write> vertices: array<Vertex>;
 /// Perform the scale operation on the polygon in-place.
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
-    let index = global_id.x;
-    let num_verts = arrayLength(&vertices);
-    if(index >= num_verts) {
-        return;
-    }
+	let index = global_id.x;
+	let num_verts = arrayLength(&vertices);
+	if(index >= num_verts) {
+		return;
+	}
 
-    let x = split_i32(vertices[index].x);
-    let y = split_i32(vertices[index].y);
-    vertices[index].x = round(mul(x, scale_factors.x));
-    vertices[index].y = round(mul(y, scale_factors.y));
+	let x = split_i32(vertices[index].x);
+	let y = split_i32(vertices[index].y);
+	vertices[index].x = round(mul(x, scale_factors.x));
+	vertices[index].y = round(mul(y, scale_factors.y));
 }
