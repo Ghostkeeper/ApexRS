@@ -70,9 +70,13 @@ fn sub(lhs: EmulatedF64, rhs: EmulatedF64) -> EmulatedF64 {
 }
 
 fn round(value: EmulatedF64) -> i32 {
-	let high_part = i32(select(floor(value.high), ceil(value.high), value.high < 0.0));
-	let low_part = i32(select(floor(value.low), ceil(value.low), value.low < 0.0));
-	let remainders = i32((f32(high_part) - value.high) + (f32(low_part) - value.low) + 0.5);
+    let half = EmulatedF64(0.5, 0.0, 0.0, 0.0);
+    let halfup = add(value, half);
+    let high_part = i32(halfup.high);
+    let high_frac = halfup.high % 1.0;
+    let low_part = i32(halfup.low);
+    let low_frac = halfup.low % 1.0;
+	let remainders = i32(floor(high_frac + low_frac));
 	return high_part + low_part + remainders;
 }
 

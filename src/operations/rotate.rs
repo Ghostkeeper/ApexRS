@@ -43,7 +43,7 @@ use crate::detail::gpu::GPU; //To perform calculations on the GPU.
 /// //Now, the polygon will be rotated 45 degrees counter-clockwise.
 /// assert_eq!(*poly.vertex(0), Point2D { x: 0, y: 0 });
 /// assert_eq!(*poly.vertex(1), Point2D { x: 71, y: 71 });
-/// assert_eq!(*poly.vertex(2), Point2D { x: -24, y: 118 });
+/// assert_eq!(*poly.vertex(2), Point2D { x: -23, y: 118 });
 /// ```
 pub fn rotate_polygon_st(polygon: &mut Polygon, angle: Angle) {
 	let cosine = angle.cos();
@@ -77,7 +77,7 @@ pub fn rotate_polygon_st(polygon: &mut Polygon, angle: Angle) {
 /// //Now, the polygon will be rotated 45 degrees counter-clockwise.
 /// assert_eq!(*poly.vertex(0), Point2D { x: 0, y: 0 });
 /// assert_eq!(*poly.vertex(1), Point2D { x: 71, y: 71 });
-/// assert_eq!(*poly.vertex(2), Point2D { x: -24, y: 118 });
+/// assert_eq!(*poly.vertex(2), Point2D { x: -23, y: 118 });
 /// ```
 pub fn rotate_polygon_mt(polygon: &mut Polygon, angle: Angle) {
 	let cosine = angle.cos();
@@ -121,7 +121,7 @@ static ROTATE_POLYGON_SHADER: LazyLock<ShaderModule> = LazyLock::new(|| {
 /// //Now, the polygon will be rotated 45 degrees counter-clockwise.
 /// assert_eq!(*poly.vertex(0), Point2D { x: 0, y: 0 });
 /// assert_eq!(*poly.vertex(1), Point2D { x: 71, y: 71 });
-/// assert_eq!(*poly.vertex(2), Point2D { x: -24, y: 118 });
+/// assert_eq!(*poly.vertex(2), Point2D { x: -23, y: 118 });
 /// ```
 pub fn rotate_polygon_gpu(polygon: &mut Polygon, angle: Angle) {
 	let cosine = EmulatedF64::new(angle.cos());

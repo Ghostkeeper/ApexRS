@@ -42,10 +42,18 @@ pub type Coordinate = i32;
 /// assert_eq!(half_up_negative, -3);
 /// ```
 pub fn round(coordinate: f64) -> Coordinate {
-    if coordinate.fract().abs() >= 0.5 {
-        return coordinate.ceil() as Coordinate;
+    if coordinate >= 0.0 {
+        if coordinate.fract().abs() >= 0.5 {
+            return coordinate.ceil() as Coordinate;
+        } else {
+            return coordinate.floor() as Coordinate;
+        }
     } else {
-        return coordinate.floor() as Coordinate;
+        if coordinate.fract().abs() > 0.5 {
+            return coordinate.floor() as Coordinate;
+        } else {
+            return coordinate.ceil() as Coordinate;
+        }
     }
 }
 
