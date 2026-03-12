@@ -20,7 +20,8 @@
 //! (2007, A. Thall).
 
 use bytemuck::{Pod, Zeroable}; //To be able to send the EmulatedF64 struct to the GPU.
-use std::ops::{Add, Mul, Sub}; //Implement arithmetic summation and multiplication for EmulatedF64.
+use std::fmt; //To print in debugging.
+use std::ops::{Add, Div, Mul, Sub}; //Implement arithmetic summation and multiplication for EmulatedF64.
 
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
@@ -37,8 +38,11 @@ impl EmulatedF64 {
 		let split = value * SPLITTER;
 		let high = split - (split - value);
 		let low = value - high;
-		println!("EmulatedF64 original: {}, high: {}, low: {}, combined: {}", value, high, low, high + low);
 		EmulatedF64 { high: high as f32, low: low as f32, _pad_a: 0.0, _pad_b: 0.0 }
+	}
+
+	pub fn promote(value: f32) -> EmulatedF64 {
+		EmulatedF64 { high: value, low: 0.0, _pad_a: 0.0, _pad_b: 0.0 }
 	}
 
 	/// Round the number to the nearest integer.
@@ -84,6 +88,127 @@ impl EmulatedF64 {
 		high_int + low_int + remainders
 	}
 
+	pub fn sqrt(self) -> EmulatedF64 {
+		let numerator_high = 1.0 / self.high.sqrt();
+		let numerator_low = self.high * numerator_high;
+		let low_promoted = Self::promote(numerator_low);
+		let low_squared = low_promoted * low_promoted;
+		let diff = (self - low_squared).high;
+		let prod = Self::twoprod(numerator_high, diff) / Self::promote(2.0);
+		Self::promote(numerator_low) + prod
+	}
+
+	pub fn negative(self) -> EmulatedF64 {
+		EmulatedF64 { high: -self.high, low: -self.low, _pad_a: 0.0, _pad_b: 0.0 }
+	}
+
+	pub fn exp(self) -> EmulatedF64 {
+		//First divide by 2 until we are in the range [-1, 1].
+		//This speeds up the Taylor expansion, and also prevents it from going into really high numbers where accuracy is low.
+		let mut shrunk = self;
+		let mut power_of_two = 0;
+		while shrunk.high.abs() > 1.0 {
+			shrunk.high /= 2.0;
+			shrunk.low /= 2.0;
+			power_of_two += 1;
+		}
+		//Using a Taylor series.
+		let threshold = 1.0e-20 * shrunk.high.exp();
+		let mut partial_sum = Self::promote(1.0) + shrunk; //First two terms.
+		let mut current_power = shrunk * shrunk;
+		let mut multiplier = 2.0_f32;
+		let mut denominator = Self::promote(2.0);
+		let mut term = current_power / denominator;
+		while term.high.abs() > threshold {
+			partial_sum = partial_sum + term;
+			current_power = current_power * shrunk;
+			multiplier += 1.0;
+			denominator = denominator * Self::promote(multiplier);
+			term = current_power / denominator;
+			if term.high.is_nan() || term.low.is_nan() {
+				break;
+			}
+		}
+		if !term.high.is_nan() && !term.low.is_nan() {
+			partial_sum = partial_sum + term;
+		}
+		//Undo the shrinking.
+		for _ in 0..power_of_two {
+			partial_sum = partial_sum * partial_sum;
+		}
+		partial_sum
+	}
+
+	pub fn ln(self) -> EmulatedF64 {
+		let mut xi = Self::promote(0.0);
+		if self.high == 1.0 && self.low == 0.0 {
+			return xi;
+		}
+		if self.high <= 0.0 {
+			xi.high = f32::NAN;
+			return xi;
+		}
+		xi.high = self.high.ln();
+		let estimate = xi + xi.negative().exp() * self + Self::promote(-1.0);
+		estimate
+	}
+
+	pub fn cos(self) -> EmulatedF64 {
+		//Instead of calculating the cosine, calculate the sine of the angle shifted by a quarter turn and inverted.
+		//cos(a) = sin(pi / 2 - a)
+		let half_pi = EmulatedF64 { high: 1.57079637050628662109375, low: -0.00000004371138828673792886547744274139404296875, _pad_a: 0.0, _pad_b: 0.0 };
+		let shifted = half_pi - self;
+		let threshold = 1.0e-20 * shifted.high;
+		if shifted.high == 0.0 {
+			return Self::promote(1.0);
+		}
+		let negative_square = (shifted * shifted).negative();
+		let mut partial_sum = shifted;
+		let mut power = shifted;
+		let mut multiplier = 1.0;
+		let mut denominator = Self::promote(1.0);
+		loop {
+			power = power * negative_square;
+			multiplier += 2.0;
+			denominator = denominator * Self::promote(multiplier * (multiplier - 1.0));
+			let term = power / denominator;
+			if term.high.is_nan() || term.low.is_nan() {
+				break;
+			}
+			partial_sum = partial_sum + term;
+			if term.high.abs() < threshold {
+				break;
+			}
+		}
+		partial_sum
+	}
+
+	pub fn sin(self) -> EmulatedF64 {
+		let threshold = 1.0e-20 * self.high;
+		if self.high == 0.0 {
+			return Self::promote(0.0);
+		}
+		let negative_square = (self * self).negative();
+		let mut partial_sum = self;
+		let mut power = self;
+		let mut multiplier = 1.0;
+		let mut denominator = Self::promote(1.0);
+		loop {
+			power = power * negative_square;
+			multiplier += 2.0;
+			denominator = denominator * Self::promote(multiplier * (multiplier - 1.0));
+			let term = power / denominator;
+			if term.high.is_nan() || term.low.is_nan() {
+				break;
+			}
+			partial_sum = partial_sum + term;
+			if term.high.abs() < threshold {
+				break;
+			}
+		}
+		partial_sum
+	}
+
 	fn split(a: f32) -> EmulatedF64 {
 		let splitter = 4097.0;
 		let t = a * splitter;
@@ -111,6 +236,19 @@ impl EmulatedF64 {
 		let s = a + b;
 		let e = b - (s - a);
 		EmulatedF64 { high: s, low: e, _pad_a: 0.0, _pad_b: 0.0 }
+	}
+}
+
+impl fmt::Debug for EmulatedF64 {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		write!(f, "{}+{}", self.high, self.low)
+	}
+}
+
+impl fmt::Display for EmulatedF64 {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		let as_f64: f64 = (*self).into();
+		write!(f, "{}", as_f64)
 	}
 }
 
@@ -161,6 +299,18 @@ impl Sub for EmulatedF64 {
 	fn sub(self, rhs: Self) -> Self::Output {
 		let negative = EmulatedF64 { high: -rhs.high, low: -rhs.low, _pad_a: 0.0, _pad_b: 0.0 };
 		self + negative
+	}
+}
+
+impl Div for EmulatedF64 {
+	type Output = Self;
+	fn div(self, rhs: Self) -> Self::Output {
+		let numerator_high = 1.0 / rhs.high;
+		let numerator_low = self.high * numerator_high;
+		let numerator_low_promoted = EmulatedF64 { high: numerator_low, low: 0.0, _pad_a: 0.0, _pad_b: 0.0 };
+		let difference = (self - rhs * numerator_low_promoted).high;
+		let product = Self::twoprod(numerator_high, difference);
+		numerator_low_promoted + product
 	}
 }
 
@@ -239,6 +389,22 @@ mod tests {
 		assert_float_absolute_eq!(using_f64, result);
 	}
 
+	#[test_case(0.0, 1.0; "Zero and one")]
+	#[test_case(10_000_000_000.0, 0.0000000001; "High and low")]
+	#[test_case(0.0000000001, 10_000_000_000.0; "Low and high")]
+	#[test_case(0.7999999999, 10_000_000_000.0; "Just below 0.8")]
+	#[test_case(123456789.0, 0.71; "f32 rounds to 123456792, f64 doesn't")]
+	#[test_case(-123456789.0, 123456789.0; "Negative and positive")]
+	#[test_case(123456789.0, -123456789.0; "Positive and negative")]
+	#[test_case(-123456789.0, -123456789.0; "Negative and negative")]
+	fn divide(lhs: f64, rhs: f64) {
+		let emulated_lhs = EmulatedF64::from(lhs);
+		let emulated_rhs = EmulatedF64::from(rhs);
+		let using_f64 = lhs / rhs;
+		let result = (emulated_lhs / emulated_rhs).into();
+		assert_float_absolute_eq!(using_f64, result);
+	}
+
 	#[test_case(0.0; "Zero")]
 	#[test_case(1.0; "One")]
 	#[test_case(10_000_000_000.0; "Ten billion")]
@@ -259,5 +425,92 @@ mod tests {
 		let emulated = EmulatedF64::from(value);
 		let rounded = emulated.round();
 		assert_eq!(rounded, coordinate::round(value));
+	}
+
+	#[test_case(1.0; "One")]
+	#[test_case(10_000_000_000.0; "Ten billion")]
+	#[test_case(0.71; "A fraction")]
+	#[test_case(0.9999999999; "Almost 1")]
+	#[test_case(0.4999999999; "Almost 0.5")]
+	#[test_case(0.5000000001; "Just over 0.5")]
+	#[test_case(0.5; "Exactly 0.5")]
+	#[test_case(1_000_000_000.01; "Just over a billion")]
+	#[test_case(123456789.0; "f32 rounds to 123456792, f64 doesn't")]
+	#[test_case(123456793.0; "f32 rounds down to 123456792, f64 doesn't")]
+	#[test_case(3.141592653589793; "Pi")]
+	fn sqrt(value: f64) {
+		let emulated = EmulatedF64::from(value);
+		let result = emulated.sqrt().into();
+		assert_float_absolute_eq!(value.sqrt(), result);
+	}
+
+	#[test_case(0.0; "Zero")]
+	#[test_case(1.0; "One")]
+	#[test_case(0.71; "A fraction")]
+	#[test_case(0.7999999999; "Almost 0.8")]
+	#[test_case(0.8000000001; "Just over 0.8")]
+	#[test_case(-0.4999999999; "Almost negative 0.5")]
+	#[test_case(-0.5000000001; "Just under negative 0.5")]
+	#[test_case(-0.5; "Exactly negative 0.5")]
+	#[test_case(3.141592653589793; "Pi")]
+	#[test_case(-3.141592653589793; "Negative pi")]
+	#[test_case(-100.0; "Negative 100")]
+	fn exp(value: f64) {
+		let emulated = EmulatedF64::from(value);
+		let result = emulated.exp().into();
+		assert_float_absolute_eq!(value.exp(), result);
+	}
+
+	#[test_case(1.0; "One")]
+	#[test_case(10_000_000_000.0; "Ten billion")]
+	#[test_case(0.71; "A fraction")]
+	#[test_case(0.9999999999; "Almost 1")]
+	#[test_case(0.4999999999; "Almost 0.5")]
+	#[test_case(0.5000000001; "Just over 0.5")]
+	#[test_case(0.5; "Exactly 0.5")]
+	#[test_case(1_000_000_000.01; "Just over a billion")]
+	#[test_case(123456789.0; "f32 rounds to 123456792, f64 doesn't")]
+	#[test_case(123456793.0; "f32 rounds down to 123456792, f64 doesn't")]
+	#[test_case(3.141592653589793; "Pi")]
+	fn ln(value: f64) {
+		let emulated = EmulatedF64::from(value);
+		let result = emulated.ln().into();
+		assert_float_absolute_eq!(value.ln(), result);
+	}
+
+	#[test_case(0.0; "Zero")]
+	#[test_case(1.0; "One")]
+	#[test_case(2.0; "Two")]
+	#[test_case(3.141592653589793; "Pi")]
+	#[test_case(5.0; "Five")]
+	#[test_case(6.283185307179586; "Tau")]
+	#[test_case(0.71; "A fraction")]
+	#[test_case(0.9999999999; "Almost 1")]
+	#[test_case(0.4999999999; "Almost 0.5")]
+	#[test_case(0.5000000001; "Just over 0.5")]
+	#[test_case(0.5; "Exactly 0.5")]
+	fn cos(value: f64) {
+		let half_pi = EmulatedF64::from(1.5707963267948966192313216916397514420985846996875529104874722961);
+		println!("Half pi: {:.48},{:.48}", half_pi.high, half_pi.low);
+		let emulated = EmulatedF64::from(value);
+		let result = emulated.cos().into();
+		assert_float_absolute_eq!(value.cos(), result);
+	}
+
+	#[test_case(0.0; "Zero")]
+	#[test_case(1.0; "One")]
+	#[test_case(2.0; "Two")]
+	#[test_case(3.141592653589793; "Pi")]
+	#[test_case(5.0; "Five")]
+	#[test_case(6.283185307179586; "Tau")]
+	#[test_case(0.71; "A fraction")]
+	#[test_case(0.9999999999; "Almost 1")]
+	#[test_case(0.4999999999; "Almost 0.5")]
+	#[test_case(0.5000000001; "Just over 0.5")]
+	#[test_case(0.5; "Exactly 0.5")]
+	fn sin(value: f64) {
+		let emulated = EmulatedF64::from(value);
+		let result = emulated.sin().into();
+		assert_float_absolute_eq!(value.sin(), result);
 	}
 }
