@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400">
+	<line stroke="red" stroke-width="4" x1="120" y1="120" x2="280" y2="280" /> <!-- Original line segment. -->
+	<path fill="none" stroke="black" stroke-width="4" d="M4,396 L280,280 L396,4 L120,120 Z" /> <!-- Parallelogram. -->
+	<g font-family="sans" font-size="20">
+		<text x="20" y="370">(0,0)</text>
+		<text x="60" y="120">
+			(x<tspan dy="5" font-size="10">1</tspan><tspan dy="-5">, y</tspan><tspan dy="5" font-size="10">1</tspan><tspan dy="-5">)</tspan>
+		</text>
+		<text x="280" y="300">
+			(x<tspan dy="5" font-size="10">2</tspan><tspan dy="-5">, y</tspan><tspan dy="5" font-size="10">2</tspan><tspan dy="-5">)</tspan>
+		</text>
+	</g>
+</svg>

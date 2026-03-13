@@ -44,7 +44,7 @@ use crate::Shape2D; //This is a 2D shape.
 use crate::TwoDimensional; //This is a two-dimensional object.
 use crate::detail::gpu::GPU; //To perform calculations on the GPU.
 use crate::detail::sync_status::SyncStatus; //To track whether the GPU or CPU copies are up-to-date.
-use crate::operations::{rotate, scale, translate}; //To translate the polygons.
+use crate::operations::{area, rotate, scale, translate}; //To translate the polygons.
 
 /// A plane figure consisting of a single contour of straight line segments.
 ///
@@ -774,7 +774,7 @@ impl TwoDimensional for Polygon {
 
 impl Shape2D for Polygon {
 	fn area(&self) -> Area {
-		return 0; //TODO: Implement.
+		area::area_polygon_st(self)
 	}
 
 	fn convexity(&self) -> Convexity {

@@ -14,6 +14,7 @@ futures-channel = "0.3.32"
 pollster = "0.4.0"
 rayon = "1.11.0"
 wgpu = "28.0.0"
+embed-doc-image = "0.1.4"
 
 [dev-dependencies]
 assert_float_eq = "1.2.0"
