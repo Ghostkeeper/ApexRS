@@ -7,22 +7,48 @@
  */
 
 //! This provides a structure for using 64-bit floating point numbers in the GPU.
-//!
-//! GPUs don't normally support 64-bit floats. Their processing cores consist of many parallel
-//! compute modules for 32-bit floats, but many of them don't have any 64-bit support and the ones
-//! that do only have very few 64-bit compute modules. We don't want to require the user to have a
-//! GPU that supports 64-bit floats, and we don't want to incur the performance hit of using those
-//! compute modules anyway. Instead, we emulate the accuracy 64-bit floats by using a combination of
-//! two 32-bit floats. The performance is somewhat worse, and the accuracy slightly less, but both
-//! of those metrics get somewhat close to 64-bit floating points.
-//!
-//! This implementation is based on Extended-Precision Floating-Point Numbers for GPU Computation
-//! (2007, A. Thall).
 
 use bytemuck::{Pod, Zeroable}; //To be able to send the EmulatedF64 struct to the GPU.
 use std::fmt; //To print in debugging.
 use std::ops::{Add, Div, Mul, Sub}; //Implement arithmetic summation and multiplication for EmulatedF64.
 
+/// A structure that mimics the behaviour of a 64-bit floating point by using two 32-bit floats.
+///
+/// Many compute devices, in particular GPUs and FPGA's don't have 64-bit floating point units.
+/// Their processing cores consist of many parallel floating point units for 32-bit floats, but most
+/// of them don't have any 64-bit units and the ones that do have very few of them. We don't want to
+/// incur the performance hit of using those anyway. But we do need the accuracy of 64-bit floating
+/// point units for certain operations, like rotation or scaling. Instead, we emulate the accuracy
+/// of 64-bit floats by using a combination of two 32-bit floats. GPUs generally have many 32-bit
+/// float units so the performance is much better.
+///
+/// The implementation of this number is based on Extended-Precision Floating-Point Numbers for GPU
+/// Computation (2007, A. Thall). This paper presents a structure consisting of two 32-bit floating
+/// point numbers, each with 23 bits of mantissa information (which is the part of the data that is
+/// the limiting factor for precise numbers). The numbers are constructed such that the mantissas do
+/// not overlap: The range of numbers that can be represented by the mantissa of the "low"
+/// significant number is entirely contained within the inaccuracy of the current "high" significant
+/// number. The numbers are added together to reconstruct the accurate, 64-bit float. This results
+/// in an effective 46-bit mantissa. The exponent of the "low" significant number is restricted in
+/// order to align the mantissas that way, so the effective range of the exponent of this emulation
+/// is the same as in a 32-bit float (8 bits).
+///
+/// The mantissa of a real 64-bit float is 53 bits, and the exponent has 11 bits, so the accuracy of
+/// this emulated f64 is still slightly less than a real 64-bit float. The range of the exponent is
+/// not really a problem for this library, since 8 bits (up to 2^127) is already more than enough to
+/// represent all coordinates that the ordinary coordinate system can represent. The difference in
+/// accuracy may be more of a problem, because it could cause rounding to sometimes end up
+/// differently, in theory making it possible for the result on a GPU being different from the
+/// result on a CPU. Whether that also occurs in practice still has to be proven.
+///
+/// The data structure also contains two padding fields, because transport of uniform buffers to
+/// GPUs requires that the data structure is aligned to 16 bytes. Perhaps this can be used for
+/// useful data in the future.
+/// 
+/// # TODO
+/// We could try to remove the padding fields, and create a new struct of f64-pairs so that we can
+/// more efficiently send these numbers to the GPU. We could pair them up as an X and a Y component,
+/// or as a real and imaginary part.
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
 pub struct EmulatedF64 {
