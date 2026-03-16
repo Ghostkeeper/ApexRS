@@ -9,8 +9,6 @@
 struct EmulatedF64 {
 	high: f32,
 	low: f32,
-	_pad_a: f32,
-	_pad_b: f32,
 }
 
 fn split(a: f32) -> EmulatedF64 {
@@ -18,13 +16,13 @@ fn split(a: f32) -> EmulatedF64 {
 	let t = a * splitter;
 	let high = t - (t - a);
 	let low = a - high;
-	return EmulatedF64(high, low, 0.0, 0.0);
+	return EmulatedF64(high, low);
 }
 
 fn split_i32(a: i32) -> EmulatedF64 {
 	let high = f32(a);
 	let low = f32(a - i32(high));
-	return EmulatedF64(high, low, 0.0, 0.0);
+	return EmulatedF64(high, low);
 }
 
 fn twoprod(a: f32, b: f32) -> EmulatedF64 {
@@ -32,20 +30,20 @@ fn twoprod(a: f32, b: f32) -> EmulatedF64 {
 	let a_split = split(a);
 	let b_split = split(b);
 	let err = (a_split.high * b_split.high - p) + a_split.high * b_split.low + a_split.low * b_split.high + a_split.low * b_split.low;
-	return EmulatedF64(p, err, 0.0, 0.0);
+	return EmulatedF64(p, err);
 }
 
 fn twosum(a: f32, b: f32) -> EmulatedF64 {
 	let s = a + b;
 	let v = s - a;
 	let e = (a - (s - v)) + (b - v);
-	return EmulatedF64(s, e, 0.0, 0.0);
+	return EmulatedF64(s, e);
 }
 
 fn quicktwosum(a: f32, b: f32) -> EmulatedF64 {
 	let s = a + b;
 	let e = b - (s - a);
-	return EmulatedF64(s, e, 0.0, 0.0);
+	return EmulatedF64(s, e);
 }
 
 fn mul(lhs: EmulatedF64, rhs: EmulatedF64) -> EmulatedF64 {
@@ -65,12 +63,12 @@ fn add(lhs: EmulatedF64, rhs: EmulatedF64) -> EmulatedF64 {
 }
 
 fn sub(lhs: EmulatedF64, rhs: EmulatedF64) -> EmulatedF64 {
-	let negative = EmulatedF64(-rhs.high, -rhs.low, 0.0, 0.0);
+	let negative = EmulatedF64(-rhs.high, -rhs.low);
 	return add(lhs, negative);
 }
 
 fn round(value: EmulatedF64) -> i32 {
-	let half = EmulatedF64(0.5, 0.0, 0.0, 0.0);
+	let half = EmulatedF64(0.5, 0.0);
 	let halfup = add(value, half);
 	let high_part = i32(halfup.high);
 	let high_frac = halfup.high % 1.0;
@@ -80,15 +78,7 @@ fn round(value: EmulatedF64) -> i32 {
 	return high_part + low_part + remainders;
 }
 
-/// The uniform buffer contains the pre-computed sine and cosine of the rotation angle.
-struct RotationTrigonometry {
-	/// The sine of the angle to rotate the polygon.
-	sine: EmulatedF64,
-
-	/// The cosine of the angle to rotate the polygon.
-	cosine: EmulatedF64,
-}
-@group(0) @binding(0) var<uniform> rotation_trigonometry: RotationTrigonometry;
+@group(0) @binding(0) var<uniform> rotation_trigonometry: vec4<f32>;
 
 struct Vertex {
 	x: i32,
@@ -114,6 +104,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 	let vertex = vertices[index];
 	let x = split_i32(vertices[index].x);
 	let y = split_i32(vertices[index].y);
-	vertices[index].x = round(sub(mul(x, rotation_trigonometry.cosine), mul(y, rotation_trigonometry.sine)));
-	vertices[index].y = round(add(mul(x, rotation_trigonometry.sine), mul(y, rotation_trigonometry.cosine)));
+	let sine = EmulatedF64(rotation_trigonometry.x, rotation_trigonometry.y);
+	let cosine = EmulatedF64(rotation_trigonometry.z, rotation_trigonometry.w);
+	vertices[index].x = round(sub(mul(x, cosine), mul(y, sine)));
+	vertices[index].y = round(add(mul(x, sine), mul(y, cosine)));
 }

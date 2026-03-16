@@ -9,8 +9,6 @@
 struct EmulatedF64 {
 	high: f32,
 	low: f32,
-	_pad_a: f32,
-	_pad_b: f32,
 }
 
 fn split(a: f32) -> EmulatedF64 {
@@ -18,13 +16,13 @@ fn split(a: f32) -> EmulatedF64 {
 	let t = a * splitter;
 	let high = t - (t - a);
 	let low = a - high;
-	return EmulatedF64(high, low, 0.0, 0.0);
+	return EmulatedF64(high, low);
 }
 
 fn split_i32(a: i32) -> EmulatedF64 {
 	let high = f32(a);
 	let low = f32(a - i32(high));
-	return EmulatedF64(high, low, 0.0, 0.0);
+	return EmulatedF64(high, low);
 }
 
 fn twoprod(a: f32, b: f32) -> EmulatedF64 {
@@ -32,13 +30,13 @@ fn twoprod(a: f32, b: f32) -> EmulatedF64 {
 	let a_split = split(a);
 	let b_split = split(b);
 	let err = (a_split.high * b_split.high - p) + a_split.high * b_split.low + a_split.low * b_split.high + a_split.low * b_split.low;
-	return EmulatedF64(p, err, 0.0, 0.0);
+	return EmulatedF64(p, err);
 }
 
 fn quicktwosum(a: f32, b: f32) -> EmulatedF64 {
 	let s = a + b;
 	let e = b - (s - a);
-	return EmulatedF64(s, e, 0.0, 0.0);
+	return EmulatedF64(s, e);
 }
 
 fn mul(lhs: EmulatedF64, rhs: EmulatedF64) -> EmulatedF64 {
@@ -63,7 +61,7 @@ struct ScaleFactors {
 	/// The scale factor in the Y direction.
 	y: EmulatedF64,
 }
-@group(0) @binding(0) var<uniform> scale_factors: ScaleFactors;
+@group(0) @binding(0) var<uniform> scale_factors: vec4<f32>;
 
 struct Vertex {
 	x: i32,
@@ -88,6 +86,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
 	let x = split_i32(vertices[index].x);
 	let y = split_i32(vertices[index].y);
-	vertices[index].x = round(mul(x, scale_factors.x));
-	vertices[index].y = round(mul(y, scale_factors.y));
+	let scale_x = EmulatedF64(scale_factors.x, scale_factors.y);
+	let scale_y = EmulatedF64(scale_factors.z, scale_factors.w);
+	vertices[index].x = round(mul(x, scale_x));
+	vertices[index].y = round(mul(y, scale_y));
 }

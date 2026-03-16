@@ -615,7 +615,7 @@ impl Polygon {
 	pub(crate) fn execute_gpu_kernel_mut(&mut self, shader_module: &ShaderModule, uniform_data: &[u8]) {
 		//The parameters of the kernel are communicated via Uniforms, in this uniform buffer.
 		let uniform_buffer = GPU.device.create_buffer_init(&BufferInitDescriptor {
-			label: None,
+			label: Some("Uniform"),
 			contents: uniform_data,
 			usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
 		});
@@ -623,7 +623,7 @@ impl Polygon {
 		//All data communicated to execute the kernel is put in buffers.
 		//We need to tell the GPU what these buffers are, where to find them and how to call them in the shader.
 		let bind_group_layout = GPU.device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-			label: None,
+			label: Some("Bind Group Layout"),
 			entries: &[
 				//In binding position 0: The uniform buffer.
 				BindGroupLayoutEntry {
@@ -651,7 +651,7 @@ impl Polygon {
 		});
 		//Then bind the actual buffers according to the layout above.
 		let bind_group = GPU.device.create_bind_group(&BindGroupDescriptor {
-			label: None,
+			label: Some("Bind Group"),
 			layout: &bind_group_layout,
 			entries: &[
 				BindGroupEntry {
@@ -667,12 +667,12 @@ impl Polygon {
 
 		//Also communicated to the GPU is the pipeline: Compiled code telling it what to do.
 		let pipeline_layout = GPU.device.create_pipeline_layout(&PipelineLayoutDescriptor {
-			label: None,
+			label: Some("Pipeline Layout"),
 			bind_group_layouts: &[&bind_group_layout],
 			immediate_size: 0,
 		});
 		let pipeline = GPU.device.create_compute_pipeline(&ComputePipelineDescriptor {
-			label: None,
+			label: Some("Pipeline"),
 			layout: Some(&pipeline_layout),
 			module: &shader_module,
 			entry_point: Some("main"),
@@ -680,10 +680,10 @@ impl Polygon {
 			cache: None,
 		});
 		let mut encoder = GPU.device.create_command_encoder(&CommandEncoderDescriptor {
-			label: None,
+			label: Some("Encoder"),
 		});
 		let mut compute_pass = encoder.begin_compute_pass(&ComputePassDescriptor {
-			label: None,
+			label: Some("Compute Pass"),
 			timestamp_writes: None,
 		});
 		compute_pass.set_pipeline(&pipeline);

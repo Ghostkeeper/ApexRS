@@ -40,22 +40,11 @@ use std::ops::{Add, Div, Mul, Sub}; //Implement arithmetic summation and multipl
 /// accuracy may be more of a problem, because it could cause rounding to sometimes end up
 /// differently, in theory making it possible for the result on a GPU being different from the
 /// result on a CPU. Whether that also occurs in practice still has to be proven.
-///
-/// The data structure also contains two padding fields, because transport of uniform buffers to
-/// GPUs requires that the data structure is aligned to 16 bytes. Perhaps this can be used for
-/// useful data in the future.
-/// 
-/// # TODO
-/// We could try to remove the padding fields, and create a new struct of f64-pairs so that we can
-/// more efficiently send these numbers to the GPU. We could pair them up as an X and a Y component,
-/// or as a real and imaginary part.
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
 pub struct EmulatedF64 {
-	high: f32,
-	low: f32,
-	_pad_a: f32,
-	_pad_b: f32,
+	pub high: f32,
+	pub low: f32,
 }
 
 impl EmulatedF64 {
@@ -64,11 +53,11 @@ impl EmulatedF64 {
 		let split = value * SPLITTER;
 		let high = split - (split - value);
 		let low = value - high;
-		EmulatedF64 { high: high as f32, low: low as f32, _pad_a: 0.0, _pad_b: 0.0 }
+		EmulatedF64 { high: high as f32, low: low as f32 }
 	}
 
 	pub fn promote(value: f32) -> EmulatedF64 {
-		EmulatedF64 { high: value, low: 0.0, _pad_a: 0.0, _pad_b: 0.0 }
+		EmulatedF64 { high: value, low: 0.0 }
 	}
 
 	/// Round the number to the nearest integer.
@@ -125,7 +114,7 @@ impl EmulatedF64 {
 	}
 
 	pub fn negative(self) -> EmulatedF64 {
-		EmulatedF64 { high: -self.high, low: -self.low, _pad_a: 0.0, _pad_b: 0.0 }
+		EmulatedF64 { high: -self.high, low: -self.low }
 	}
 
 	pub fn exp(self) -> EmulatedF64 {
@@ -182,7 +171,7 @@ impl EmulatedF64 {
 	pub fn cos(self) -> EmulatedF64 {
 		//Instead of calculating the cosine, calculate the sine of the angle shifted by a quarter turn and inverted.
 		//cos(a) = sin(pi / 2 - a)
-		let half_pi = EmulatedF64 { high: 1.57079637050628662109375, low: -0.00000004371138828673792886547744274139404296875, _pad_a: 0.0, _pad_b: 0.0 };
+		let half_pi = EmulatedF64 { high: 1.57079637050628662109375, low: -0.00000004371138828673792886547744274139404296875 };
 		let shifted = half_pi - self;
 		let threshold = 1.0e-20 * shifted.high;
 		if shifted.high == 0.0 {
@@ -240,7 +229,7 @@ impl EmulatedF64 {
 		let t = a * splitter;
 		let high = t - (t - a);
 		let low = a - high;
-		EmulatedF64 { high: high, low: low, _pad_a: 0.0, _pad_b: 0.0 }
+		EmulatedF64 { high: high, low: low }
 	}
 
 	fn twoprod(a: f32, b: f32) -> EmulatedF64 {
@@ -248,20 +237,20 @@ impl EmulatedF64 {
 		let a_split = Self::split(a);
 		let b_split = Self::split(b);
 		let err = (a_split.high * b_split.high - p) + a_split.high * b_split.low + a_split.low * b_split.high + a_split.low * b_split.low;
-		EmulatedF64 { high: p, low: err, _pad_a: 0.0, _pad_b: 0.0 }
+		EmulatedF64 { high: p, low: err }
 	}
 
 	fn twosum(a: f32, b: f32) -> EmulatedF64 {
 		let s = a + b;
 		let v = s - a;
 		let e = (a - (s - v)) + (b - v);
-		EmulatedF64 { high: s, low: e, _pad_a: 0.0, _pad_b: 0.0 }
+		EmulatedF64 { high: s, low: e }
 	}
 
 	fn quicktwosum(a: f32, b: f32) -> EmulatedF64 {
 		let s = a + b;
 		let e = b - (s - a);
-		EmulatedF64 { high: s, low: e, _pad_a: 0.0, _pad_b: 0.0 }
+		EmulatedF64 { high: s, low: e }
 	}
 }
 
@@ -288,7 +277,7 @@ impl From<i32> for EmulatedF64 {
 	fn from(value: i32) -> EmulatedF64 {
 		let high = value as f32;
 		let low = (value - high as i32) as f32;
-		EmulatedF64 { high: high, low: low, _pad_a: 0.0, _pad_b: 0.0 }
+		EmulatedF64 { high: high, low: low }
 	}
 }
 
@@ -323,7 +312,7 @@ impl Add for EmulatedF64 {
 impl Sub for EmulatedF64 {
 	type Output = Self;
 	fn sub(self, rhs: Self) -> Self::Output {
-		let negative = EmulatedF64 { high: -rhs.high, low: -rhs.low, _pad_a: 0.0, _pad_b: 0.0 };
+		let negative = EmulatedF64 { high: -rhs.high, low: -rhs.low };
 		self + negative
 	}
 }
@@ -333,7 +322,7 @@ impl Div for EmulatedF64 {
 	fn div(self, rhs: Self) -> Self::Output {
 		let numerator_high = 1.0 / rhs.high;
 		let numerator_low = self.high * numerator_high;
-		let numerator_low_promoted = EmulatedF64 { high: numerator_low, low: 0.0, _pad_a: 0.0, _pad_b: 0.0 };
+		let numerator_low_promoted = EmulatedF64 { high: numerator_low, low: 0.0 };
 		let difference = (self - rhs * numerator_low_promoted).high;
 		let product = Self::twoprod(numerator_high, difference);
 		numerator_low_promoted + product

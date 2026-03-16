@@ -8,17 +8,17 @@
 
 //! This module contains the implementations of operations to rotate geometric objects.
 
-use std::cmp;
-use std::sync::LazyLock;
+use bytemuck::{Pod, Zeroable}; //To be able to send the RotationTrigonometry struct to the GPU.
 use rayon::current_num_threads; //For multi-threaded implementations.
 use rayon::iter::ParallelIterator; //For multi-threaded implementations.
 use rayon::prelude::ParallelSliceMut; //For multi-threaded implementations.
+use std::cmp;
+use std::sync::LazyLock;
 use wgpu::{include_wgsl, ShaderModule}; //For loading the translate GPU kernel.
 
 use crate::Angle; //To measure how much to rotate objects.
 use crate::coordinate::round; //To accurately round coordinates after rotating them.
 use crate::Polygon; //Translate polygons.
-use crate::TwoDimensional; //The rotate operation is part of TwoDimensional.
 use crate::detail::emulated_f64::EmulatedF64; //To get greater accuracy on the GPU.
 use crate::detail::gpu::GPU; //To perform calculations on the GPU.
 
