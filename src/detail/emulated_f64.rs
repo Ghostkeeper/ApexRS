@@ -114,7 +114,7 @@ impl EmulatedF64 {
 	/// afterwards, the result is always the correct integer.
 	/// In the final step, we only add integers together, which incurs no loss of precision.
 	pub fn round(self) -> i32 {
-		let halfup = self + EmulatedF64::from(0.5); //So that we can merely truncate.
+		let halfup = self + EmulatedF64::from(0.5_f32); //So that we can merely truncate.
 		//Split into integer and fractional parts.
 		let high_int = halfup.high as i32;
 		let high_frac = halfup.high % 1.0;
@@ -139,8 +139,8 @@ impl EmulatedF64 {
 	/// reciprocal square root of our input α, 1/√α, and then multiply the result by α. The
 	/// approximation is done by starting with an arbitrary estimate x, and iteratively approaching
 	/// the root with the formula xₙ₊₁ = xₙ - ƒ(xₙ)/ƒ'(xₙ). In the case of the reciprocal square
-	/// root, the function ƒ(xₙ) is defined as 1/xₙ² - α with its derivative -2/xₙ³. Filling that
-	/// into Newton's method gives xₙ₊₁ = xₙ - (1/xₙ² - α)/(-2/xₙ³), simplifying the formula to the
+	/// root, the function ƒ(xₙ) is set to 1/xₙ² - α with its derivative -2/xₙ³. Filling that into
+	/// Newton's method gives xₙ₊₁ = xₙ - (1/xₙ² - α)/(-2/xₙ³), simplifying the formula to the
 	/// concrete xₙ₊₁ = xₙ + ½xₙ(1 - αxₙ²).
 	///
 	/// Approximating this needs only multiplication, but requires many high-precision
@@ -163,39 +163,61 @@ impl EmulatedF64 {
 		let premultiplied_estimate = self.high * initial_estimate; //yₙ in the above formulas.
 		let low_promoted = Self::from(premultiplied_estimate);
 		let diff = (self - low_promoted.square()).high; //α - yₙ²
-		let prod = Self::twoprod(initial_estimate, diff) / Self::from(2.0); //½xₙ(α - yₙ²)
+		let prod = Self::twoprod(initial_estimate, diff) / Self::from(2.0_f32); //½xₙ(α - yₙ²)
 		Self::from(premultiplied_estimate) + prod //yₙ + ½xₙ(α - yₙ²), the complete iteration of Newton's Method.
 	}
 
+	/// Compute the natural exponential function of this number.
+	///
+	/// The natural exponential function is the unique non-zero function which has itself as its
+	/// derivative. The function maps ƒ(x) = eˣ where e is Euler's number, a mathematical constant
+	/// equal to the limit with n → ∞ of (1 + ¹⁄ₙ)ⁿ, or approximately 2.7182818284590452353602874714.
+	/// It is also the inverse of the natural logarithm function `ln`, such that `exp(ln(x)) == x`.
+	///
+	/// # Implementation
+	/// The exponential function is calculated with the power series ∑(xⁿ/n!). However, calculating
+	/// xⁿ for sufficiently large values of x and n is problematic since it cannot be represented
+	/// with the limited exponent available to this emulated 64-bit float. To increase the accuracy
+	/// and to work well with high input values, we first divide by 2 until the input is in the
+	/// range [-1, 1]. Division by two merely reduces the exponent of the number, so no accuracy is
+	/// lost there. This division is later undone by repeatedly squaring the result the same amount
+	/// of time. Some accuracy is lost by repeatedly squaring.
+	///
+	/// The power series is calculated by maintaining a running partial sum. The numerator and
+	/// denominator are separately tracked, the numerator simply being multiplied by x every time
+	/// and the denominator being multiplied by a constantly incrementing multiplier. This is
+	/// repeated until the term being added to the partial sum is sufficiently small for the
+	/// rounding errors of the emulated number (10⁻²⁰ times the original number). If the term ends
+	/// up NaN, it means that the numerator or denominator ended up too high. The term added should
+	/// be very small then, so we abort the enumeration and return the result.
 	pub fn exp(self) -> EmulatedF64 {
 		//First divide by 2 until we are in the range [-1, 1].
-		//This speeds up the Taylor expansion, and also prevents it from going into really high numbers where accuracy is low.
 		let mut shrunk = self;
-		let mut power_of_two = 0;
+		let mut power_of_two = 0; //Track how often we did this.
 		while shrunk.high.abs() > 1.0 {
 			shrunk.high /= 2.0;
 			shrunk.low /= 2.0;
 			power_of_two += 1;
 		}
-		//Using a Taylor series.
-		let threshold = 1.0e-20 * shrunk.high.exp();
-		let mut partial_sum = Self::from(1.0) + shrunk; //First two terms.
+		//Track the power series.
+		let threshold = 1.0e-20 * shrunk.high.exp(); //Iterate until we add sufficiently small terms.
+		let mut partial_sum = Self::from(1.0_f32) + shrunk; //First two terms.
 		let mut current_power = shrunk.square();
-		let mut multiplier = 2.0_f32;
-		let mut denominator = Self::from(2.0);
-		let mut term = current_power / denominator;
+		let mut multiplier = 2.0_f32; //Track as single-precision since this remains integer.
+		let mut denominator = 2.0_f32; //Track as single-precision since this remains integer.
+		let mut term = current_power / Self::from(denominator);
 		while term.high.abs() > threshold {
 			partial_sum = partial_sum + term;
 			current_power = current_power * shrunk;
 			multiplier += 1.0;
-			denominator = denominator * Self::from(multiplier);
-			term = current_power / denominator;
-			if term.high.is_nan() || term.low.is_nan() {
+			denominator = denominator * multiplier;
+			term = current_power / Self::from(denominator);
+			if term.is_nan() {
 				break;
 			}
 		}
-		if !term.high.is_nan() && !term.low.is_nan() {
-			partial_sum = partial_sum + term;
+		if !term.is_nan() {
+			partial_sum = partial_sum + term; //Add the last term if we didn't break it off.
 		}
 		//Undo the shrinking.
 		for _ in 0..power_of_two {
@@ -204,17 +226,40 @@ impl EmulatedF64 {
 		partial_sum
 	}
 
+	/// Compute the natural logarithm of the number.
+	///
+	/// The natural logarithm is the logarithm to the base of Euler's number: ƒ(x) = logₑ(x).
+	/// Euler's number here is a mathematical constant equal to the limit with n → ∞ of (1 + ¹⁄ₙ)ⁿ,
+	/// or approximately 2.7182818284590452353602874714. It is also the inverse of the natural
+	/// exponential function `ln`, such that `ln(exp(x)) == x`.
+	///
+	/// # Implementation
+	/// The natural logarithm is estimated with
+	/// [Newton's Method](https://en.wikipedia.org/wiki/Newton's_method). Newton's Method tries to
+	/// approximate a root by starting with an arbitrary estimate x, and iteratively approaching the
+	/// root with the formula xₙ₊₁ = xₙ - ƒ(xₙ)/ƒ'(xₙ). In the case of the natural logarithm for our
+	/// input α, the function ƒ(xₙ) is set to eˣⁿ - α (which intersects at 0 when x = ln(α) with its
+	/// derivative eˣⁿ. Filling that into Newton's method gives xₙ₊₁ = xₙ - (exp(xₙ) - α)/exp(xₙ).
+	/// Simplifying the formula to the concrete xₙ₊₁ = xₙ + α ⋅ exp(-xₙ) - 1 removes the costly
+	/// division.
+	///
+	/// Newton's Method is quadratically convergent, meaning that with every iteration, the accuracy
+	/// is doubled. To implement the natural logarithm of the `EmulatedF64` then, we simply use the
+	/// built-in natural logarithm function for `f32` to arrive at our initial estimate. This
+	/// estimate should be accurate to the 23 bits of mantissa in `f32`. We then process a single
+	/// iteration of Newton's Method, resulting in an accuracy of 46 bits of mantissa, enough for
+	/// the entire `EmulatedF64`.
 	pub fn ln(self) -> EmulatedF64 {
-		let mut xi = Self::from(0.0);
+		//First check some edge cases.
 		if self.high == 1.0 && self.low == 0.0 {
-			return xi;
+			return Self::from(0.0_f32);
 		}
 		if self.high <= 0.0 {
-			xi.high = f32::NAN;
-			return xi;
+			return Self::from(f32::NAN);
 		}
-		xi.high = self.high.ln();
-		let estimate = xi + (-xi).exp() * self + Self::from(-1.0);
+		//Create the original estimate by using the built-in 32-bit implementation.
+		let mut estimate = Self::from(self.high.ln());
+		estimate = estimate + (-estimate).exp() * self + Self::from(-1.0_f32);
 		estimate
 	}
 
@@ -225,13 +270,13 @@ impl EmulatedF64 {
 		let shifted = half_pi - self;
 		let threshold = 1.0e-20 * shifted.high;
 		if shifted.high == 0.0 {
-			return Self::from(1.0);
+			return Self::from(1.0_f32);
 		}
 		let negative_square = -shifted.square();
 		let mut partial_sum = shifted;
 		let mut power = shifted;
 		let mut multiplier = 1.0;
-		let mut denominator = Self::from(1.0);
+		let mut denominator = Self::from(1.0_f32);
 		loop {
 			power = power * negative_square;
 			multiplier += 2.0;
@@ -251,13 +296,13 @@ impl EmulatedF64 {
 	pub fn sin(self) -> EmulatedF64 {
 		let threshold = 1.0e-20 * self.high;
 		if self.high == 0.0 {
-			return Self::from(0.0);
+			return Self::from(0.0_f32);
 		}
 		let negative_square = -self.square();
 		let mut partial_sum = self;
 		let mut power = self;
 		let mut multiplier = 1.0;
-		let mut denominator = Self::from(1.0);
+		let mut denominator = Self::from(1.0_f32);
 		loop {
 			power = power * negative_square;
 			multiplier += 2.0;
@@ -625,7 +670,7 @@ mod tests {
 	#[test_case(0.5000000001; "Just over 0.5")]
 	#[test_case(0.5; "Exactly 0.5")]
 	fn cos(value: f64) {
-		let half_pi = EmulatedF64::from(1.5707963267948966192313216916397514420985846996875529104874722961);
+		let half_pi = EmulatedF64::from(1.5707963267948966192313216916397514420985846996875529104874722961_f64);
 		println!("Half pi: {:.48},{:.48}", half_pi.high, half_pi.low);
 		let emulated = EmulatedF64::from(value);
 		let result = emulated.cos().into();
