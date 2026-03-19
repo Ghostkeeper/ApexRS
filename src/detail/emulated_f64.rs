@@ -10,7 +10,7 @@
 
 use bytemuck::{Pod, Zeroable}; //To be able to send the EmulatedF64 struct to the GPU.
 use std::fmt; //To print in debugging.
-use std::ops::{Add, Div, Mul, Sub}; //Implement arithmetic summation and multiplication for EmulatedF64.
+use std::ops::{Add, Div, Mul, Neg, Sub}; //Implement arithmetic operators for EmulatedF64.
 
 /// A structure that mimics the behaviour of a 64-bit floating point by using two 32-bit floats.
 ///
@@ -168,10 +168,6 @@ impl EmulatedF64 {
 		Self::from(premultiplied_estimate) + prod //yₙ + ½xₙ(α - yₙ²), the complete iteration of Newton's Method.
 	}
 
-	pub fn negative(self) -> EmulatedF64 {
-		EmulatedF64 { high: -self.high, low: -self.low }
-	}
-
 	pub fn exp(self) -> EmulatedF64 {
 		//First divide by 2 until we are in the range [-1, 1].
 		//This speeds up the Taylor expansion, and also prevents it from going into really high numbers where accuracy is low.
@@ -219,7 +215,7 @@ impl EmulatedF64 {
 			return xi;
 		}
 		xi.high = self.high.ln();
-		let estimate = xi + xi.negative().exp() * self + Self::from(-1.0);
+		let estimate = xi + (-xi).exp() * self + Self::from(-1.0);
 		estimate
 	}
 
@@ -232,7 +228,7 @@ impl EmulatedF64 {
 		if shifted.high == 0.0 {
 			return Self::from(1.0);
 		}
-		let negative_square = (shifted * shifted).negative();
+		let negative_square = -(shifted * shifted);
 		let mut partial_sum = shifted;
 		let mut power = shifted;
 		let mut multiplier = 1.0;
@@ -258,7 +254,7 @@ impl EmulatedF64 {
 		if self.high == 0.0 {
 			return Self::from(0.0);
 		}
-		let negative_square = (self * self).negative();
+		let negative_square = -(self * self);
 		let mut partial_sum = self;
 		let mut power = self;
 		let mut multiplier = 1.0;
@@ -394,6 +390,22 @@ impl Div for EmulatedF64 {
 	}
 }
 
+impl Neg for EmulatedF64 {
+	type Output = Self;
+
+	/// Get the negation of this number.
+	///
+	/// The result should equal `0 - x`, where `x` is this number. Negating a negative number
+	/// results in a positive number.
+	///
+	/// # Implementation
+	/// The individual high and low components of this number are negated. This results in no loss
+	/// of precision, since the sign of the number is stored separately.
+	fn neg(self) -> Self::Output {
+		EmulatedF64 { high: -self.high, low: -self.low }
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use assert_float_eq::assert_float_absolute_eq;
@@ -483,6 +495,28 @@ mod tests {
 		let using_f64 = lhs / rhs;
 		let result = (emulated_lhs / emulated_rhs).into();
 		assert_float_absolute_eq!(using_f64, result);
+	}
+
+	#[test_case(0.0; "Zero")]
+	#[test_case(1.0; "One")]
+	#[test_case(10_000_000_000.0; "Ten billion")]
+	#[test_case(0.71; "A fraction")]
+	#[test_case(0.9999999999; "Almost 1")]
+	#[test_case(0.4999999999; "Almost 0.5")]
+	#[test_case(0.5000000001; "Just over 0.5")]
+	#[test_case(0.5; "Exactly 0.5")]
+	#[test_case(-0.4999999999; "Almost negative 0.5")]
+	#[test_case(-0.5000000001; "Just under negative 0.5")]
+	#[test_case(-0.5; "Exactly negative 0.5")]
+	#[test_case(1_000_000_000.01; "Just over a billion")]
+	#[test_case(123456789.0; "f32 rounds to 123456792, f64 doesn't")]
+	#[test_case(123456793.0; "f32 rounds down to 123456792, f64 doesn't")]
+	#[test_case(3.141592653589793; "Pi")]
+	#[test_case(-123456789.0; "Big negative")]
+	fn negate(value: f64) {
+		let emulated = EmulatedF64::from(value);
+		let negated: f64 = (-emulated).into();
+		assert_float_absolute_eq!(negated, -value);
 	}
 
 	#[test_case(0.0; "Zero")]
