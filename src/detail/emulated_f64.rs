@@ -162,8 +162,7 @@ impl EmulatedF64 {
 		let initial_estimate = 1.0 / self.high.sqrt(); //xₙ in the above formulas.
 		let premultiplied_estimate = self.high * initial_estimate; //yₙ in the above formulas.
 		let low_promoted = Self::from(premultiplied_estimate);
-		let low_squared = low_promoted * low_promoted; //yₙ²
-		let diff = (self - low_squared).high; //α - yₙ²
+		let diff = (self - low_promoted.square()).high; //α - yₙ²
 		let prod = Self::twoprod(initial_estimate, diff) / Self::from(2.0); //½xₙ(α - yₙ²)
 		Self::from(premultiplied_estimate) + prod //yₙ + ½xₙ(α - yₙ²), the complete iteration of Newton's Method.
 	}
@@ -181,7 +180,7 @@ impl EmulatedF64 {
 		//Using a Taylor series.
 		let threshold = 1.0e-20 * shrunk.high.exp();
 		let mut partial_sum = Self::from(1.0) + shrunk; //First two terms.
-		let mut current_power = shrunk * shrunk;
+		let mut current_power = shrunk.square();
 		let mut multiplier = 2.0_f32;
 		let mut denominator = Self::from(2.0);
 		let mut term = current_power / denominator;
@@ -200,7 +199,7 @@ impl EmulatedF64 {
 		}
 		//Undo the shrinking.
 		for _ in 0..power_of_two {
-			partial_sum = partial_sum * partial_sum;
+			partial_sum = partial_sum.square();
 		}
 		partial_sum
 	}
@@ -228,7 +227,7 @@ impl EmulatedF64 {
 		if shifted.high == 0.0 {
 			return Self::from(1.0);
 		}
-		let negative_square = -(shifted * shifted);
+		let negative_square = -shifted.square();
 		let mut partial_sum = shifted;
 		let mut power = shifted;
 		let mut multiplier = 1.0;
@@ -254,7 +253,7 @@ impl EmulatedF64 {
 		if self.high == 0.0 {
 			return Self::from(0.0);
 		}
-		let negative_square = -(self * self);
+		let negative_square = -self.square();
 		let mut partial_sum = self;
 		let mut power = self;
 		let mut multiplier = 1.0;
@@ -275,6 +274,12 @@ impl EmulatedF64 {
 		partial_sum
 	}
 
+	pub fn square(self) -> EmulatedF64 {
+		let mut p = Self::twosquare(self.high);
+		p.low += self.high * self.low * 2.0;
+		Self::quicktwosum(p.high, p.low)
+	}
+
 	fn split(a: f32) -> EmulatedF64 {
 		let splitter = 4097.0;
 		let t = a * splitter;
@@ -288,6 +293,13 @@ impl EmulatedF64 {
 		let a_split = Self::split(a);
 		let b_split = Self::split(b);
 		let err = (a_split.high * b_split.high - p) + a_split.high * b_split.low + a_split.low * b_split.high + a_split.low * b_split.low;
+		EmulatedF64 { high: p, low: err }
+	}
+
+	fn twosquare(a: f32) -> EmulatedF64 {
+		let p = a * a;
+		let a_split = Self::split(a);
+		let err = (a_split.high * a_split.high - p) + a_split.high * a_split.low * 2.0 + a_split.low * a_split.low;
 		EmulatedF64 { high: p, low: err }
 	}
 
@@ -373,8 +385,7 @@ impl Add for EmulatedF64 {
 impl Sub for EmulatedF64 {
 	type Output = Self;
 	fn sub(self, rhs: Self) -> Self::Output {
-		let negative = EmulatedF64 { high: -rhs.high, low: -rhs.low };
-		self + negative
+		self + -rhs
 	}
 }
 
