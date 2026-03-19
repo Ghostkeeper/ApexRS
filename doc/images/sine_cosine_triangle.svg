@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="200">
+	<g fill="none" stroke="black" stroke-width="1">
+		<polygon points="2,198 398,198 398,3" stroke-width="4" /> <!-- Triangle -->
+		<rect x="378" y="178" width="20" height="20" /> <!-- Straight angle indicator -->
+		<path d="M52,198 a50,50 0 0 0 -5.144,-22.088" /> <!-- Angle indicator -->
+	</g>
+	<g font-family="sans" font-size="20">
+		<text x="55" y="190">α</text>
+		<text x="200" y="190">adjacent</text>
+		<text x="310" y="120">opposite</text>
+		<text x="100" y="90">hypotenuse</text>
+	</g>
+</svg>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400">
+	<g fill="none" stroke="black" stroke-width="1">
+		<circle cx="200" cy="200" r="199" />
+		<line x1="200" y1="200" x2="372.339" y2="100.5" stroke-width="4" />
+		<polygon points="200,200 372.339,200 372.339,100.5" stroke-linejoin="bevel" /> <!-- Triangle -->
+		<rect x="352.339" y="180" width="20" height="20" /> <!-- Straight angle indicator -->
+		<path d="M250,200 a50,50 0 0 0 -6.699,-25" /> <!-- Angle indicator -->
+	</g>
+	<g font-family="sans" font-size="20">
+		<text x="255" y="190">α</text>
+		<text x="270" y="220">cos(α)</text>
+		<text x="315" y="160">sin(α)</text>
+		<text x="275" y="140">1</text>
+	</g>
+</svg>

@@ -263,56 +263,74 @@ impl EmulatedF64 {
 		estimate
 	}
 
+	/// Compute the cosine function applied to this number.
+	///
+	/// The cosine is defined by a right-angle triangle with the given angle in one of the two non-
+	/// right corners, as the ratio between the edge adjacent to the corner and the hypotenuse of
+	/// the triangle. Somewhat simpler, it is the X-coordinate of a point around the unit circle at
+	/// the given angle, starting from to the right.
+	///
+	/// ![A right triangle with angle α indicated in the lower left, the "adjacent" on the bottom, "opposite" on the right and "hypotenuse" in the slanted edge.][sine_cosine_triangle]
+	/// ![A circle with radius 1, with a line drawn from the centre at angle α, indicating that the line ends on X coordinate cos(α) and Y coordinate sin(α).][sine_cosine_unit_circle]
+	///
+	/// # Implementation
+	/// Here we calculate the cosine by using the sine function. Since cos(α) = sin(π/2 - α), we can
+	/// simply calculate π/2 - α and then return the sine of that.
 	pub fn cos(self) -> EmulatedF64 {
-		//Instead of calculating the cosine, calculate the sine of the angle shifted by a quarter turn and inverted.
-		//cos(a) = sin(pi / 2 - a)
 		let half_pi = EmulatedF64 { high: 1.57079637050628662109375, low: -0.00000004371138828673792886547744274139404296875 };
 		let shifted = half_pi - self;
-		let threshold = 1.0e-20 * shifted.high;
-		if shifted.high == 0.0 {
-			return Self::from(1.0_f32);
-		}
-		let negative_square = -shifted.square();
-		let mut partial_sum = shifted;
-		let mut power = shifted;
-		let mut multiplier = 1.0;
-		let mut denominator = Self::from(1.0_f32);
-		loop {
-			power = power * negative_square;
-			multiplier += 2.0;
-			denominator = denominator * Self::from(multiplier * (multiplier - 1.0));
-			let term = power / denominator;
-			if term.high.is_nan() || term.low.is_nan() {
-				break;
-			}
-			partial_sum = partial_sum + term;
-			if term.high.abs() < threshold {
-				break;
-			}
-		}
-		partial_sum
+		shifted.sin()
 	}
 
+	/// Compute the sine function applied to this number.
+	///
+	/// The sine is defined by a right-angle triangle with the given angle in one of the two non-
+	/// right corners, as the ratio between the edge opposite to the corner and the hypotenuse of
+	/// the triangle. Somewhat simpler, it is the Y-coordinate of a point around the unit circle at
+	/// the given angle, starting from the right.
+	///
+	/// ![A right triangle with angle α indicated in the lower left, the "adjacent" on the bottom, "opposite" on the right and "hypotenuse" in the slanted edge.][sine_cosine_triangle]
+	/// ![A circle with radius 1, with a line drawn from the centre at angle α, indicating that the line ends on X coordinate cos(α) and Y coordinate sin(α).][sine_cosine_unit_circle]
+	///
+	/// # Implementation
+	/// The sine function is calculated using a its Taylor series. Since the input angle α is given
+	/// in radians, the Taylor series approximates the sine using:
+	/// sin(α) = α - α³/3! + α⁵/5! - α⁷/7! + ... using sufficient terms to get the accuracy required
+	/// for this emulated `f64`.
+	///
+	/// However, the greater the input α, the more terms we need to achieve that accuracy,
+	/// eventually reaching factorials too large for this emulation to represent accurately. For
+	/// that reason, the input is modulated to the range [-π,π]. Outside of this range, the output
+	/// repeats, so merely clipping the input space without any adjustment to the output will
+	/// greatly improve performance.
+	///
+	/// The Taylor series is calculated by maintaining a running sum of its terms, and continuing to
+	/// add more terms until the next term is within the rounding error of the representation, in
+	/// this case 10⁻²⁰. At each term, we calculate the next power by multiplying the previous one
+	/// with a (pre-calculated) α², and the next denominator by multiplying the previous one by an
+	/// incrementing multiplier twice.
 	pub fn sin(self) -> EmulatedF64 {
-		let threshold = 1.0e-20 * self.high;
+		//TODO: Clip the input!
 		if self.high == 0.0 {
 			return Self::from(0.0_f32);
 		}
-		let negative_square = -self.square();
+		let threshold = 1.0e-20_f32;
+		let negative_square = -self.square(); //Pre-compute this multiplier for the numerator of each factor.
 		let mut partial_sum = self;
-		let mut power = self;
-		let mut multiplier = 1.0;
+		let mut power = self; //The numerators.
+		let mut multiplier = 1.0_f32; //Each iteration, this increases by 2. Since these are integers and stay low, f32 is enough.
 		let mut denominator = Self::from(1.0_f32);
 		loop {
 			power = power * negative_square;
 			multiplier += 2.0;
 			denominator = denominator * Self::from(multiplier * (multiplier - 1.0));
 			let term = power / denominator;
-			if term.high.is_nan() || term.low.is_nan() {
+			if term.is_nan() {
+				//Happens if the power or denominator gets too big to represent.
 				break;
 			}
 			partial_sum = partial_sum + term;
-			if term.high.abs() < threshold {
+			if term.high.abs() < threshold { //The term is too small to make a difference.
 				break;
 			}
 		}

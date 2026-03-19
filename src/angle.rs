@@ -90,6 +90,9 @@ impl Angle {
 	/// the triangle. Somewhat simpler, it is the X-coordinate of a point around the unit circle at
 	/// the given angle, starting from to the right.
 	///
+	/// ![A right triangle with angle α indicated in the lower left, the "adjacent" on the bottom, "opposite" on the right and "hypotenuse" in the slanted edge.][sine_cosine_triangle]
+	/// ![A circle with radius 1, with a line drawn from the centre at angle α, indicating that the line ends on X coordinate cos(α) and Y coordinate sin(α).][sine_cosine_unit_circle]
+	///
 	/// # Examples:
 	/// ```
 	/// use std::f64::consts::TAU;
@@ -108,6 +111,9 @@ impl Angle {
 	/// right corners, as the ratio between the edge opposite to the corner and the hypotenuse of
 	/// the triangle. Somewhat simpler, it is the Y-coordinate of a point around the unit circle at
 	/// the given angle, starting from the right.
+	///
+	/// ![A right triangle with angle α indicated in the lower left, the "adjacent" on the bottom, "opposite" on the right and "hypotenuse" in the slanted edge.][sine_cosine_triangle]
+	/// ![A circle with radius 1, with a line drawn from the centre at angle α, indicating that the line ends on X coordinate cos(α) and Y coordinate sin(α).][sine_cosine_unit_circle]
 	///
 	/// # Examples:
 	/// ```
