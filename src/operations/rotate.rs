@@ -124,8 +124,8 @@ static ROTATE_POLYGON_SHADER: LazyLock<ShaderModule> = LazyLock::new(|| {
 /// assert_eq!(*poly.vertex(2), Point2D { x: -23, y: 118 });
 /// ```
 pub fn rotate_polygon_gpu(polygon: &mut Polygon, angle: Angle) {
-	let cosine = EmulatedF64::new(angle.cos());
-	let sine = EmulatedF64::new(angle.sin());
+	let cosine = EmulatedF64::from(angle.cos());
+	let sine = EmulatedF64::from(angle.sin());
 	let parameters = [sine, cosine];
 	let uniform_buffer = bytemuck::cast_slice(&parameters);
 	polygon.execute_gpu_kernel_mut(&ROTATE_POLYGON_SHADER, uniform_buffer);

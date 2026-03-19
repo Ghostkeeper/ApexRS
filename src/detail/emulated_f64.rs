@@ -114,7 +114,8 @@ impl EmulatedF64 {
 	/// afterwards, the result is always the correct integer.
 	/// In the final step, we only add integers together, which incurs no loss of precision.
 	pub fn round(self) -> i32 {
-		let halfup = self + EmulatedF64::new(0.5);
+		let halfup = self + EmulatedF64::from(0.5); //So that we can merely truncate.
+		//Split into integer and fractional parts.
 		let high_int = halfup.high as i32;
 		let high_frac = halfup.high % 1.0;
 		let low_int = halfup.low as i32;
@@ -183,16 +184,16 @@ impl EmulatedF64 {
 		}
 		//Using a Taylor series.
 		let threshold = 1.0e-20 * shrunk.high.exp();
-		let mut partial_sum = Self::promote(1.0) + shrunk; //First two terms.
+		let mut partial_sum = Self::from(1.0) + shrunk; //First two terms.
 		let mut current_power = shrunk * shrunk;
 		let mut multiplier = 2.0_f32;
-		let mut denominator = Self::promote(2.0);
+		let mut denominator = Self::from(2.0);
 		let mut term = current_power / denominator;
 		while term.high.abs() > threshold {
 			partial_sum = partial_sum + term;
 			current_power = current_power * shrunk;
 			multiplier += 1.0;
-			denominator = denominator * Self::promote(multiplier);
+			denominator = denominator * Self::from(multiplier);
 			term = current_power / denominator;
 			if term.high.is_nan() || term.low.is_nan() {
 				break;
@@ -209,7 +210,7 @@ impl EmulatedF64 {
 	}
 
 	pub fn ln(self) -> EmulatedF64 {
-		let mut xi = Self::promote(0.0);
+		let mut xi = Self::from(0.0);
 		if self.high == 1.0 && self.low == 0.0 {
 			return xi;
 		}
@@ -218,7 +219,7 @@ impl EmulatedF64 {
 			return xi;
 		}
 		xi.high = self.high.ln();
-		let estimate = xi + xi.negative().exp() * self + Self::promote(-1.0);
+		let estimate = xi + xi.negative().exp() * self + Self::from(-1.0);
 		estimate
 	}
 
@@ -229,17 +230,17 @@ impl EmulatedF64 {
 		let shifted = half_pi - self;
 		let threshold = 1.0e-20 * shifted.high;
 		if shifted.high == 0.0 {
-			return Self::promote(1.0);
+			return Self::from(1.0);
 		}
 		let negative_square = (shifted * shifted).negative();
 		let mut partial_sum = shifted;
 		let mut power = shifted;
 		let mut multiplier = 1.0;
-		let mut denominator = Self::promote(1.0);
+		let mut denominator = Self::from(1.0);
 		loop {
 			power = power * negative_square;
 			multiplier += 2.0;
-			denominator = denominator * Self::promote(multiplier * (multiplier - 1.0));
+			denominator = denominator * Self::from(multiplier * (multiplier - 1.0));
 			let term = power / denominator;
 			if term.high.is_nan() || term.low.is_nan() {
 				break;
@@ -255,17 +256,17 @@ impl EmulatedF64 {
 	pub fn sin(self) -> EmulatedF64 {
 		let threshold = 1.0e-20 * self.high;
 		if self.high == 0.0 {
-			return Self::promote(0.0);
+			return Self::from(0.0);
 		}
 		let negative_square = (self * self).negative();
 		let mut partial_sum = self;
 		let mut power = self;
 		let mut multiplier = 1.0;
-		let mut denominator = Self::promote(1.0);
+		let mut denominator = Self::from(1.0);
 		loop {
 			power = power * negative_square;
 			multiplier += 2.0;
-			denominator = denominator * Self::promote(multiplier * (multiplier - 1.0));
+			denominator = denominator * Self::from(multiplier * (multiplier - 1.0));
 			let term = power / denominator;
 			if term.high.is_nan() || term.low.is_nan() {
 				break;
@@ -323,7 +324,17 @@ impl fmt::Display for EmulatedF64 {
 
 impl From<f64> for EmulatedF64 {
 	fn from(value: f64) -> EmulatedF64 {
-		EmulatedF64::new(value)
+		const SPLITTER: f64 = ((1 << 29) + 1) as f64;
+		let split = value * SPLITTER;
+		let high = split - (split - value);
+		let low = value - high;
+		EmulatedF64 { high: high as f32, low: low as f32 }
+	}
+}
+
+impl From<f32> for EmulatedF64 {
+	fn from(value: f32) -> EmulatedF64 {
+		EmulatedF64 { high: value, low: 0.0 }
 	}
 }
 
