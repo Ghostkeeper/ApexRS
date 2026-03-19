@@ -43,11 +43,11 @@ use crate::Polygon;
 /// This forms a second rectangle, in this case a smaller one in the upper right hand corner. The
 /// two green triangles partially overlap and go partially outside of the parallelogram we're trying
 /// to get the area of. The part that is overlap plus the part that goes outside of the
-/// parallelogram together forms an area of x₁ ∙ y₂.
+/// parallelogram together forms an area of x₁ ⋅ y₂.
 ///
-/// The total area of the parallelogram then becomes the area of the rectangle formed by x₂ ∙ y₁
-/// minus the area formed by the other rectangle formed by x₁ ∙ y₂. In other words, the area of the
-/// parallelogram is x₂ ∙ y₁ - x₁ ∙ y₂. This needs to be divided by two to arrive at the area of the
+/// The total area of the parallelogram then becomes the area of the rectangle formed by x₂ ⋅ y₁
+/// minus the area formed by the other rectangle formed by x₁ ⋅ y₂. In other words, the area of the
+/// parallelogram is x₂ ⋅ y₁ - x₁ ⋅ y₂. This needs to be divided by two to arrive at the area of the
 /// triangle. The surface area of a polygon is the sum of all these triangles. This is the shoelace
 /// formula.
 ///

@@ -40,24 +40,43 @@ use std::ops::{Add, Div, Mul, Sub}; //Implement arithmetic summation and multipl
 /// accuracy may be more of a problem, because it could cause rounding to sometimes end up
 /// differently, in theory making it possible for the result on a GPU being different from the
 /// result on a CPU. Whether that also occurs in practice still has to be proven.
+///
+/// All of the operations (except conversions) on this number are implemented without using 64-bit
+/// floats. While many of them could be implemented more efficiently on a CPU using 64-bit
+/// operations, by implementing them without, they can be copied into a kernel that runs on GPUs.
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
 pub struct EmulatedF64 {
-	pub high: f32,
-	pub low: f32,
+	/// The high-significance part of the number.
+	///
+	/// The high-significance part never overlaps with the low-significance part. As a result, the
+	/// high-significance part has a higher exponent such that the measurement inaccuracy in the
+	/// high-significance part will always be greater than the total range of values representable
+	/// by the mantissa of the low-significance part.
+	///
+	/// Adding the high-significance part of the number to the low-significance part results in the
+	/// accurate number that is represented by this struct.
+	high: f32,
+
+	/// The low-significance part of the number.
+	///
+	/// The low-significance part never overlaps with the high-significance part. As a result, the
+	/// low-significance part has a lower exponent such that the measurement inaccuracy in the high-
+	/// significance part will always be greater than the total range of values representable by the
+	/// mantissa of the low-significance part.
+	///
+	/// Adding the low-significance part of the number to the high-significance part results in the
+	/// accurate number that is represented by this struct.
+	low: f32,
 }
 
 impl EmulatedF64 {
-	pub fn new(value: f64) -> EmulatedF64 {
-		const SPLITTER: f64 = ((1 << 29) + 1) as f64;
-		let split = value * SPLITTER;
-		let high = split - (split - value);
-		let low = value - high;
-		EmulatedF64 { high: high as f32, low: low as f32 }
-	}
-
-	pub fn promote(value: f32) -> EmulatedF64 {
-		EmulatedF64 { high: value, low: 0.0 }
+	/// Test if the emulated number is NaN.
+	///
+	/// The number can end up NaN if it is the result of a calculation that is not defined, such as
+	/// division by zero or the square root of a non-positive number.
+	pub fn is_nan(self) -> bool {
+		self.high.is_nan() || self.low.is_nan()
 	}
 
 	/// Round the number to the nearest integer.
@@ -66,6 +85,7 @@ impl EmulatedF64 {
 	/// different from most rounding methods (which are usually rounded away-from-zero or rounded to
 	/// the nearest even number in case of ties).
 	///
+	/// # Implementation
 	/// The rounding algorithm works as follows:
 	/// 1. First we calculate the proper precise sum of the given `value` and `0.5`, using the
 	/// accurate double-float addition algorithm. The resulting sum can be truncated down in order
@@ -99,18 +119,52 @@ impl EmulatedF64 {
 		let high_frac = halfup.high % 1.0;
 		let low_int = halfup.low as i32;
 		let low_frac = halfup.low % 1.0;
-		let remainders = (high_frac + low_frac).floor() as i32;
+		let remainders = (high_frac + low_frac).floor() as i32; //Sum and round the fractional parts separately.
 		high_int + low_int + remainders
 	}
 
+	/// Compute the square root of the number.
+	///
+	/// The square root is the number that, when multiplied with itself, results in the original
+	/// number again.
+	///
+	/// The square root of a negative number is undefined. The result should then display as NaN.
+	///
+	/// # Implementation
+	/// The square root is estimated with
+	/// [Newton's Method](https://en.wikipedia.org/wiki/Newton's_method), which is then enhanced to
+	/// need fewer high-precision operations with Karp's Method in their article High Precision
+	/// Division and Square Root (1997, Karp & Markstein). Newton's Method tries to approximate the
+	/// reciprocal square root of our input α, 1/√α, and then multiply the result by α. The
+	/// approximation is done by starting with an arbitrary estimate x, and iteratively approaching
+	/// the root with the formula xₙ₊₁ = xₙ - ƒ(xₙ)/ƒ'(xₙ). In the case of the reciprocal square
+	/// root, the function ƒ(xₙ) is defined as 1/xₙ² - α with its derivative -2/xₙ³. Filling that
+	/// into Newton's method gives xₙ₊₁ = xₙ - (1/xₙ² - α)/(-2/xₙ³), simplifying the formula to the
+	/// concrete xₙ₊₁ = xₙ + ½xₙ(1 - αxₙ²).
+	///
+	/// Approximating this needs only multiplication, but requires many high-precision
+	/// multiplications. Using multi-component floats we can change this formula to:
+	/// yₙ₊₁ = yₙ + ½xₙ(α - yₙ²) with yₙ = αxₙ. Instead of converging to xₙ₊₁ we now converge to
+	/// αxₙ₊₁. This brings the multiplication inside of the term that we're converging to, resulting
+	/// in fewer high-precision multiplications being necessary. The multiplication in the "αxₙ²"
+	/// part of the formula is factored out, and this also immediately applies the multiplication
+	/// that we need to get from 1/√α to the final √α. Because Newton's method corrects the initial
+	/// estimate sufficiently fast, we don't even need to compute yₙ = αxₙ with high accuracy.
+	///
+	/// Newton's Method is quadratically convergent, meaning that with every iteration, the accuracy
+	/// is doubled. To implement the square root of the `EmulatedF64` then, we simply use the
+	/// built-in square root function for `f32` to arrive at our initial estimate. This estimate
+	/// should be accurate to the 23 bits of mantissa in `f32`. We then process a single iteration
+	/// of Newton's Method, resulting in an accuracy of 46 bits of mantissa, enough for the entire
+	/// `EmulatedF64`.
 	pub fn sqrt(self) -> EmulatedF64 {
-		let numerator_high = 1.0 / self.high.sqrt();
-		let numerator_low = self.high * numerator_high;
-		let low_promoted = Self::promote(numerator_low);
-		let low_squared = low_promoted * low_promoted;
-		let diff = (self - low_squared).high;
-		let prod = Self::twoprod(numerator_high, diff) / Self::promote(2.0);
-		Self::promote(numerator_low) + prod
+		let initial_estimate = 1.0 / self.high.sqrt(); //xₙ in the above formulas.
+		let premultiplied_estimate = self.high * initial_estimate; //yₙ in the above formulas.
+		let low_promoted = Self::from(premultiplied_estimate);
+		let low_squared = low_promoted * low_promoted; //yₙ²
+		let diff = (self - low_squared).high; //α - yₙ²
+		let prod = Self::twoprod(initial_estimate, diff) / Self::from(2.0); //½xₙ(α - yₙ²)
+		Self::from(premultiplied_estimate) + prod //yₙ + ½xₙ(α - yₙ²), the complete iteration of Newton's Method.
 	}
 
 	pub fn negative(self) -> EmulatedF64 {
@@ -457,6 +511,16 @@ mod tests {
 		let emulated = EmulatedF64::from(value);
 		let result = emulated.sqrt().into();
 		assert_float_absolute_eq!(value.sqrt(), result);
+	}
+
+	#[test_case(-1.0; "One")]
+	#[test_case(0.0; "Zero")] //Not negative strictly, but sqrt(0) should also be NaN.
+	#[test_case(-10_000_000_000.0; "Ten billion")]
+	#[test_case(-3.141592653589793; "Pi")]
+	fn sqrt_negative(value: f64) {
+		let emulated = EmulatedF64::from(value);
+		let result = emulated.sqrt();
+		assert!(result.is_nan(), "Square root of a negative number is always NaN.");
 	}
 
 	#[test_case(0.0; "Zero")]
