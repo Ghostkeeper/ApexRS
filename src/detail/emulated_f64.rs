@@ -161,10 +161,10 @@ impl EmulatedF64 {
 	pub fn sqrt(self) -> EmulatedF64 {
 		let initial_estimate = 1.0 / self.high.sqrt(); //xₙ in the above formulas.
 		let premultiplied_estimate = self.high * initial_estimate; //yₙ in the above formulas.
-		let low_promoted = Self::from(premultiplied_estimate);
-		let diff = (self - low_promoted.square()).high; //α - yₙ²
-		let prod = Self::twoprod(initial_estimate, diff) / Self::from(2.0_f32); //½xₙ(α - yₙ²)
-		Self::from(premultiplied_estimate) + prod //yₙ + ½xₙ(α - yₙ²), the complete iteration of Newton's Method.
+		let premultiplied_promoted = Self::from(premultiplied_estimate);
+		let difference = (self - premultiplied_promoted.square()).high; //α - yₙ²
+		let product = Self::two_product(initial_estimate, difference) / Self::from(2.0_f32); //½xₙ(α - yₙ²)
+		Self::from(premultiplied_estimate) + product //yₙ + ½xₙ(α - yₙ²), the complete iteration of Newton's Method.
 	}
 
 	/// Compute the natural exponential function of this number.
@@ -337,56 +337,141 @@ impl EmulatedF64 {
 		partial_sum
 	}
 
+	/// Compute the square of the given number, i.e. the number multiplied by itself.
+	///
+	/// This raises the number to the second power.
+	///
+	/// The square of the number is a special case of multiplication. This specialised function
+	/// performs the multiplication slightly faster.
 	pub fn square(self) -> EmulatedF64 {
-		let mut p = Self::twosquare(self.high);
-		p.low += self.high * self.low * 2.0;
-		Self::quicktwosum(p.high, p.low)
+		let mut p = Self::two_square(self.high); //Specialised two-sum for squaring.
+		p.low += self.high * self.low * 2.0; //Multiply by 2 instead of adding the same value twice. Multiplying by 2 incurs no loss of precision.
+		Self::two_sum_quick(p.high, p.low)
 	}
 
-	fn split(a: f32) -> EmulatedF64 {
-		let splitter = 4097.0;
-		let t = a * splitter;
-		let high = t - (t - a);
-		let low = a - high;
+	/// Split an `f32` number into a high and low component.
+	///
+	/// The number is split such that multiplying the components of two split numbers individually
+	/// will not cause any round-off errors.
+	///
+	/// # Implementation
+	/// The number is multiplied by 2^12 + 1, which causes a round-off error of the least
+	/// significant 12 bits in the `f32`'s 23-bit mantissa. This effectively splits the original 23
+	/// bits of mantissa into two numbers, one containing the most significant 13 bits, and the
+	/// other containing the least significant 12 bits of that mantissa. Each of these components
+	/// can safely be multiplied with one another without round-off error.
+	fn split(value: f32) -> EmulatedF64 {
+		const SPLITTER: f32 = ((1 << 12) + 1) as f32; //2^12 + 1
+		let rounded_max = value * SPLITTER; //Maximum round-off error.
+		let high = rounded_max - (rounded_max - value); //Mask the mantissa of the original value with this round-off error.
+		let low = value - high; //The remainder.
 		EmulatedF64 { high: high, low: low }
 	}
 
-	fn twoprod(a: f32, b: f32) -> EmulatedF64 {
-		let p = a * b;
+	/// Compute the multiplication of two `f32` numbers and the exact round-off error.
+	///
+	/// The multiplied result together with the round-off error are returned as an `EmulatedF64`.
+	/// This result represents the same value as the input.
+	///
+	/// # Implementation
+	/// The multiplication is calculated with a simple multiply of the two numbers. The round-off
+	/// error is more complex though. In order to do this, we need to split each of the operands
+	/// into a high-order component and a low-order component. Each of these components will fit
+	/// into an `f32` value without overflow, and sum up to the original operands.
+	///
+	/// The product of a and b can then be formulated as follows:
+	/// a = aₕᵢ + aₗₒ
+	/// b = bₕᵢ + bₗₒ
+	/// a ⋅ b = (aₕᵢ + aₗₒ) ⋅ (bₕᵢ + bₗₒ)
+	///       = aₕᵢbₕᵢ + aₕᵢbₗₒ + aₗₒbₕᵢ + aₗₒbₗₒ
+	///
+	/// The error term can be found by subtracting the original "simple" product from the most
+	/// significant of those terms:
+	/// error = (aₕᵢbₕᵢ - product) + aₕᵢbₗₒ + aₗₒbₕᵢ + aₗₒbₗₒ
+	fn two_product(a: f32, b: f32) -> EmulatedF64 {
+		let product = a * b;
 		let a_split = Self::split(a);
 		let b_split = Self::split(b);
-		let err = (a_split.high * b_split.high - p) + a_split.high * b_split.low + a_split.low * b_split.high + a_split.low * b_split.low;
-		EmulatedF64 { high: p, low: err }
+		let error = (a_split.high * b_split.high - product) + a_split.high * b_split.low + a_split.low * b_split.high + a_split.low * b_split.low;
+		EmulatedF64 { high: product, low: error }
 	}
 
-	fn twosquare(a: f32) -> EmulatedF64 {
-		let p = a * a;
-		let a_split = Self::split(a);
-		let err = (a_split.high * a_split.high - p) + a_split.high * a_split.low * 2.0 + a_split.low * a_split.low;
-		EmulatedF64 { high: p, low: err }
+	/// Specialised version of `two_product` where the two components are the same.
+	///
+	/// This version can be implemented slightly faster. Instead of splitting the two operands, we
+	/// only need to split the one. And two terms in the error calculation become the same, so we
+	/// can simply multiply one of them by two and leave out the other.
+	fn two_square(value: f32) -> EmulatedF64 {
+		let product = value * value;
+		let value_split = Self::split(value);
+		let error = (value_split.high * value_split.high - product) + value_split.high * value_split.low * 2.0 + value_split.low * value_split.low;
+		EmulatedF64 { high: product, low: error }
 	}
 
-	fn twosum(a: f32, b: f32) -> EmulatedF64 {
-		let s = a + b;
-		let v = s - a;
-		let e = (a - (s - v)) + (b - v);
-		EmulatedF64 { high: s, low: e }
+	/// Compute the sum of two `f32` numbers and the exact round-off error.
+	///
+	/// This implements the [2Sum](https://en.wikipedia.org/wiki/2Sum) operation, which calculates
+	/// the sum of two numbers and the round-off error of this sum separately. Assuming that the sum
+	/// does not overflow, it calculates the sum correctly rounded (returned in the `high` component
+	/// of the result) and the error correctly rounded (returned in the `low` component) to the
+	/// nearest available floating point value.
+	///
+	/// This algorithm assumes that:
+	/// * The sum of these numbers do not overflow.
+	/// * The sum of these numbers may underflow, but it must underflow gradually.
+	/// * The arithmetic is correctly rounded to the nearest 32-bit floating point value (as in IEEE
+	///   754).
+	///
+	/// Even if these assumptions do not hold, the round-off error is often quite good.
+	///
+	/// # Arguments
+	/// * `a` - One of the numbers to sum.
+	/// * `b` - The other number to sum.
+	fn two_sum(a: f32, b: f32) -> EmulatedF64 {
+		let rounded_sum = a + b;
+		let b_with_error = rounded_sum - a;
+		let error = (a - (rounded_sum - b_with_error)) + (b - b_with_error);
+		EmulatedF64 { high: rounded_sum, low: error }
 	}
 
-	fn quicktwosum(a: f32, b: f32) -> EmulatedF64 {
-		let s = a + b;
-		let e = b - (s - a);
-		EmulatedF64 { high: s, low: e }
+	/// Compute the exact round-off error of adding two `f32` numbers where we know that
+	/// `|a|` >= `|b|`.
+	///
+	/// While the original `two_sum` algorithm uses 6 floating point operations, this version uses
+	/// only 3, but depends on the knowledge that the exponent of `a` is at least as large as the
+	/// exponent of `b`.
+	///
+	/// The `two_sum` algorithm does not use this quick variant, because comparing the two exponents
+	/// and swapping the values if needed still uses more operations than the original `two_sum`
+	/// algorithm.
+	fn two_sum_quick(a: f32, b: f32) -> EmulatedF64 {
+		let rounded_sum = a + b;
+		let error = b - (rounded_sum - a);
+		EmulatedF64 { high: rounded_sum, low: error }
 	}
 }
 
 impl fmt::Debug for EmulatedF64 {
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		write!(f, "{}+{}", self.high, self.low)
+	/// Format this number for debugging.
+	///
+	/// In debugging, this number is formatted as the sum of its two components. For instance, the
+	/// number `0.8000000001` gets formatted as `0.8+0.0000000001`.
+	///
+	/// # Arguments:
+	/// * `formatter` - The formatter used to write the output.
+	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+		write!(formatter, "{}+{}", self.high, self.low)
 	}
 }
 
 impl fmt::Display for EmulatedF64 {
+	/// Format this number for display.
+	///
+	/// This shows the number that this emulated `f64` represents. First it calculates the `f64`
+	/// itself, and then it simply formats that number in the result.
+	///
+	/// # Arguments:
+	/// * `formatter` - The formatter used to write the output.
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		let as_f64: f64 = (*self).into();
 		write!(f, "{}", as_f64)
@@ -394,22 +479,51 @@ impl fmt::Display for EmulatedF64 {
 }
 
 impl From<f64> for EmulatedF64 {
+	/// Transform a real `f64` number into an `EmulatedF64` that represents approximately the same
+	/// number.
+	///
+	/// Since `EmulatedF64` does not quite have the same accuracy as a real `f64`, the number may
+	/// get slightly rounded, but it will not get rounded nearly as much as rounding it to an `f32`.
+	///
+	/// # Arguments:
+	/// * `value` - The `f64` value that needs to be transformed to an `EmulatedF64`.
+	///
+	/// # Implementation
+	/// The number is multiplied by 2^29 + 1, which causes a round-off error of the least
+	/// significant 29 bits in the `f64`'s 53-bit mantissa. This effectively splits the original 53
+	/// bits of mantissa into two numbers, one containing the most significant 24 bits, and the
+	/// other containing the least significant 29 bits of that mantissa. The last of these then gets
+	/// rounded off to contain only 24 bits of mantissa.
 	fn from(value: f64) -> EmulatedF64 {
 		const SPLITTER: f64 = ((1 << 29) + 1) as f64;
-		let split = value * SPLITTER;
-		let high = split - (split - value);
+		let rounded_max = value * SPLITTER;
+		let high = rounded_max - (rounded_max - value);
 		let low = value - high;
 		EmulatedF64 { high: high as f32, low: low as f32 }
 	}
 }
 
 impl From<f32> for EmulatedF64 {
+	/// Promote an `f32` number to an `EmulatedF64` that represents the same number.
+	///
+	/// The resulting `EmulatedF64` represents exactly the same number. It will use more memory
+	/// though, and operations will be more expensive on it.
+	///
+	/// # Arguments:
+	/// * `value` - The `f32` value that needs to be transformed to an `EmulatedF64`.
 	fn from(value: f32) -> EmulatedF64 {
 		EmulatedF64 { high: value, low: 0.0 }
 	}
 }
 
 impl From<i32> for EmulatedF64 {
+	/// Convert an `i32` integer to an `EmulatedF64` that represents the same number.
+	///
+	/// The resulting `EmulatedF64` represents exactly the same number. The `EmulatedF64` can
+	/// represent every `i32` value.
+	///
+	/// # Arguments:
+	/// * `value` - The `i32` value that needs to be transformed to an `EmulatedF64`.
 	fn from(value: i32) -> EmulatedF64 {
 		let high = value as f32;
 		let low = (value - high as i32) as f32;
@@ -418,49 +532,124 @@ impl From<i32> for EmulatedF64 {
 }
 
 impl Into<f64> for EmulatedF64 {
+	/// Calculate the `f64` number that is represented by this emulation.
+	///
+	/// The emulation holds that the number represented is the sum of the two `f32` components it
+	/// holds.
 	fn into(self) -> f64 {
 		self.high as f64 + self.low as f64
 	}
 }
 
+impl Into<f32> for EmulatedF64 {
+	/// Round the `EmulatedF64` into its closest value that can be represented by an `f32` number.
+	///
+	/// Due to how the emulation splits up its number into a high-significance and a
+	/// low-significance number, where the range of the low-significance number is entierly
+	/// contained in the high-significance number, this can simply only return the high-significance
+	/// number.
+	fn into(self) -> f32 {
+		self.high
+	}
+}
+
 impl Mul for EmulatedF64 {
+	/// The output type of the multiplication.
+	///
+	/// In this case, the multiplication results in the same type as its operands.
 	type Output = Self;
+
+	/// Multiply this number with another number.
+	///
+	/// The multiplication is not done in-place. It will return a new number.
 	fn mul(self, rhs: Self) -> Self::Output {
-		let mut p = Self::twoprod(self.high, rhs.high);
-		p.low += self.high * rhs.low;
-		p.low += self.low * rhs.high;
-		Self::quicktwosum(p.high, p.low)
+		//First we calculate the product and error of the multiplication.
+		let mut product_and_error = Self::two_product(self.high, rhs.high);
+		//We then have to factor in the error of the multiplication into the result.
+		product_and_error.low += self.high * rhs.low;
+		product_and_error.low += self.low * rhs.high;
+		//Re-arrange the result into a properly non-overlapping result by quick-summing the components.
+		Self::two_sum_quick(product_and_error.high, product_and_error.low)
 	}
 }
 
 impl Add for EmulatedF64 {
+	/// The output type of the sum.
+	///
+	/// In this case, the sum results in the same type as its operands.
 	type Output = Self;
+
+	/// Add this number to another number.
+	///
+	/// The sum is not done in-place. It will return a new number.
 	fn add(self, rhs: Self) -> Self::Output {
-		let mut s = Self::twosum(self.high, rhs.high);
-		let t = Self::twosum(self.low, rhs.low);
-		s.low += t.high;
-		s = Self::quicktwosum(s.high, s.low);
-		s.low += t.low;
-		Self::quicktwosum(s.high, s.low)
+		let mut sum_highs = Self::two_sum(self.high, rhs.high);
+		let sum_lows = Self::two_sum(self.low, rhs.low);
+		sum_highs.low += sum_lows.high;
+		sum_highs = Self::two_sum_quick(sum_highs.high, sum_highs.low);
+		sum_highs.low += sum_lows.low;
+		Self::two_sum_quick(sum_highs.high, sum_highs.low)
 	}
 }
 
 impl Sub for EmulatedF64 {
+	/// The output type of the subtraction.
+	///
+	/// In this case, the subtraction results in the same type as its operands.
 	type Output = Self;
+
+	/// Subtract another number from this number.
+	///
+	/// The subtraction is not done in-place. It will return a new number.
 	fn sub(self, rhs: Self) -> Self::Output {
+		//Use the add-operation in combination with a negation for this implementation.
 		self + -rhs
 	}
 }
 
 impl Div for EmulatedF64 {
+	/// The output type of the division.
+	///
+	/// In this case, the division results in the same type as its operands.
 	type Output = Self;
+
+	/// Divide this number by another number.
+	///
+	/// The division is not done in-place. It will return a new number.
+	///
+	/// # Implementation
+	/// The division is estimated with
+	/// [Newton's Method](https://en.wikipedia.org/wiki/Newton's_method), which is then enhanced to
+	/// need fewer high-precision operations with Karp's Method in their article High Precision
+	/// Division and Square Root (1997, Karp & Markstein). Newton's Method tries to approximate the
+	/// reciprocal of our input β, 1/β, and then multiply this number α by 1/β to effectively divide
+	/// it by β. The approximation is done by starting with an arbitrary estimate x, and iteratively
+	/// approaching the root with the formula xₙ₊₁ = xₙ - ƒ(xₙ)/ƒ'(xₙ). In the case of the
+	/// reciprocal, the function ƒ(xₙ) is set to 1/x - β with its derivative -1/x². Filling that
+	/// into Newton's method gives xₙ₊₁ = xₙ - (1/xₙ - β)/(-1/xₙ²), simplifying the formula to the
+	/// concrete xₙ₊₁ = xₙ + xₙ(1 - βxₙ).
+	///
+	/// Approximating this needs only multiplication, but requires many high-precision
+	/// multiplications. Using multi-component floats we can change this formula to:
+	/// yₙ₊₁ = yₙ + xₙ(α - βyₙ) with yₙ = αxₙ. Instead of converging to xₙ₊₁ we now converge to
+	/// αxₙ₊₁. This brings the multiplication inside of the term that we're converging to, resulting
+	/// in fewer high-precision multiplications being necessary. The multiplication with α at the
+	/// end is factored out. Because Newton's method corrects the initial estimate sufficiently
+	/// fast, we don't even need to compute yₙ = αxₙ with high accuracy.
+	///
+	/// Newton's Method is quadratically convergent, meaning that with every iteration, the accuracy
+	/// is doubled. To implement the division of the `EmulatedF64` then, we simply use the built-in
+	/// division operator for `f32` to arrive at our initial estimate. This estimate should be
+	/// accurate to the 23 bits of mantissa in `f32`. We then process a single iteration of Newton's
+	/// Method, resulting in an accuracy of 46 bits of mantissa, enough for the entire
+	/// `EmulatedF64`.
 	fn div(self, rhs: Self) -> Self::Output {
-		let numerator_high = 1.0 / rhs.high;
-		let numerator_low = self.high * numerator_high;
-		let numerator_low_promoted = EmulatedF64 { high: numerator_low, low: 0.0 };
-		let difference = (self - rhs * numerator_low_promoted).high;
-		let product = Self::twoprod(numerator_high, difference);
-		numerator_low_promoted + product
+		let initial_estimate = 1.0 / rhs.high; //xₙ in the above formulas.
+		let premultiplied_estimate = self.high * initial_estimate; //yₙ in the above formulas.
+		let premultiplied_promoted = Self::from(premultiplied_estimate);
+		let difference = (self - rhs * premultiplied_promoted).high; //α - βyₙ
+		let product = Self::two_product(initial_estimate, difference); //xₙ(α - βyₙ)
+		premultiplied_promoted + product //yₙ + xₙ(α - βyₙ), the complete iteration of Newton's Method.
 	}
 }
 
@@ -497,10 +686,37 @@ mod tests {
 	#[test_case(123456789.0; "f32 rounds to 123456792, f64 doesn't")]
 	#[test_case(3.141592653589793; "Pi")]
 	#[test_case(-123456789.0; "Big negative")]
-	fn convert_loop(value: f64) {
+	fn convert_loop_f64(value: f64) {
 		let emulated = EmulatedF64::from(value);
 		let converted: f64 = emulated.into();
 		assert_float_absolute_eq!(value, converted);
+	}
+
+	#[test_case(0.0; "Zero")]
+	#[test_case(1.0; "One")]
+	#[test_case(0.71; "A fraction")]
+	#[test_case(0.7099999; "Almost 0.8")]
+	#[test_case(0.8000001; "Just over 0.8")]
+	#[test_case(123456792.0; "Big positive")]
+	#[test_case(3.141593; "Pi")]
+	#[test_case(-123456792.0; "Big negative")]
+	fn convert_loop_f32(value: f32) {
+		let emulated = EmulatedF64::from(value);
+		let converted: f32 = emulated.into();
+		assert_float_absolute_eq!(value, converted);
+	}
+
+	#[test_case(0; "Zero")]
+	#[test_case(1; "One")]
+	#[test_case(1_000_000_000; "One billion")]
+	#[test_case(123456789; "f32 rounds to 123456792, f64 doesn't")]
+	#[test_case(-123456789; "Big negative")]
+	#[test_case(2_147_483_647; "Maximum i32")]
+	#[test_case(-2_147_483_648; "Minimum i32")]
+	fn convert_loop_i32_rounding(value: i32) {
+		let emulated = EmulatedF64::from(value);
+		let rounded = emulated.round();
+		assert_eq!(value, rounded);
 	}
 
 	#[test_case(0.0, 0.0; "Zeroes")]
