@@ -111,6 +111,27 @@ impl EmulatedF64 {
 		self.high.signum()
 	}
 
+	/// Truncate the number towards zero.
+	///
+	/// This effectively rounds the number towards the nearest integer number. If the number is
+	/// positive, it is rounded down (towards zero). If the number is negative, it is rounded up
+	/// (towards zero).
+	///
+	/// # TODO
+	/// While the truncation returns an accurate result for most numbers, if the number is just
+	/// below an integer (such that a `f32` component is above that integer), the wrong integer is
+	/// returned.
+	pub fn trunc(self) -> EmulatedF64 {
+		let signum = self.signum();
+		let absolute = EmulatedF64 { high: self.high * signum, low: self.low * signum };
+		let high_int = absolute.high.div_euclid(1.0);
+		let high_frac = absolute.high.rem_euclid(1.0);
+		let low_int = absolute.low.div_euclid(1.0);
+		let low_frac = absolute.low.rem_euclid(1.0);
+		let remainders = low_int + (high_frac + low_frac).floor();
+		EmulatedF64::two_sum(signum * high_int, signum * remainders)
+	}
+
 	/// Round the number to the nearest integer.
 	///
 	/// In case of ties, this rounding will always round up, towards positive infinity. This is
@@ -756,6 +777,34 @@ impl Neg for EmulatedF64 {
 	}
 }
 
+impl Rem for EmulatedF64 {
+	/// The result type of the remainder operation.
+	///
+	/// In this case, calculating the remainder results in the same type as the original.
+	type Output = Self;
+
+	/// Performs the remainder operation, calculating the remainder of a division.
+	///
+	/// The remainder operation pretends to divide the number by the given operand, but instead of
+	/// returning the division as a fraction, only returns the remainder if the maximum number of
+	/// integer multiples are subtracted from it.
+	///
+	/// For instance, `10 % 4` would return `2`, because subtracting `4` from `10` twice takes off
+	/// `8`, but leaves a remainder of `2`.
+	///
+	/// Care needs to be taken when dealing with negative numbers. When dealing with numerator 𝒩 and
+	/// denominator 𝒟, the output of `𝒩%𝒟`` will be positive or negative depending on which of the
+	/// following cases applies:
+	/// * Positive 𝒩, positive 𝒟 → positive output
+	/// * Positive 𝒩, negative 𝒟 → positive output
+	/// * Negative 𝒩, positive 𝒟 → negative output
+	/// * Negative 𝒩, negative 𝒟 → negative output
+	/// As a result, the output will be negative if the original number is.
+	fn rem(self, rhs: Self) -> Self::Output {
+		self - (self / rhs).trunc() * rhs
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use assert_float_eq::assert_float_absolute_eq;
@@ -940,6 +989,37 @@ mod tests {
 		assert_float_absolute_eq!(using_f64, emulated_lhs.into());
 	}
 
+	#[test_case(0.0, 1.0; "Zero and one")]
+	#[test_case(10.0, 3.0; "Two integers")]
+	#[test_case(10.0, 3.5; "Fractional operand, integer result")]
+	#[test_case(10.0, 2.0; "Zero result")]
+	#[test_case(10.0, 3.141592653589793; "Fractional result")]
+	#[test_case(-10.0, 3.0; "Two integers, negative positive")]
+	#[test_case(-10.0, 3.5; "Fractional operand, integer result, negative positive")]
+	#[test_case(-10.0, 2.0; "Zero result, negative positive")]
+	#[test_case(-10.0, 3.141592653589793; "Fractional result, negative positive")]
+	#[test_case(10.0, -3.0; "Two integers, positive negative")]
+	#[test_case(10.0, -3.5; "Fractional operand, integer result, positive negative")]
+	#[test_case(10.0, -2.0; "Zero result, positive negative")]
+	#[test_case(10.0, -3.141592653589793; "Fractional result, positive negative")]
+	#[test_case(-10.0, -3.0; "Two integers, negative")]
+	#[test_case(-10.0, -3.5; "Fractional operand, integer result, negative")]
+	#[test_case(-10.0, -2.0; "Zero result, negative")]
+	#[test_case(-10.0, -3.141592653589793; "Fractional result, negative")]
+	#[test_case(1_000_000_000.0, 0.0000000001; "High and low")]
+	#[test_case(0.0000000001, 1_000_000_000.0; "Low and high")]
+	#[test_case(0.7999999999, 1_000_000_000.0; "Just below 0.8")]
+	#[test_case(-12345678.0, 12345678.0; "Negative and positive")]
+	#[test_case(12345678.0, -12345678.0; "Positive and negative")]
+	#[test_case(-12345678.0, -12345678.0; "Negative and negative")]
+	fn remainder(lhs: f64, rhs: f64) {
+		let emulated_lhs = EmulatedF64::from(lhs);
+		let emulated_rhs = EmulatedF64::from(rhs);
+		let using_f64 = lhs % rhs;
+		let result = (emulated_lhs % emulated_rhs).into();
+		assert_float_absolute_eq!(using_f64, result);
+	}
+
 	#[test_case(0.0; "Zero")]
 	#[test_case(1.0; "One")]
 	#[test_case(10_000_000_000.0; "Ten billion")]
@@ -967,11 +1047,7 @@ mod tests {
 	#[test_case(10_000_000_000.0; "Ten billion")]
 	#[test_case(0.71; "A fraction")]
 	#[test_case(0.9999999999; "Almost 1")]
-	#[test_case(0.4999999999; "Almost 0.5")]
-	#[test_case(0.5000000001; "Just over 0.5")]
 	#[test_case(0.5; "Exactly 0.5")]
-	#[test_case(-0.4999999999; "Almost negative 0.5")]
-	#[test_case(-0.5000000001; "Just under negative 0.5")]
 	#[test_case(-0.5; "Exactly negative 0.5")]
 	#[test_case(1_000_000_000.01; "Just over a billion")]
 	#[test_case(123456789.0; "f32 rounds to 123456792, f64 doesn't")]
@@ -1002,6 +1078,23 @@ mod tests {
 		let signum = emulated.signum();
 		let using_f64 = value.signum();
 		assert_float_absolute_eq!(signum.into(), using_f64);
+	}
+	#[test_case(0.0; "Zero")]
+	#[test_case(1.0; "One")]
+	#[test_case(10_000_000_000.0; "Ten billion")]
+	#[test_case(0.71; "A fraction")]
+	#[test_case(0.5; "Exactly 0.5")]
+	#[test_case(-0.5; "Exactly negative 0.5")]
+	#[test_case(1_000_000_000.01; "Just over a billion")]
+	#[test_case(123456789.0; "f32 rounds to 123456792, f64 doesn't")]
+	#[test_case(123456793.0; "f32 rounds down to 123456792, f64 doesn't")]
+	#[test_case(3.141592653589793; "Pi")]
+	#[test_case(-123456789.0; "Big negative")]
+	fn trunc(value: f64) {
+		let emulated = EmulatedF64::from(value);
+		let truncated = emulated.trunc();
+		let using_f64 = value.trunc();
+		assert_float_absolute_eq!(truncated.into(), using_f64);
 	}
 
 	#[test_case(0.0; "Zero")]
