@@ -71,6 +71,21 @@ pub struct EmulatedF64 {
 }
 
 impl EmulatedF64 {
+	/// Shorthand for the value of the mathematical constant τ.
+	///
+	/// τ is the ratio between the circumference of a circle and its radius. It is equal to 2 * π.
+	const TAU: EmulatedF64 = EmulatedF64 { high: 6.2831855, low: -0.00000017484555 };
+
+	/// Shorthand for the value of the mathematical constant π.
+	///
+	/// π is the ratio between the circumference of a circle and its diameter. It is equal to ½ * τ.
+	const PI: EmulatedF64 = EmulatedF64 { high: 3.1415927, low: -0.00000008742278 };
+
+	/// Shorthand for the value of the mathematical constant ¼τ.
+	///
+	/// ¼τ represents a quarter circle in radians.
+	const QUARTER_TAU: EmulatedF64 = EmulatedF64 { high: 1.5707964, low: -0.00000004371139 };
+
 	/// Test if the emulated number is NaN.
 	///
 	/// The number can end up NaN if it is the result of a calculation that is not defined, such as
