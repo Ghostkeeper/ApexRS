@@ -777,24 +777,6 @@ mod tests {
 	#[test_case(0.0000000001, 10_000_000_000.0; "Low and high")]
 	#[test_case(0.7999999999, 10_000_000_000.0; "Just below 0.8")]
 	#[test_case(123456789.0, 0.71; "f32 rounds to 123456792, f64 doesn't")]
-	#[test_case(-12345678.0, 12345678.0; "Negative and positive")]
-	#[test_case(12345678.0, -12345678.0; "Positive and negative")]
-	#[test_case(-12345678.0, -12345678.0; "Negative and negative")]
-	fn multiply(lhs: f64, rhs: f64) {
-		let emulated_lhs = EmulatedF64::from(lhs);
-		let emulated_rhs = EmulatedF64::from(rhs);
-		let using_f64 = lhs * rhs;
-		let result = (emulated_lhs * emulated_rhs).into();
-		println!("Using f64: {}, using emulated: {}", using_f64, result);
-		assert_float_absolute_eq!(using_f64, result);
-	}
-
-	#[test_case(0.0, 0.0; "Zeroes")]
-	#[test_case(1.0, 0.0; "One and zero")]
-	#[test_case(10_000_000_000.0, 0.0000000001; "High and low")]
-	#[test_case(0.0000000001, 10_000_000_000.0; "Low and high")]
-	#[test_case(0.7999999999, 10_000_000_000.0; "Just below 0.8")]
-	#[test_case(123456789.0, 0.71; "f32 rounds to 123456792, f64 doesn't")]
 	#[test_case(-123456789.0, 123456789.0; "Negative and positive")]
 	#[test_case(123456789.0, -123456789.0; "Positive and negative")]
 	#[test_case(-123456789.0, -123456789.0; "Negative and negative")]
@@ -815,12 +797,80 @@ mod tests {
 	#[test_case(-123456789.0, 123456789.0; "Negative and positive")]
 	#[test_case(123456789.0, -123456789.0; "Positive and negative")]
 	#[test_case(-123456789.0, -123456789.0; "Negative and negative")]
+	fn add_assign(lhs: f64, rhs: f64) {
+		let mut emulated_lhs = EmulatedF64::from(lhs);
+		let emulated_rhs = EmulatedF64::from(rhs);
+		let using_f64 = lhs + rhs;
+		emulated_lhs += emulated_rhs;
+		assert_float_absolute_eq!(using_f64, emulated_lhs.into());
+	}
+
+	#[test_case(0.0, 0.0; "Zeroes")]
+	#[test_case(1.0, 0.0; "One and zero")]
+	#[test_case(10_000_000_000.0, 0.0000000001; "High and low")]
+	#[test_case(0.0000000001, 10_000_000_000.0; "Low and high")]
+	#[test_case(0.7999999999, 10_000_000_000.0; "Just below 0.8")]
+	#[test_case(123456789.0, 0.71; "f32 rounds to 123456792, f64 doesn't")]
+	#[test_case(-12345678.0, 12345678.0; "Negative and positive")]
+	#[test_case(12345678.0, -12345678.0; "Positive and negative")]
+	#[test_case(-12345678.0, -12345678.0; "Negative and negative")]
+	fn multiply(lhs: f64, rhs: f64) {
+		let emulated_lhs = EmulatedF64::from(lhs);
+		let emulated_rhs = EmulatedF64::from(rhs);
+		let using_f64 = lhs * rhs;
+		let result = (emulated_lhs * emulated_rhs).into();
+		assert_float_absolute_eq!(using_f64, result);
+	}
+
+	#[test_case(0.0, 0.0; "Zeroes")]
+	#[test_case(1.0, 0.0; "One and zero")]
+	#[test_case(10_000_000_000.0, 0.0000000001; "High and low")]
+	#[test_case(0.0000000001, 10_000_000_000.0; "Low and high")]
+	#[test_case(0.7999999999, 10_000_000_000.0; "Just below 0.8")]
+	#[test_case(123456789.0, 0.71; "f32 rounds to 123456792, f64 doesn't")]
+	#[test_case(-12345678.0, 12345678.0; "Negative and positive")]
+	#[test_case(12345678.0, -12345678.0; "Positive and negative")]
+	#[test_case(-12345678.0, -12345678.0; "Negative and negative")]
+	fn multiply_assign(lhs: f64, rhs: f64) {
+		let mut emulated_lhs = EmulatedF64::from(lhs);
+		let emulated_rhs = EmulatedF64::from(rhs);
+		let using_f64 = lhs * rhs;
+		emulated_lhs *= emulated_rhs;
+		assert_float_absolute_eq!(using_f64, emulated_lhs.into());
+	}
+
+	#[test_case(0.0, 0.0; "Zeroes")]
+	#[test_case(1.0, 0.0; "One and zero")]
+	#[test_case(10_000_000_000.0, 0.0000000001; "High and low")]
+	#[test_case(0.0000000001, 10_000_000_000.0; "Low and high")]
+	#[test_case(0.7999999999, 10_000_000_000.0; "Just below 0.8")]
+	#[test_case(123456789.0, 0.71; "f32 rounds to 123456792, f64 doesn't")]
+	#[test_case(-123456789.0, 123456789.0; "Negative and positive")]
+	#[test_case(123456789.0, -123456789.0; "Positive and negative")]
+	#[test_case(-123456789.0, -123456789.0; "Negative and negative")]
 	fn subtract(lhs: f64, rhs: f64) {
 		let emulated_lhs = EmulatedF64::from(lhs);
 		let emulated_rhs = EmulatedF64::from(rhs);
 		let using_f64 = lhs - rhs;
 		let result = (emulated_lhs - emulated_rhs).into();
 		assert_float_absolute_eq!(using_f64, result);
+	}
+
+	#[test_case(0.0, 0.0; "Zeroes")]
+	#[test_case(1.0, 0.0; "One and zero")]
+	#[test_case(10_000_000_000.0, 0.0000000001; "High and low")]
+	#[test_case(0.0000000001, 10_000_000_000.0; "Low and high")]
+	#[test_case(0.7999999999, 10_000_000_000.0; "Just below 0.8")]
+	#[test_case(123456789.0, 0.71; "f32 rounds to 123456792, f64 doesn't")]
+	#[test_case(-123456789.0, 123456789.0; "Negative and positive")]
+	#[test_case(123456789.0, -123456789.0; "Positive and negative")]
+	#[test_case(-123456789.0, -123456789.0; "Negative and negative")]
+	fn subtract_assign(lhs: f64, rhs: f64) {
+		let mut emulated_lhs = EmulatedF64::from(lhs);
+		let emulated_rhs = EmulatedF64::from(rhs);
+		let using_f64 = lhs - rhs;
+		emulated_lhs -= emulated_rhs;
+		assert_float_absolute_eq!(using_f64, emulated_lhs.into());
 	}
 
 	#[test_case(0.0, 1.0; "Zero and one")]
@@ -837,6 +887,22 @@ mod tests {
 		let using_f64 = lhs / rhs;
 		let result = (emulated_lhs / emulated_rhs).into();
 		assert_float_absolute_eq!(using_f64, result);
+	}
+
+	#[test_case(0.0, 1.0; "Zero and one")]
+	#[test_case(10_000_000_000.0, 0.0000000001; "High and low")]
+	#[test_case(0.0000000001, 10_000_000_000.0; "Low and high")]
+	#[test_case(0.7999999999, 10_000_000_000.0; "Just below 0.8")]
+	#[test_case(123456789.0, 0.71; "f32 rounds to 123456792, f64 doesn't")]
+	#[test_case(-123456789.0, 123456789.0; "Negative and positive")]
+	#[test_case(123456789.0, -123456789.0; "Positive and negative")]
+	#[test_case(-123456789.0, -123456789.0; "Negative and negative")]
+	fn divide_assign(lhs: f64, rhs: f64) {
+		let mut emulated_lhs = EmulatedF64::from(lhs);
+		let emulated_rhs = EmulatedF64::from(rhs);
+		let using_f64 = lhs / rhs;
+		emulated_lhs /= emulated_rhs;
+		assert_float_absolute_eq!(using_f64, emulated_lhs.into());
 	}
 
 	#[test_case(0.0; "Zero")]
