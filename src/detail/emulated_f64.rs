@@ -10,7 +10,7 @@
 
 use bytemuck::{Pod, Zeroable}; //To be able to send the EmulatedF64 struct to the GPU.
 use std::fmt; //To print in debugging.
-use std::ops::{Add, Div, Mul, Neg, Sub}; //Implement arithmetic operators for EmulatedF64.
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign}; //Implement arithmetic operators for EmulatedF64.
 
 /// A structure that mimics the behaviour of a 64-bit floating point by using two 32-bit floats.
 ///
@@ -163,7 +163,7 @@ impl EmulatedF64 {
 		let premultiplied_estimate = self.high * initial_estimate; //yₙ in the above formulas.
 		let premultiplied_promoted = Self::from(premultiplied_estimate);
 		let difference = (self - premultiplied_promoted.square()).high; //α - yₙ²
-		let product = Self::two_product(initial_estimate, difference) / Self::from(2.0_f32); //½xₙ(α - yₙ²)
+		let product = Self::two_product(initial_estimate, difference) * Self::from(0.5_f32); //½xₙ(α - yₙ²)
 		Self::from(premultiplied_estimate) + product //yₙ + ½xₙ(α - yₙ²), the complete iteration of Newton's Method.
 	}
 
@@ -207,17 +207,17 @@ impl EmulatedF64 {
 		let mut denominator = 2.0_f32; //Track as single-precision since this remains integer.
 		let mut term = current_power / Self::from(denominator);
 		while term.high.abs() > threshold {
-			partial_sum = partial_sum + term;
-			current_power = current_power * shrunk;
+			partial_sum += term;
+			current_power *= shrunk;
 			multiplier += 1.0;
-			denominator = denominator * multiplier;
+			denominator *= multiplier;
 			term = current_power / Self::from(denominator);
 			if term.is_nan() {
 				break;
 			}
 		}
 		if !term.is_nan() {
-			partial_sum = partial_sum + term; //Add the last term if we didn't break it off.
+			partial_sum += term; //Add the last term if we didn't break it off.
 		}
 		//Undo the shrinking.
 		for _ in 0..power_of_two {
@@ -259,7 +259,7 @@ impl EmulatedF64 {
 		}
 		//Create the original estimate by using the built-in 32-bit implementation.
 		let mut estimate = Self::from(self.high.ln());
-		estimate = estimate + (-estimate).exp() * self + Self::from(-1.0_f32);
+		estimate += (-estimate).exp() * self + Self::from(-1.0_f32);
 		estimate
 	}
 
@@ -321,15 +321,15 @@ impl EmulatedF64 {
 		let mut multiplier = 1.0_f32; //Each iteration, this increases by 2. Since these are integers and stay low, f32 is enough.
 		let mut denominator = Self::from(1.0_f32);
 		loop {
-			power = power * negative_square;
+			power *= negative_square;
 			multiplier += 2.0;
-			denominator = denominator * Self::from(multiplier * (multiplier - 1.0));
+			denominator *= Self::from(multiplier * (multiplier - 1.0));
 			let term = power / denominator;
 			if term.is_nan() {
 				//Happens if the power or denominator gets too big to represent.
 				break;
 			}
-			partial_sum = partial_sum + term;
+			partial_sum += term;
 			if term.high.abs() < threshold { //The term is too small to make a difference.
 				break;
 			}
@@ -553,6 +553,38 @@ impl Into<f32> for EmulatedF64 {
 	}
 }
 
+impl Add for EmulatedF64 {
+	/// The output type of the sum.
+	///
+	/// In this case, the sum results in the same type as its operands.
+	type Output = Self;
+
+	/// Add another number to this number.
+	///
+	/// The sum is not done in-place. It will return a new number.
+	///
+	/// # Arguments
+	/// * `rhs` - The number to add to this number.
+	fn add(self, rhs: Self) -> Self::Output {
+		let mut sum_highs = Self::two_sum(self.high, rhs.high);
+		let sum_lows = Self::two_sum(self.low, rhs.low);
+		sum_highs.low += sum_lows.high;
+		sum_highs = Self::two_sum_quick(sum_highs.high, sum_highs.low);
+		sum_highs.low += sum_lows.low;
+		Self::two_sum_quick(sum_highs.high, sum_highs.low)
+	}
+}
+
+impl AddAssign for EmulatedF64 {
+	/// Add another number to this number, in-place.
+	///
+	/// # Arguments
+	/// * `rhs` - The number to add to this number.
+	fn add_assign(&mut self, rhs: Self) {
+		*self = *self + rhs;
+	}
+}
+
 impl Mul for EmulatedF64 {
 	/// The output type of the multiplication.
 	///
@@ -562,6 +594,9 @@ impl Mul for EmulatedF64 {
 	/// Multiply this number with another number.
 	///
 	/// The multiplication is not done in-place. It will return a new number.
+	///
+	/// # Arguments
+	/// * `rhs` - The number to multiply this number with.
 	fn mul(self, rhs: Self) -> Self::Output {
 		//First we calculate the product and error of the multiplication.
 		let mut product_and_error = Self::two_product(self.high, rhs.high);
@@ -573,22 +608,13 @@ impl Mul for EmulatedF64 {
 	}
 }
 
-impl Add for EmulatedF64 {
-	/// The output type of the sum.
+impl MulAssign for EmulatedF64 {
+	/// Multiply this number with another number, in-place.
 	///
-	/// In this case, the sum results in the same type as its operands.
-	type Output = Self;
-
-	/// Add this number to another number.
-	///
-	/// The sum is not done in-place. It will return a new number.
-	fn add(self, rhs: Self) -> Self::Output {
-		let mut sum_highs = Self::two_sum(self.high, rhs.high);
-		let sum_lows = Self::two_sum(self.low, rhs.low);
-		sum_highs.low += sum_lows.high;
-		sum_highs = Self::two_sum_quick(sum_highs.high, sum_highs.low);
-		sum_highs.low += sum_lows.low;
-		Self::two_sum_quick(sum_highs.high, sum_highs.low)
+	/// # Arguments
+	/// * `rhs` - The number to multiply this number with.
+	fn mul_assign(&mut self, rhs: Self) {
+		*self = *self * rhs;
 	}
 }
 
@@ -601,9 +627,22 @@ impl Sub for EmulatedF64 {
 	/// Subtract another number from this number.
 	///
 	/// The subtraction is not done in-place. It will return a new number.
+	///
+	/// # Arguments
+	/// * `rhs` - The number to subtract from this number.
 	fn sub(self, rhs: Self) -> Self::Output {
 		//Use the add-operation in combination with a negation for this implementation.
 		self + -rhs
+	}
+}
+
+impl SubAssign for EmulatedF64 {
+	/// Subtract another number from this number, in-place.
+	///
+	/// # Arguments
+	/// * `rhs` - The number to subtract from this number.
+	fn sub_assign(&mut self, rhs: Self) {
+		*self = *self - rhs;
 	}
 }
 
@@ -616,6 +655,9 @@ impl Div for EmulatedF64 {
 	/// Divide this number by another number.
 	///
 	/// The division is not done in-place. It will return a new number.
+	///
+	/// # Arguments
+	/// * `rhs` - The number to divide this number by.
 	///
 	/// # Implementation
 	/// The division is estimated with
@@ -650,6 +692,16 @@ impl Div for EmulatedF64 {
 		let difference = (self - rhs * premultiplied_promoted).high; //α - βyₙ
 		let product = Self::two_product(initial_estimate, difference); //xₙ(α - βyₙ)
 		premultiplied_promoted + product //yₙ + xₙ(α - βyₙ), the complete iteration of Newton's Method.
+	}
+}
+
+impl DivAssign for EmulatedF64 {
+	/// Divide this number by another number, in-place.
+	///
+	/// # Arguments
+	/// * `rhs` - The number to divide this number by.
+	fn div_assign(&mut self, rhs: Self) {
+		*self = *self / rhs;
 	}
 }
 
