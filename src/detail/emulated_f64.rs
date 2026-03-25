@@ -10,7 +10,7 @@
 
 use bytemuck::{Pod, Zeroable}; //To be able to send the EmulatedF64 struct to the GPU.
 use std::fmt; //To print in debugging.
-use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign}; //Implement arithmetic operators for EmulatedF64.
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, SubAssign}; //Implement arithmetic operators for EmulatedF64.
 
 /// A structure that mimics the behaviour of a 64-bit floating point by using two 32-bit floats.
 ///
@@ -77,6 +77,23 @@ impl EmulatedF64 {
 	/// division by zero or the square root of a non-positive number.
 	pub fn is_nan(self) -> bool {
 		self.high.is_nan() || self.low.is_nan()
+	}
+
+	/// Return the absolute magnitude of the number.
+	///
+	/// If the number was negative, it will be made positive. If it was positive or zero, it will be
+	/// left as it was.
+	pub fn abs(self) -> EmulatedF64 {
+		let signum = self.signum();
+		EmulatedF64 { high: self.high * signum, low: self.low * signum }
+	}
+
+	/// Get the signum of this number.
+	///
+	/// The signum is +1.0 if the number is positive, -1.0 if the number is negative, and 0.0 if the
+	/// number is zero or NaN.
+	pub fn signum(self) -> f32 {
+		self.high.signum()
 	}
 
 	/// Round the number to the nearest integer.
@@ -706,6 +723,9 @@ impl DivAssign for EmulatedF64 {
 }
 
 impl Neg for EmulatedF64 {
+	/// The result type when negating.
+	///
+	/// In this case, negating results in the same type as the original.
 	type Output = Self;
 
 	/// Get the negation of this number.
@@ -925,6 +945,48 @@ mod tests {
 		let emulated = EmulatedF64::from(value);
 		let negated: f64 = (-emulated).into();
 		assert_float_absolute_eq!(negated, -value);
+	}
+
+	#[test_case(0.0; "Zero")]
+	#[test_case(1.0; "One")]
+	#[test_case(10_000_000_000.0; "Ten billion")]
+	#[test_case(0.71; "A fraction")]
+	#[test_case(0.9999999999; "Almost 1")]
+	#[test_case(0.4999999999; "Almost 0.5")]
+	#[test_case(0.5000000001; "Just over 0.5")]
+	#[test_case(0.5; "Exactly 0.5")]
+	#[test_case(-0.4999999999; "Almost negative 0.5")]
+	#[test_case(-0.5000000001; "Just under negative 0.5")]
+	#[test_case(-0.5; "Exactly negative 0.5")]
+	#[test_case(1_000_000_000.01; "Just over a billion")]
+	#[test_case(123456789.0; "f32 rounds to 123456792, f64 doesn't")]
+	#[test_case(123456793.0; "f32 rounds down to 123456792, f64 doesn't")]
+	#[test_case(3.141592653589793; "Pi")]
+	#[test_case(-123456789.0; "Big negative")]
+	fn abs(value: f64) {
+		let emulated = EmulatedF64::from(value);
+		let absolute = emulated.abs();
+		let using_f64 = value.abs();
+		assert_float_absolute_eq!(absolute.into(), using_f64);
+	}
+
+	#[test_case(0.0; "Zero")]
+	#[test_case(1.0; "One")]
+	#[test_case(10_000_000_000.0; "Ten billion")]
+	#[test_case(0.71; "A fraction")]
+	#[test_case(0.9999999999; "Almost 1")]
+	#[test_case(0.5; "Exactly 0.5")]
+	#[test_case(-0.4999999999; "Almost negative 0.5")]
+	#[test_case(1_000_000_000.01; "Just over a billion")]
+	#[test_case(123456789.0; "f32 rounds to 123456792, f64 doesn't")]
+	#[test_case(123456793.0; "f32 rounds down to 123456792, f64 doesn't")]
+	#[test_case(3.141592653589793; "Pi")]
+	#[test_case(-123456789.0; "Big negative")]
+	fn signum(value: f64) {
+		let emulated = EmulatedF64::from(value);
+		let signum = emulated.signum();
+		let using_f64 = value.signum();
+		assert_float_absolute_eq!(signum.into(), using_f64);
 	}
 
 	#[test_case(0.0; "Zero")]
