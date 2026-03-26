@@ -10,6 +10,7 @@
 
 use bytemuck::{Pod, Zeroable}; //To be able to send the EmulatedF64 struct to the GPU.
 use std::fmt; //To print in debugging.
+use std::cmp::{Ordering, PartialEq, PartialOrd}; //Implement comparison operators for EmulatedF64.
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, SubAssign}; //Implement arithmetic operators for EmulatedF64.
 
 /// A structure that mimics the behaviour of a 64-bit floating point by using two 32-bit floats.
@@ -363,10 +364,10 @@ impl EmulatedF64 {
 	/// incrementing multiplier twice.
 	pub fn sin(self) -> EmulatedF64 {
 		let mut clipped = self % EmulatedF64::TAU;
-		if clipped.high > EmulatedF64::PI.high { //TODO: Proper comparison.
+		if clipped > EmulatedF64::PI {
 			clipped -= EmulatedF64::TAU;
 		}
-		if clipped.high == 0.0 {
+		if clipped.high == 0.0 && clipped.low == 0.0 {
 			return Self::from(0.0_f32);
 		}
 		let threshold = 1.0e-20_f32;
@@ -605,6 +606,48 @@ impl Into<f32> for EmulatedF64 {
 	/// number.
 	fn into(self) -> f32 {
 		self.high
+	}
+}
+
+impl PartialEq for EmulatedF64 {
+	/// Compares this number to another number for equality.
+	///
+	/// If the numbers are equal, returns `true`, and otherwise `false`.
+	///
+	/// NaN values are never equal, not even to themselves.
+	///
+	/// # Arguments
+	/// * `other` - The number to compare this number to.
+	fn eq(&self, other: &Self) -> bool {
+		self.high == other.high && self.low == other.low
+	}
+
+	/// Compares this number to another number for inequality.
+	///
+	/// If the numbers are equal, returns `false`, and otherwise `true`.
+	///
+	/// NaN values are always inequal, even to themselves.
+	///
+	/// # Arguments
+	/// * `other` - The number to compare this number to.
+	fn ne(&self, other: &Self) -> bool {
+		self.high != other.high || self.low != other.low
+	}
+}
+
+impl PartialOrd for EmulatedF64 {
+	/// Compare the ordering of this number to another number.
+	///
+	/// This returns `None` if either of the numbers are NaN. Otherwise it returns whether this
+	/// number is greater, equal or smaller than the given number.
+	///
+	/// # Arguments
+	/// * `other` - The number to compare this number to.
+	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+		match self.high.partial_cmp(&other.high) {
+			Some(Ordering::Equal) => self.low.partial_cmp(&other.low),
+			high_ordering => high_ordering, //All other cases, take the ordering of the high significance numbers.
+		}
 	}
 }
 
@@ -855,6 +898,73 @@ mod tests {
 		let emulated = EmulatedF64::from(value);
 		let rounded = emulated.round();
 		assert_eq!(value, rounded);
+	}
+
+	#[test_case(0.0, 0.0; "Zeroes")]
+	#[test_case(1.0, 1.0; "Ones")]
+	#[test_case(10_000_000_000.0, 10_000_000_000.0; "Ten billions")]
+	#[test_case(-20_000_000_000.0, -20_000_000_000.0; "Negative 20 billions")]
+	#[test_case(1.0, 2.0; "Simple inequality")]
+	#[test_case(0.0, 0.0000000001; "Almost equal zero")]
+	#[test_case(1.0, 0.9999999999; "Almost equal one")]
+	#[test_case(10.0, 10.0000000001; "Almost equal ten")]
+	#[test_case(10_000_000_000.0, 10_000_000_000.0000000001; "Almost equal ten billion")]
+	#[test_case(-10.0, -10.0000000001; "Almost equal negative ten")]
+	fn equality(lhs: f64, rhs: f64) {
+		let emulated_lhs = EmulatedF64::from(lhs);
+		let emulated_rhs = EmulatedF64::from(rhs);
+		let using_f64 = lhs == rhs;
+		let result = emulated_lhs == emulated_rhs;
+		assert_eq!(using_f64, result);
+	}
+
+	#[test_case(0.0, 0.0; "Zeroes")]
+	#[test_case(1.0, 1.0; "Ones")]
+	#[test_case(10_000_000_000.0, 10_000_000_000.0; "Ten billions")]
+	#[test_case(-20_000_000_000.0, -20_000_000_000.0; "Negative 20 billions")]
+	#[test_case(1.0, 2.0; "Simple inequality")]
+	#[test_case(-10.0000000001, 10.0000000001; "Negation")]
+	#[test_case(0.0, 0.0000000001; "Almost equal zero")]
+	#[test_case(1.0, 0.9999999999; "Almost equal one")]
+	#[test_case(10.0, 10.0000000001; "Almost equal ten")]
+	#[test_case(10_000_000_000.0, 10_000_000_000.0000000001; "Almost equal ten billion")]
+	#[test_case(-10.0, -10.0000000001; "Almost equal negative ten")]
+	fn inequality(lhs: f64, rhs: f64) {
+		let emulated_lhs = EmulatedF64::from(lhs);
+		let emulated_rhs = EmulatedF64::from(rhs);
+		let using_f64 = lhs != rhs;
+		let result = emulated_lhs != emulated_rhs;
+		assert_eq!(using_f64, result);
+	}
+
+	#[test_case(0.0, 0.0; "Equal zeroes")]
+	#[test_case(1.0, 1.0; "Equal ones")]
+	#[test_case(10.0000000001, 10.0000000001; "Equal just-over-tens")]
+	#[test_case(-0.9999999999, -0.9999999999; "Equal just-under-ones")]
+	#[test_case(0.9, 1.0; "Simple smaller")]
+	#[test_case(-1.0, 1.0; "Negation")]
+	#[test_case(0.9999999999, 1.0; "Slightly smaller one")]
+	#[test_case(10_000_000_000.0, 10_000_000_000.0000000001; "Slightly smaller ten billion")]
+	#[test_case(2.0, 13.37; "Simple bigger")]
+	#[test_case(1.0, -1.0; "Bigger negation")]
+	#[test_case(1.0, 0.9999999999; "Slightly bigger one")]
+	#[test_case(10_000_000_000.0000000001, 10_000_000_000.0; "Slightly bigger ten billion")]
+	fn comparison(lhs: f64, rhs: f64) {
+		let emulated_lhs = EmulatedF64::from(lhs);
+		let emulated_rhs = EmulatedF64::from(rhs);
+
+		let smaller_f64 = lhs < rhs;
+		let smaller = emulated_lhs < emulated_rhs;
+		assert_eq!(smaller_f64, smaller);
+		let smaller_equal_f64 = lhs <= rhs;
+		let smaller_equal = emulated_lhs <= emulated_rhs;
+		assert_eq!(smaller_equal_f64, smaller_equal);
+		let greater_f64 = lhs > rhs;
+		let greater = emulated_lhs > emulated_rhs;
+		assert_eq!(greater_f64, greater);
+		let greater_equal_f64 = lhs >= rhs;
+		let greater_equal = emulated_lhs >= emulated_rhs;
+		assert_eq!(greater_equal_f64, greater_equal);
 	}
 
 	#[test_case(0.0, 0.0; "Zeroes")]
