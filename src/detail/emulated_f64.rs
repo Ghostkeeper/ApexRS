@@ -857,6 +857,9 @@ mod tests {
 	use super::*;
 	use crate::coordinate;
 
+	/// Test converting `f64` into `EmulatedF64` and back.
+	///
+	/// The conversion is not allowed to lose any precision.
 	#[test_case(0.0; "Zero")]
 	#[test_case(1.0; "One")]
 	#[test_case(10_000_000_000.0; "Ten billion")]
@@ -873,6 +876,9 @@ mod tests {
 		assert_float_absolute_eq!(value, converted);
 	}
 
+	/// Test converting `f32` into `EmulatedF64` and back.
+	///
+	/// The conversion is not allowed to lose any precision.
 	#[test_case(0.0; "Zero")]
 	#[test_case(1.0; "One")]
 	#[test_case(0.71; "A fraction")]
@@ -887,6 +893,9 @@ mod tests {
 		assert_float_absolute_eq!(value, converted);
 	}
 
+	/// Test converting `i32` into `EmulatedF64` and back.
+	///
+	/// The conversion back to `i32` is done by rounding it. It must result in the original number.
 	#[test_case(0; "Zero")]
 	#[test_case(1; "One")]
 	#[test_case(1_000_000_000; "One billion")]
@@ -900,6 +909,9 @@ mod tests {
 		assert_eq!(value, rounded);
 	}
 
+	/// Test the equality operator.
+	///
+	/// The equality operator should give the same result as with a real `f64`.
 	#[test_case(0.0, 0.0; "Zeroes")]
 	#[test_case(1.0, 1.0; "Ones")]
 	#[test_case(10_000_000_000.0, 10_000_000_000.0; "Ten billions")]
@@ -918,6 +930,9 @@ mod tests {
 		assert_eq!(using_f64, result);
 	}
 
+	/// Test the inequality operator.
+	///
+	/// The inequality operator should give the same result as with a real `f64`.
 	#[test_case(0.0, 0.0; "Zeroes")]
 	#[test_case(1.0, 1.0; "Ones")]
 	#[test_case(10_000_000_000.0, 10_000_000_000.0; "Ten billions")]
@@ -937,6 +952,9 @@ mod tests {
 		assert_eq!(using_f64, result);
 	}
 
+	/// Test the comparison operators.
+	///
+	/// The comparison operators should give the same result as with a real `f64`.
 	#[test_case(0.0, 0.0; "Equal zeroes")]
 	#[test_case(1.0, 1.0; "Equal ones")]
 	#[test_case(10.0000000001, 10.0000000001; "Equal just-over-tens")]
@@ -967,6 +985,9 @@ mod tests {
 		assert_eq!(greater_equal_f64, greater_equal);
 	}
 
+	/// Test the addition operator.
+	///
+	/// The addition operator should give the same result as with a real `f64`.
 	#[test_case(0.0, 0.0; "Zeroes")]
 	#[test_case(1.0, 0.0; "One and zero")]
 	#[test_case(10_000_000_000.0, 0.0000000001; "High and low")]
@@ -984,6 +1005,9 @@ mod tests {
 		assert_float_absolute_eq!(using_f64, result);
 	}
 
+	/// Test the addition assignment operator.
+	///
+	/// The addition assignment operator should give the same result as with a real `f64`.
 	#[test_case(0.0, 0.0; "Zeroes")]
 	#[test_case(1.0, 0.0; "One and zero")]
 	#[test_case(10_000_000_000.0, 0.0000000001; "High and low")]
@@ -1001,6 +1025,9 @@ mod tests {
 		assert_float_absolute_eq!(using_f64, emulated_lhs.into());
 	}
 
+	/// Test the multiplication operator.
+	///
+	/// The multiplication operator should give the same result as with a real `f64`.
 	#[test_case(0.0, 0.0; "Zeroes")]
 	#[test_case(1.0, 0.0; "One and zero")]
 	#[test_case(10_000_000_000.0, 0.0000000001; "High and low")]
@@ -1018,6 +1045,9 @@ mod tests {
 		assert_float_absolute_eq!(using_f64, result);
 	}
 
+	/// Test the multiplication assignment operator.
+	///
+	/// The multiplication assignment operator should give the same result as with a real `f64`.
 	#[test_case(0.0, 0.0; "Zeroes")]
 	#[test_case(1.0, 0.0; "One and zero")]
 	#[test_case(10_000_000_000.0, 0.0000000001; "High and low")]
@@ -1035,6 +1065,9 @@ mod tests {
 		assert_float_absolute_eq!(using_f64, emulated_lhs.into());
 	}
 
+	/// Test the subtraction operator.
+	///
+	/// The subtraction operator should give the same result as with a real `f64`.
 	#[test_case(0.0, 0.0; "Zeroes")]
 	#[test_case(1.0, 0.0; "One and zero")]
 	#[test_case(10_000_000_000.0, 0.0000000001; "High and low")]
@@ -1052,6 +1085,9 @@ mod tests {
 		assert_float_absolute_eq!(using_f64, result);
 	}
 
+	/// Test the subtraction assignment operator.
+	///
+	/// The subtraction assignment operator should give the same result as with a real `f64`.
 	#[test_case(0.0, 0.0; "Zeroes")]
 	#[test_case(1.0, 0.0; "One and zero")]
 	#[test_case(10_000_000_000.0, 0.0000000001; "High and low")]
@@ -1069,6 +1105,9 @@ mod tests {
 		assert_float_absolute_eq!(using_f64, emulated_lhs.into());
 	}
 
+	/// Test the division operator.
+	///
+	/// The division operator should give the same result as with a real `f64`.
 	#[test_case(0.0, 1.0; "Zero and one")]
 	#[test_case(10_000_000_000.0, 0.0000000001; "High and low")]
 	#[test_case(0.0000000001, 10_000_000_000.0; "Low and high")]
@@ -1085,6 +1124,9 @@ mod tests {
 		assert_float_absolute_eq!(using_f64, result);
 	}
 
+	/// Test the division assignment operator.
+	///
+	/// The division assignment operator should give the same result as with a real `f64`.
 	#[test_case(0.0, 1.0; "Zero and one")]
 	#[test_case(10_000_000_000.0, 0.0000000001; "High and low")]
 	#[test_case(0.0000000001, 10_000_000_000.0; "Low and high")]
@@ -1101,6 +1143,9 @@ mod tests {
 		assert_float_absolute_eq!(using_f64, emulated_lhs.into());
 	}
 
+	/// Test the remainder operator.
+	///
+	/// The remainder operator should give the same result as with a real `f64`.
 	#[test_case(0.0, 1.0; "Zero and one")]
 	#[test_case(10.0, 3.0; "Two integers")]
 	#[test_case(10.0, 3.5; "Fractional operand, integer result")]
@@ -1132,6 +1177,9 @@ mod tests {
 		assert_float_absolute_eq!(using_f64, result);
 	}
 
+	/// Test the negation operator.
+	///
+	/// The negation operator should give the same result as with a real `f64`.
 	#[test_case(0.0; "Zero")]
 	#[test_case(1.0; "One")]
 	#[test_case(10_000_000_000.0; "Ten billion")]
@@ -1154,6 +1202,9 @@ mod tests {
 		assert_float_absolute_eq!(negated, -value);
 	}
 
+	/// Test getting the absolute value of the number.
+	///
+	/// The absolute value should be the same as with a real `f64`.
 	#[test_case(0.0; "Zero")]
 	#[test_case(1.0; "One")]
 	#[test_case(10_000_000_000.0; "Ten billion")]
@@ -1173,6 +1224,9 @@ mod tests {
 		assert_float_absolute_eq!(absolute.into(), using_f64);
 	}
 
+	/// Test getting the signum of the number.
+	///
+	/// The signum should be the same as with a real `f64`.
 	#[test_case(0.0; "Zero")]
 	#[test_case(1.0; "One")]
 	#[test_case(10_000_000_000.0; "Ten billion")]
@@ -1191,6 +1245,10 @@ mod tests {
 		let using_f64 = value.signum();
 		assert_float_absolute_eq!(signum.into(), using_f64);
 	}
+
+	/// Test getting the truncated number.
+	///
+	/// The truncated number should be the same as with a real `f64`.
 	#[test_case(0.0; "Zero")]
 	#[test_case(1.0; "One")]
 	#[test_case(10_000_000_000.0; "Ten billion")]
@@ -1209,6 +1267,9 @@ mod tests {
 		assert_float_absolute_eq!(truncated.into(), using_f64);
 	}
 
+	/// Test rounding the number.
+	///
+	/// The rounded number should be the same as with a real `f64`.
 	#[test_case(0.0; "Zero")]
 	#[test_case(1.0; "One")]
 	#[test_case(10_000_000_000.0; "Ten billion")]
@@ -1231,6 +1292,9 @@ mod tests {
 		assert_eq!(rounded, coordinate::round(value));
 	}
 
+	/// Test getting the square root of the number.
+	///
+	/// The square root should be the same as with a real `f64`.
 	#[test_case(1.0; "One")]
 	#[test_case(10_000_000_000.0; "Ten billion")]
 	#[test_case(0.71; "A fraction")]
@@ -1248,6 +1312,9 @@ mod tests {
 		assert_float_absolute_eq!(value.sqrt(), result);
 	}
 
+	/// Test getting the square root of a negative number.
+	///
+	/// The square root of a negative number should always be NaN.
 	#[test_case(-1.0; "One")]
 	#[test_case(0.0; "Zero")] //Not negative strictly, but sqrt(0) should also be NaN.
 	#[test_case(-10_000_000_000.0; "Ten billion")]
@@ -1258,6 +1325,9 @@ mod tests {
 		assert!(result.is_nan(), "Square root of a negative number is always NaN.");
 	}
 
+	/// Test getting the exponential of the number.
+	///
+	/// The exponential should be the same as with a real `f64`.
 	#[test_case(0.0; "Zero")]
 	#[test_case(1.0; "One")]
 	#[test_case(0.71; "A fraction")]
@@ -1275,6 +1345,9 @@ mod tests {
 		assert_float_absolute_eq!(value.exp(), result);
 	}
 
+	/// Test getting the natural logarithm of the number.
+	///
+	/// The natural logarithm should be the same as with a real `f64`.
 	#[test_case(1.0; "One")]
 	#[test_case(10_000_000_000.0; "Ten billion")]
 	#[test_case(0.71; "A fraction")]
@@ -1292,6 +1365,9 @@ mod tests {
 		assert_float_absolute_eq!(value.ln(), result);
 	}
 
+	/// Test getting the cosine of the number.
+	///
+	/// The cosine should be the same as with a real `f64`.
 	#[test_case(0.0; "Zero")]
 	#[test_case(1.0; "One")]
 	#[test_case(2.0; "Two")]
@@ -1309,6 +1385,9 @@ mod tests {
 		assert_float_absolute_eq!(value.cos(), result);
 	}
 
+	/// Test getting the sine of the number.
+	///
+	/// The sine should be the same as with a real `f64`.
 	#[test_case(0.0; "Zero")]
 	#[test_case(1.0; "One")]
 	#[test_case(2.0; "Two")]
