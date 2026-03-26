@@ -327,11 +327,10 @@ impl EmulatedF64 {
 	/// ![A circle with radius 1, with a line drawn from the centre at angle α, indicating that the line ends on X coordinate cos(α) and Y coordinate sin(α).][sine_cosine_unit_circle]
 	///
 	/// # Implementation
-	/// Here we calculate the cosine by using the sine function. Since cos(α) = sin(π/2 - α), we can
-	/// simply calculate π/2 - α and then return the sine of that.
+	/// Here we calculate the cosine by using the sine function. Since cos(α) = sin(τ/4 - α), we can
+	/// simply calculate τ/4 - α and then return the sine of that.
 	pub fn cos(self) -> EmulatedF64 {
-		let half_pi = EmulatedF64 { high: 1.57079637050628662109375, low: -0.00000004371138828673792886547744274139404296875 };
-		let shifted = half_pi - self;
+		let shifted = EmulatedF64::QUARTER_TAU - self;
 		shifted.sin()
 	}
 
@@ -363,14 +362,17 @@ impl EmulatedF64 {
 	/// with a (pre-calculated) α², and the next denominator by multiplying the previous one by an
 	/// incrementing multiplier twice.
 	pub fn sin(self) -> EmulatedF64 {
-		//TODO: Clip the input!
-		if self.high == 0.0 {
+		let mut clipped = self % EmulatedF64::TAU;
+		if clipped.high > EmulatedF64::PI.high { //TODO: Proper comparison.
+			clipped -= EmulatedF64::TAU;
+		}
+		if clipped.high == 0.0 {
 			return Self::from(0.0_f32);
 		}
 		let threshold = 1.0e-20_f32;
-		let negative_square = -self.square(); //Pre-compute this multiplier for the numerator of each factor.
-		let mut partial_sum = self;
-		let mut power = self; //The numerators.
+		let negative_square = -clipped.square(); //Pre-compute this multiplier for the numerator of each factor.
+		let mut partial_sum = clipped;
+		let mut power = clipped; //The numerators.
 		let mut multiplier = 1.0_f32; //Each iteration, this increases by 2. Since these are integers and stay low, f32 is enough.
 		let mut denominator = Self::from(1.0_f32);
 		loop {
@@ -1192,8 +1194,6 @@ mod tests {
 	#[test_case(0.5000000001; "Just over 0.5")]
 	#[test_case(0.5; "Exactly 0.5")]
 	fn cos(value: f64) {
-		let half_pi = EmulatedF64::from(1.5707963267948966192313216916397514420985846996875529104874722961_f64);
-		println!("Half pi: {:.48},{:.48}", half_pi.high, half_pi.low);
 		let emulated = EmulatedF64::from(value);
 		let result = emulated.cos().into();
 		assert_float_absolute_eq!(value.cos(), result);
