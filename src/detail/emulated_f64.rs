@@ -71,6 +71,7 @@ pub struct EmulatedF64 {
 	low: f32,
 }
 
+#[allow(dead_code)] //This struct also serves as example from where we copy code to GPU kernels, so not all methods are actually used.
 impl EmulatedF64 {
 	/// Shorthand for the value of the mathematical constant τ.
 	///
