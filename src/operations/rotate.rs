@@ -8,7 +8,6 @@
 
 //! This module contains the implementations of operations to rotate geometric objects.
 
-use bytemuck::{Pod, Zeroable}; //To be able to send the RotationTrigonometry struct to the GPU.
 use rayon::current_num_threads; //For multi-threaded implementations.
 use rayon::iter::ParallelIterator; //For multi-threaded implementations.
 use rayon::prelude::ParallelSliceMut; //For multi-threaded implementations.

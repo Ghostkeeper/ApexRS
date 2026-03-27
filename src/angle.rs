@@ -48,20 +48,20 @@ impl Angle {
 	/// ```
 	/// use std::f64::consts::TAU;
 	/// use apex::Angle;
-	/// let quarter_turn = Angle::new(TAU / 4.0); //90 degrees, or a "straight angle".
+	/// let quarter_turn = Angle::radians(TAU / 4.0); //90 degrees, or a "straight angle".
 	/// assert_eq!(quarter_turn, TAU / 4.0);
-	/// let half_turn = Angle::new(TAU / 2.0); //180 degrees.
+	/// let half_turn = Angle::radians(TAU / 2.0); //180 degrees.
 	/// assert_eq!(half_turn, TAU / 2.0);
-	/// let zero_angle = Angle::new(0.0); //0 degrees.
+	/// let zero_angle = Angle::radians(0.0); //0 degrees.
 	/// assert_eq!(zero_angle, 0.0);
-	/// let full_turn = Angle::new(TAU); //360 degrees, which gets stored as 0.
+	/// let full_turn = Angle::radians(TAU); //360 degrees, which gets stored as 0.
 	/// assert_eq!(full_turn, 0.0);
-	/// let negative_quarter_turn = Angle::new(-TAU / 4.0); //-90 degrees, which gets stored as 270.
+	/// let negative_quarter_turn = Angle::radians(-TAU / 4.0); //-90 degrees, which gets stored as 270.
 	/// assert_eq!(negative_quarter_turn, TAU * 0.75);
-	/// let overturn = Angle::new(-TAU * 1.75); //-630 degrees, which gets stored as 90.
+	/// let overturn = Angle::radians(-TAU * 1.75); //-630 degrees, which gets stored as 90.
 	/// assert_eq!(overturn, TAU * 0.25);
 	/// ```
-	pub fn new(radians: f64) -> Angle {
+	pub fn radians(radians: f64) -> Angle {
 		Angle { value: ((radians % TAU) + TAU) % TAU }
 	}
 
@@ -80,7 +80,7 @@ impl Angle {
 	/// assert_eq!(half_turn, TAU / 2.0, "Converted to 1/2 TAU.");
 	/// ```
 	pub fn degrees(degrees: f64) -> Angle {
-		Angle::new(degrees / 360.0 * TAU)
+		Angle::radians(degrees / 360.0 * TAU)
 	}
 
 	/// Calculate the cosine function of this angle.
@@ -97,7 +97,7 @@ impl Angle {
 	/// ```
 	/// use std::f64::consts::TAU;
 	/// use apex::Angle;
-	/// let thirty_degrees_cosine = Angle::new(TAU / 12.0).cos(); //30 degrees.
+	/// let thirty_degrees_cosine = Angle::radians(TAU / 12.0).cos(); //30 degrees.
 	/// use assert_float_eq::assert_float_absolute_eq;
 	/// assert_float_absolute_eq!(thirty_degrees_cosine, 0.5 * 3.0_f64.sqrt()); //The cosine of 30 degrees is sqrt(3)/2.
 	/// ```
@@ -119,7 +119,7 @@ impl Angle {
 	/// ```
 	/// use std::f64::consts::TAU;
 	/// use apex::Angle;
-	/// let thirty_degrees_sine = Angle::new(TAU / 12.0).sin(); //30 degrees.
+	/// let thirty_degrees_sine = Angle::radians(TAU / 12.0).sin(); //30 degrees.
 	/// use assert_float_eq::assert_float_absolute_eq;
 	/// assert_float_absolute_eq!(thirty_degrees_sine, 0.5); //The sine of 30 degrees is 1/2.
 	/// ```
@@ -159,7 +159,7 @@ impl From<f64> for Angle {
 	/// assert_eq!(overturn, TAU * 0.25);
 	/// ```
 	fn from(radians: f64) -> Angle {
-		Angle::new(radians)
+		Angle::radians(radians)
 	}
 }
 
@@ -181,11 +181,11 @@ impl PartialEq<f64> for Angle {
 	/// # Examples
 	/// ```
 	/// use apex::Angle;
-	/// let is_equal = Angle::new(3.0) == 3.0;
+	/// let is_equal = Angle::radians(3.0) == 3.0;
 	/// assert!(is_equal);
-	/// let is_not_equal = Angle::new(1.2) == 2.4;
+	/// let is_not_equal = Angle::radians(1.2) == 2.4;
 	/// assert!(!is_not_equal);
-	/// let is_equal_modulo = Angle::new(2.0 + std::f64::consts::TAU) == 2.0;
+	/// let is_equal_modulo = Angle::radians(2.0 + std::f64::consts::TAU) == 2.0;
 	/// ```
 	fn eq(&self, other: &f64) -> bool {
 		self.value == *other

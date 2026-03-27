@@ -129,7 +129,7 @@ impl TwoDimensional for Point2D {
 	/// ```
 	/// use apex::{Angle, Point2D, TwoDimensional};
 	/// let mut point = Point2D { x: 100, y: 0 }; //Create a point with initially only an X-offset.
-	/// point.rotate(Angle::new(std::f64::consts::PI * 0.25)); //Rotate by 45 degrees.
+	/// point.rotate(Angle::radians(std::f64::consts::PI * 0.25)); //Rotate by 45 degrees.
 	/// assert_eq!(point, Point2D { x: 71, y: 71 }); //Now rotated counter-clockwisely to 100/sqrt(2).
 	/// ```
 	fn rotate(&mut self, angle: Angle) {
