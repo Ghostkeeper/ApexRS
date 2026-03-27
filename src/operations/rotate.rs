@@ -38,7 +38,7 @@ use crate::detail::gpu::GPU; //To perform calculations on the GPU.
 /// 	Point2D { x: 67, y: 100},
 /// ]);
 /// //Rotate the polygon.
-/// apex::operations::rotate::rotate_polygon_st(&mut poly, Angle::degrees(45.0));
+/// apex::operations::rotate::rotate_polygon_st(&mut poly, Angle::EIGHTH_TURN);
 /// //Now, the polygon will be rotated 45 degrees counter-clockwise.
 /// assert_eq!(*poly.vertex(0), Point2D { x: 0, y: 0 });
 /// assert_eq!(*poly.vertex(1), Point2D { x: 71, y: 71 });
@@ -72,7 +72,7 @@ pub fn rotate_polygon_st(polygon: &mut Polygon, angle: Angle) {
 /// 	Point2D { x: 67, y: 100},
 /// ]);
 /// //Rotate the polygon.
-/// apex::operations::rotate::rotate_polygon_mt(&mut poly, Angle::degrees(45.0));
+/// apex::operations::rotate::rotate_polygon_mt(&mut poly, Angle::EIGHTH_TURN);
 /// //Now, the polygon will be rotated 45 degrees counter-clockwise.
 /// assert_eq!(*poly.vertex(0), Point2D { x: 0, y: 0 });
 /// assert_eq!(*poly.vertex(1), Point2D { x: 71, y: 71 });
@@ -116,7 +116,7 @@ static ROTATE_POLYGON_SHADER: LazyLock<ShaderModule> = LazyLock::new(|| {
 /// 	Point2D { x: 67, y: 100},
 /// ]);
 /// //Rotate the polygon.
-/// apex::operations::rotate::rotate_polygon_gpu(&mut poly, Angle::degrees(45.0));
+/// apex::operations::rotate::rotate_polygon_gpu(&mut poly, Angle::EIGHTH_TURN);
 /// //Now, the polygon will be rotated 45 degrees counter-clockwise.
 /// assert_eq!(*poly.vertex(0), Point2D { x: 0, y: 0 });
 /// assert_eq!(*poly.vertex(1), Point2D { x: 71, y: 71 });
