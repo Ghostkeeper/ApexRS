@@ -43,39 +43,39 @@ impl Angle {
 	///
 	/// This is equivalent to π radians or 180°. When used for a direction vector, it represents
 	/// inverting the direction of the vector.
-	pub const HALF_TURN: Angle = Angle { value: TAU / 2.0 };
+	pub const HALF_TURN: Angle = Angle::radians(TAU / 2.0);
 
 	/// Short-hand for an angle that represents a third of a turn.
 	///
 	/// This is equivalent to ⅔π radians or 120°.
-	pub const THIRD_TURN: Angle = Angle { value: TAU / 3.0 };
+	pub const THIRD_TURN: Angle = Angle::radians(TAU / 3.0);
 
 	/// Short-hand for an angle that represents a quarter of a turn.
 	///
 	/// This is equivalent to ½π radians or 90°. When used for a direction vector, it represents a
 	/// right-angle turn to the left.
-	pub const QUARTER_TURN: Angle = Angle { value: TAU / 4.0 };
+	pub const QUARTER_TURN: Angle = Angle::radians(TAU / 4.0);
 
 	/// Short-hand for an angle that represents three quarters of a turn.
 	///
 	/// This is equivalent to 1½π radians or 270°. When used for a direction vector, it represents a
 	/// right-angle turn to the right.
-	pub const THREE_QUARTER_TURN: Angle = Angle { value: TAU * 3.0 / 4.0 };
+	pub const THREE_QUARTER_TURN: Angle = Angle::radians(TAU * 3.0 / 4.0);
 
 	/// Short-hand for an angle that represents a sixth of a turn.
 	///
 	/// This is equivalent to ⅓π radians or 60°.
-	pub const SIXTH_TURN: Angle = Angle { value: TAU / 6.0 };
+	pub const SIXTH_TURN: Angle = Angle::radians(TAU / 6.0);
 
 	/// Short-hand for an angle that represents an eighth of a turn.
 	///
 	/// This is equivalent to ¼π radians or 45°.
-	pub const EIGHTH_TURN: Angle = Angle { value: TAU / 8.0 };
+	pub const EIGHTH_TURN: Angle = Angle::radians(TAU / 8.0);
 
 	/// Short-hand for an angle that represents a twelfth of a turn.
 	///
 	/// This is equivalent to ⅙π radians or 30°.
-	pub const TWELFTH_TURN: Angle = Angle { value: TAU / 12.0 };
+	pub const TWELFTH_TURN: Angle = Angle::radians(TAU / 12.0);
 
 	/// Create a new angle from a number of radians.
 	///
@@ -99,7 +99,7 @@ impl Angle {
 	/// let overturn = Angle::radians(-TAU * 1.75); //-630 degrees, which gets stored as 90.
 	/// assert_eq!(overturn, TAU * 0.25);
 	/// ```
-	pub fn radians(radians: f64) -> Angle {
+	pub const fn radians(radians: f64) -> Angle {
 		Angle { value: ((radians % TAU) + TAU) % TAU }
 	}
 
@@ -117,7 +117,7 @@ impl Angle {
 	/// let half_turn = Angle::degrees(180.0);
 	/// assert_eq!(half_turn, TAU / 2.0, "Converted to 1/2 TAU.");
 	/// ```
-	pub fn degrees(degrees: f64) -> Angle {
+	pub const fn degrees(degrees: f64) -> Angle {
 		Angle::radians(degrees / 360.0 * TAU)
 	}
 
@@ -219,13 +219,92 @@ impl PartialEq<f64> for Angle {
 	/// # Examples
 	/// ```
 	/// use apex::Angle;
+	/// use std::f64::consts::TAU;
 	/// let is_equal = Angle::radians(3.0) == 3.0;
 	/// assert!(is_equal);
 	/// let is_not_equal = Angle::radians(1.2) == 2.4;
 	/// assert!(!is_not_equal);
-	/// let is_equal_modulo = Angle::radians(2.0 + std::f64::consts::TAU) == 2.0;
+	/// let is_equal_modulo = Angle::radians(2.0 + TAU) == 2.0;
 	/// ```
 	fn eq(&self, other: &f64) -> bool {
 		self.value == *other
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use assert_float_eq::assert_float_absolute_eq;
+	use test_case::test_case;
+	use super::*;
+
+	/// Test converting radians into angles when the radians are within the 0 - τ clipping range.
+	#[test_case(0.0; "Zero")]
+	#[test_case(1.0; "One")]
+	#[test_case(6.2; "Almost tau")]
+	fn within_clipping_range(value: f64) {
+		//Convert to Angle and back and see if it remained the same.
+		let angle = Angle::radians(value);
+		let converted: f64 = angle.into();
+		assert_float_absolute_eq!(value, converted);
+	}
+
+	/// Test converting radians into angles when the radians are outside of the 0 - τ clipping
+	/// range.
+	///
+	/// The value should be clipped to be within that range then.
+	#[test_case(TAU, 0.0; "Tau")]
+	#[test_case(-TAU / 4.0, TAU * 0.75; "Negative turn")]
+	#[test_case(TAU * 1000.0 + 1.0, 1.0; "Big positive")]
+	#[test_case(-TAU * 900.0 + 1.0, 1.0; "Big negative")]
+	#[test_case(TAU * 1.5, TAU * 0.5; "Turn-and-a-half")]
+	fn outside_clipping_range(value: f64, expected: f64) {
+		//Convert to Angle and back and see if it became the expected value.
+		let angle = Angle::radians(value);
+		let converted: f64 = angle.into();
+		assert_float_absolute_eq!(expected, converted);
+	}
+
+	/// Test converting degrees into angles.
+	#[test_case(0.0, 0.0; "Zero")]
+	#[test_case(30.0, TAU / 12.0; "Small angle")]
+	#[test_case(90.0, TAU / 4.0; "Right angle")]
+	#[test_case(180.0, TAU / 2.0; "Straight angle")]
+	#[test_case(360.0, 0.0; "Full turn")]
+	#[test_case(-90.0, TAU * 0.75; "Right angle negative")]
+	#[test_case(630.0, TAU * 0.75; "Turn and three quarters")]
+	#[test_case(-630.0, TAU / 4.0; "Negative turn and three quarters")]
+	fn from_degrees(degrees: f64, radians: f64) {
+		//Convert to Angle and then to radians and see if it became the expected value.
+		let angle = Angle::degrees(degrees);
+		let converted: f64 = angle.into();
+		assert_float_absolute_eq!(radians, converted);
+	}
+
+	#[test_case(0.0, 1.0; "Zero")]
+	#[test_case(TAU / 4.0, 0.0; "Quarter turn")]
+	#[test_case(TAU / 2.0, -1.0; "Half turn")]
+	#[test_case(TAU * 0.75, 0.0; "Three quarter turn")]
+	#[test_case(TAU / 6.0, 0.5; "60 degrees")]
+	#[test_case(TAU / 8.0, 1.0 / 2.0_f64.sqrt(); "45 degrees")]
+	#[test_case(TAU / 12.0, 0.5 * 3.0_f64.sqrt(); "30 degrees")]
+	/// Test getting the cosine of an angle.
+	fn cosine(radians: f64, expected: f64) {
+		let angle = Angle::radians(radians);
+		let cosine = angle.cos();
+		assert_float_absolute_eq!(expected, cosine);
+	}
+
+	#[test_case(0.0, 0.0; "Zero")]
+	#[test_case(TAU / 4.0, 1.0; "Quarter turn")]
+	#[test_case(TAU / 2.0, 0.0; "Half turn")]
+	#[test_case(TAU * 0.75, -1.0; "Three quarter turn")]
+	#[test_case(TAU / 6.0, 0.5 * 3.0_f64.sqrt(); "60 degrees")]
+	#[test_case(TAU / 8.0, 1.0 / 2.0_f64.sqrt(); "45 degrees")]
+	#[test_case(TAU / 12.0, 0.5; "30 degrees")]
+	/// Test getting the cosine of an angle.
+	fn sine(radians: f64, expected: f64) {
+		let angle = Angle::radians(radians);
+		let sine = angle.sin();
+		assert_float_absolute_eq!(expected, sine);
 	}
 }
