@@ -39,6 +39,44 @@ pub struct Angle {
 }
 
 impl Angle {
+	/// Short-hand for an angle that represents a half turn.
+	///
+	/// This is equivalent to π radians or 180°. When used for a direction vector, it represents
+	/// inverting the direction of the vector.
+	pub const HALF_TURN: Angle = Angle { value: TAU / 2.0 };
+
+	/// Short-hand for an angle that represents a third of a turn.
+	///
+	/// This is equivalent to ⅔π radians or 120°.
+	pub const THIRD_TURN: Angle = Angle { value: TAU / 3.0 };
+
+	/// Short-hand for an angle that represents a quarter of a turn.
+	///
+	/// This is equivalent to ½π radians or 90°. When used for a direction vector, it represents a
+	/// right-angle turn to the left.
+	pub const QUARTER_TURN: Angle = Angle { value: TAU / 4.0 };
+
+	/// Short-hand for an angle that represents three quarters of a turn.
+	///
+	/// This is equivalent to 1½π radians or 270°. When used for a direction vector, it represents a
+	/// right-angle turn to the right.
+	pub const THREE_QUARTER_TURN: Angle = Angle { value: TAU * 3.0 / 4.0 };
+
+	/// Short-hand for an angle that represents a sixth of a turn.
+	///
+	/// This is equivalent to ⅓π radians or 60°.
+	pub const SIXTH_TURN: Angle = Angle { value: TAU / 6.0 };
+
+	/// Short-hand for an angle that represents an eighth of a turn.
+	///
+	/// This is equivalent to ¼π radians or 45°.
+	pub const EIGHTH_TURN: Angle = Angle { value: TAU / 8.0 };
+
+	/// Short-hand for an angle that represents a twelfth of a turn.
+	///
+	/// This is equivalent to ⅙π radians or 30°.
+	pub const TWELFTH_TURN: Angle = Angle { value: TAU / 12.0 };
+
 	/// Create a new angle from a number of radians.
 	///
 	/// # Arguments:
