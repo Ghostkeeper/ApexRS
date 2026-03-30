@@ -127,6 +127,7 @@ pub fn translate_polygon_gpu(polygon: &mut Polygon, dx: Coordinate, dy: Coordina
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use crate::test::data::polygon;
 	use test_case::test_case;
 
 	/// Test moving an empty polygon.
@@ -139,16 +140,20 @@ mod tests {
 		assert_eq!(poly.len(), 0, "The polygon must still be unchanged.");
 		translate_polygon_mt(&mut poly, 100, 100);
 		assert_eq!(poly.len(), 0, "The polygon must still be unchanged.");
+		translate_polygon_gpu(&mut poly, 100, 100);
+		assert_eq!(poly.len(), 0, "The polygon must still be unchanged.");
 	}
 
 	/// Test whether moving a polygon by 0,0 yields the original polygon.
 	#[test]
 	fn translate_polygon_zero() {
-		let original = crate::test::data::polygon::square_1000(); //An original to compare to.
-		let mut poly = crate::test::data::polygon::square_1000(); //A copy that we can translate.
+		let original = polygon::square_1000(); //An original to compare to.
+		let mut poly = polygon::square_1000(); //A copy that we can translate.
 		translate_polygon_st(&mut poly, 0, 0); //Translate by 0,0.
 		assert_eq!(*poly.host_vertices(), *original.host_vertices(), "The polygon's vertices may not have changed by moving 0,0.");
 		translate_polygon_mt(&mut poly, 0, 0);
+		assert_eq!(*poly.host_vertices(), *original.host_vertices(), "The polygon's vertices may not have changed by moving 0,0.");
+		translate_polygon_gpu(&mut poly, 0, 0);
 		assert_eq!(*poly.host_vertices(), *original.host_vertices(), "The polygon's vertices may not have changed by moving 0,0.");
 	}
 
@@ -157,16 +162,22 @@ mod tests {
 	#[test_case(0, -300; "y_negative")]
 	#[test_case(-40, 70; "mixed")]
 	fn translate_polygon_vector(x: i32, y: i32) {
-		let original = crate::test::data::polygon::square_1000(); //An original to compare to.
-		let mut poly = crate::test::data::polygon::square_1000(); //A copy that we can translate.
+		let original = polygon::square_1000(); //An original to compare to.
+		let mut poly = polygon::square_1000(); //A copy that we can translate.
 
 		translate_polygon_st(&mut poly, x, y);
 		for i in 0..poly.len() {
 			assert_eq!(*(&poly).vertex(i), *(&original).vertex(i) + crate::Point2D { x, y });
 		}
 
-		poly = crate::test::data::polygon::square_1000(); //Reset to original.
+		poly = polygon::square_1000(); //Reset to original.
 		translate_polygon_mt(&mut poly, x, y);
+		for i in 0..poly.len() {
+			assert_eq!(*(&poly).vertex(i), *(&original).vertex(i) + crate::Point2D { x, y });
+		}
+
+		poly = polygon::square_1000(); //Reset to original.
+		translate_polygon_gpu(&mut poly, x, y);
 		for i in 0..poly.len() {
 			assert_eq!(*(&poly).vertex(i), *(&original).vertex(i) + crate::Point2D { x, y });
 		}
