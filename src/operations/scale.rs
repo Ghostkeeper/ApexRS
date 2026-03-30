@@ -131,3 +131,72 @@ pub fn scale_polygon_gpu(polygon: &mut Polygon, x: f64, y: f64) {
 	let uniform_buffer = bytemuck::cast_slice(&parameters);
 	polygon.execute_gpu_kernel_mut(&SCALE_POLYGON_SHADER, uniform_buffer);
 }
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use crate::test::data::polygon;
+	use test_case::test_case;
+
+	/// Test scaling an empty polygon.
+	///
+	/// This mainly just tests that it won't panic on that.
+	#[test]
+	fn scale_polygon_empty() {
+		let mut poly = Polygon::new();
+		scale_polygon_st(&mut poly, 2.0, 2.0);
+		assert_eq!(poly.len(), 0, "The polygon must still be unchanged.");
+		scale_polygon_mt(&mut poly, 2.0, 2.0);
+		assert_eq!(poly.len(), 0, "The polygon must still be unchanged.");
+		scale_polygon_gpu(&mut poly, 2.0, 2.0);
+		assert_eq!(poly.len(), 0, "The polygon must still be unchanged.");
+	}
+
+	/// Test whether scaling a polygon with factor 1,1 yields the original polygon.
+	#[test]
+	fn scale_polygon_one() {
+		let original = polygon::square_1000(); //An original to compare to.
+		let mut poly = polygon::square_1000(); //A copy that we can scale.
+		scale_polygon_st(&mut poly, 1.0, 1.0); //Scale by factor 1,1.
+		assert_eq!(*poly.host_vertices(), *original.host_vertices(), "The polygon's vertices may not have changed by scaling with factor 1,1.");
+		scale_polygon_mt(&mut poly, 1.0, 1.0);
+		assert_eq!(*poly.host_vertices(), *original.host_vertices(), "The polygon's vertices may not have changed by scaling with factor 1,1.");
+		scale_polygon_gpu(&mut poly, 1.0, 1.0);
+		assert_eq!(*poly.host_vertices(), *original.host_vertices(), "The polygon's vertices may not have changed by scaling with factor 1,1.");
+	}
+
+	/// Test scaling a polygon by a certain factor.
+	#[test_case(2.0, 2.0; "Both positive")]
+	#[test_case(-2.0, 2.0; "X negative")]
+	#[test_case(2.0, -2.0; "Y negative")]
+	#[test_case(-2.0, -2.0; "Both negative")]
+	#[test_case(0.0, 0.0; "Zero")]
+	#[test_case(10.0, 0.0; "Y zero")]
+	fn scale_polygon_vector(x: f64, y: f64) {
+		let original = polygon::square_1000(); //An original to compare to.
+		let mut poly = polygon::square_1000(); //A copy that we can scale.
+
+		scale_polygon_st(&mut poly, x, y);
+		for i in 0..poly.len() {
+			let mut scaled_vertex = original.vertex(i).clone();
+			scaled_vertex.scale(x, y);
+			assert_eq!(*(&poly).vertex(i), scaled_vertex);
+		}
+
+		poly = polygon::square_1000(); //Reset to original.
+		scale_polygon_mt(&mut poly, x, y);
+		for i in 0..poly.len() {
+			let mut scaled_vertex = original.vertex(i).clone();
+			scaled_vertex.scale(x, y);
+			assert_eq!(*(&poly).vertex(i), scaled_vertex);
+		}
+
+		poly = polygon::square_1000(); //Reset to original.
+		scale_polygon_gpu(&mut poly, x, y);
+		for i in 0..poly.len() {
+			let mut scaled_vertex = original.vertex(i).clone();
+			scaled_vertex.scale(x, y);
+			assert_eq!(*(&poly).vertex(i), scaled_vertex);
+		}
+	}
+}
