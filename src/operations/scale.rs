@@ -13,9 +13,9 @@ use std::sync::LazyLock;
 use rayon::current_num_threads; //For multi-threaded implementations.
 use rayon::iter::ParallelIterator; //For multi-threaded implementations.
 use rayon::prelude::ParallelSliceMut; //For multi-threaded implementations.
-use wgpu::{include_wgsl, ShaderModule}; //For loading the translate GPU kernel.
+use wgpu::{include_wgsl, ShaderModule}; //For loading the scale GPU kernel.
 
-use crate::Polygon; //Translate polygons.
+use crate::Polygon; //Scale polygons.
 use crate::TwoDimensional; //The scale operation is part of TwoDimensional.
 use crate::detail::emulated_f64::EmulatedF64; //To get high accuracy on the GPU.
 use crate::detail::gpu::GPU; //To perform calculations on the GPU.

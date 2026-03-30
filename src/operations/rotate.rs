@@ -13,11 +13,11 @@ use rayon::iter::ParallelIterator; //For multi-threaded implementations.
 use rayon::prelude::ParallelSliceMut; //For multi-threaded implementations.
 use std::cmp;
 use std::sync::LazyLock;
-use wgpu::{include_wgsl, ShaderModule}; //For loading the translate GPU kernel.
+use wgpu::{include_wgsl, ShaderModule}; //For loading the rotate GPU kernel.
 
 use crate::Angle; //To measure how much to rotate objects.
 use crate::coordinate::round; //To accurately round coordinates after rotating them.
-use crate::Polygon; //Translate polygons.
+use crate::Polygon; //Rotate polygons.
 use crate::detail::emulated_f64::EmulatedF64; //To get greater accuracy on the GPU.
 use crate::detail::gpu::GPU; //To perform calculations on the GPU.
 
@@ -128,4 +128,77 @@ pub fn rotate_polygon_gpu(polygon: &mut Polygon, angle: Angle) {
 	let parameters = [sine, cosine];
 	let uniform_buffer = bytemuck::cast_slice(&parameters);
 	polygon.execute_gpu_kernel_mut(&ROTATE_POLYGON_SHADER, uniform_buffer);
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use crate::TwoDimensional; //The rotate operation is part of TwoDimensional.
+	use crate::test::data::polygon;
+	use std::f64::consts::TAU; //Rotation by certain common amounts.
+	use test_case::test_case;
+
+	/// Test rotating an empty polygon.
+	///
+	/// This mainly just tests that it won't panic on that.
+	#[test]
+	fn rotate_polygon_empty() {
+		let mut poly = Polygon::new();
+		rotate_polygon_st(&mut poly, Angle::radians(1.0));
+		assert_eq!(poly.len(), 0, "The polygon must still be unchanged.");
+		rotate_polygon_mt(&mut poly, Angle::radians(1.0));
+		assert_eq!(poly.len(), 0, "The polygon must still be unchanged.");
+		rotate_polygon_gpu(&mut poly, Angle::radians(1.0));
+		assert_eq!(poly.len(), 0, "The polygon must still be unchanged.");
+	}
+
+	/// Test whether rotating a polygon by 0 yields the original polygon.
+	#[test]
+	fn rotate_polygon_zero() {
+		let original = polygon::square_1000(); //An original to compare to.
+		let mut poly = polygon::square_1000(); //A copy that we can rotate.
+		rotate_polygon_st(&mut poly, Angle::radians(0.0)); //Rotate by 0.
+		assert_eq!(*poly.host_vertices(), *original.host_vertices(), "The polygon's vertices may not have changed by rotating by angle 0.");
+		rotate_polygon_mt(&mut poly, Angle::radians(0.0));
+		assert_eq!(*poly.host_vertices(), *original.host_vertices(), "The polygon's vertices may not have changed by rotating by angle 0.");
+		rotate_polygon_gpu(&mut poly, Angle::radians(0.0));
+		assert_eq!(*poly.host_vertices(), *original.host_vertices(), "The polygon's vertices may not have changed by rotating by angle 0.");
+	}
+
+	/// Test rotating a polygon by a certain angle.
+	#[test_case(1.0; "One radian")]
+	#[test_case(TAU / 12.0; "Twelfth turn")]
+	#[test_case(TAU / 8.0; "Eighth turn")]
+	#[test_case(TAU / 6.0; "Sixth turn")]
+	#[test_case(TAU / 4.0; "Quarter turn")]
+	#[test_case(TAU / 2.0; "Half turn")]
+	#[test_case(TAU; "Full turn")]
+	fn rotate_polygon_vector(radians: f64) {
+		let original = polygon::square_1000(); //An original to compare to.
+		let mut poly = polygon::square_1000(); //A copy that we can rotate.
+		let angle = Angle::radians(radians);
+
+		rotate_polygon_st(&mut poly, angle);
+		for i in 0..poly.len() {
+			let mut rotated_vertex = original.vertex(i).clone();
+			rotated_vertex.rotate(angle);
+			assert_eq!(*(&poly).vertex(i), rotated_vertex);
+		}
+
+		poly = polygon::square_1000(); //Reset to original.
+		rotate_polygon_mt(&mut poly, angle);
+		for i in 0..poly.len() {
+			let mut rotated_vertex = original.vertex(i).clone();
+			rotated_vertex.rotate(angle);
+			assert_eq!(*(&poly).vertex(i), rotated_vertex);
+		}
+
+		poly = polygon::square_1000(); //Reset to original.
+		rotate_polygon_gpu(&mut poly, angle);
+		for i in 0..poly.len() {
+			let mut rotated_vertex = original.vertex(i).clone();
+			rotated_vertex.rotate(angle);
+			assert_eq!(*(&poly).vertex(i), rotated_vertex);
+		}
+	}
 }
