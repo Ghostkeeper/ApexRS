@@ -787,6 +787,32 @@ impl TwoDimensional for Polygon {
 		scale::scale_polygon_st(self, x, y);
 	}
 
+	/// Rotate the polygon around the coordinate origin.
+	///
+	/// This causes the polygon to turn. It doesn't necessarily turn around its own centre, just
+	/// around the 0,0 coordinate. The polygon is not scaled or deformed in any way.
+	///
+	/// The polygon is scaled in-place, causing the polygon to be modified.
+	///
+	/// # Arguments
+	/// * `angle` - How much to rotate the polygon.
+	///
+	/// # Examples
+	/// ```
+	/// use apex::{Angle, Point2D, Polygon, TwoDimensional};
+	/// //Create a triangular polygon.
+	/// let mut poly = Polygon::from_iter([
+	/// 	Point2D { x: 0, y: 0 },
+	/// 	Point2D { x: 100, y: 0 },
+	/// 	Point2D { x: 67, y: 100},
+	/// ]);
+	/// //Rotate the polygon.
+	/// apex::operations::rotate::rotate_polygon_gpu(&mut poly, Angle::EIGHTH_TURN);
+	/// //Now, the polygon will be rotated 45 degrees counter-clockwise.
+	/// assert_eq!(*poly.vertex(0), Point2D { x: 0, y: 0 });
+	/// assert_eq!(*poly.vertex(1), Point2D { x: 71, y: 71 });
+	/// assert_eq!(*poly.vertex(2), Point2D { x: -23, y: 118 });
+	/// ```
 	fn rotate(&mut self, angle: Angle) {
 		rotate::rotate_polygon_st(self, angle.clone());
 	}

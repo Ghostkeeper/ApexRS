@@ -23,6 +23,14 @@ use crate::detail::gpu::GPU; //To perform calculations on the GPU.
 
 /// Rotate a polygon around the coordinate origin by a certain angle.
 ///
+/// This causes the polygon to turn. It doesn't necessarily turn around its own centre, just
+/// around the 0,0 coordinate. The polygon is not scaled or deformed in any way.
+///
+/// The polygon is scaled in-place, causing the polygon to be modified.
+///
+/// # Arguments
+/// * `angle` - How much to rotate the polygon.
+///
 /// This implementation is single-threaded and simply rotates each vertex one by one.
 ///
 /// # Arguments
@@ -55,6 +63,14 @@ pub fn rotate_polygon_st(polygon: &mut Polygon, angle: Angle) {
 }
 
 /// Rotate a polygon around the coordinate origin by a certain angle.
+///
+/// This causes the polygon to turn. It doesn't necessarily turn around its own centre, just
+/// around the 0,0 coordinate. The polygon is not scaled or deformed in any way.
+///
+/// The polygon is scaled in-place, causing the polygon to be modified.
+///
+/// # Arguments
+/// * `angle` - How much to rotate the polygon.
 ///
 /// This implementation is multi-threaded and will apply multiple threads to rotate the polygon
 /// quickly.
@@ -99,6 +115,14 @@ static ROTATE_POLYGON_SHADER: LazyLock<ShaderModule> = LazyLock::new(|| {
 });
 
 /// Rotate a polygon around the coordinate origin by a certain angle.
+///
+/// This causes the polygon to turn. It doesn't necessarily turn around its own centre, just
+/// around the 0,0 coordinate. The polygon is not scaled or deformed in any way.
+///
+/// The polygon is scaled in-place, causing the polygon to be modified.
+///
+/// # Arguments
+/// * `angle` - How much to rotate the polygon.
 ///
 /// This implementation runs on the GPU to use its massively parallel processing ability to rotate
 /// the polygon quickly.
