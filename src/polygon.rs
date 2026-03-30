@@ -556,11 +556,15 @@ impl Polygon {
 	/// ``sync_status`` is set to ``HOST``. If the ``sync_status`` is set to ``GPU`` or ``SYNCED``,
 	/// it will have no effect.
 	fn sync_host_to_gpu(&self) {
-		self.gpu_buffer.borrow_mut().replace(GPU.device.create_buffer_init(&BufferInitDescriptor {
-			label: None,
-			contents: bytemuck::cast_slice(self.host_vertices().as_slice()),
-			usage: BufferUsages::STORAGE | BufferUsages::COPY_SRC, //Both reading and writing.
-		}));
+		if self.host_vertices().is_empty() {
+			*self.gpu_buffer.borrow_mut() = None;
+		} else {
+			self.gpu_buffer.borrow_mut().replace(GPU.device.create_buffer_init(&BufferInitDescriptor {
+				label: None,
+				contents: bytemuck::cast_slice(self.host_vertices().as_slice()),
+				usage: BufferUsages::STORAGE | BufferUsages::COPY_SRC, //Both reading and writing.
+			}));
+		}
 		*self.sync_status.borrow_mut() = SyncStatus::SYNCED;
 	}
 
@@ -574,25 +578,29 @@ impl Polygon {
 		let mut encoder = GPU.device.create_command_encoder(&CommandEncoderDescriptor {
 			label: None,
 		});
-		let buffer_size = self.gpu_vertices().as_ref().expect("The GPU needs to have data before we can synchronise it to the host.").size();
-		self.transfer_buffer.borrow_mut().replace(GPU.device.create_buffer(&BufferDescriptor {
-			label: None,
-			size: buffer_size,
-			usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-			mapped_at_creation: false,
-		}));
-		encoder.copy_buffer_to_buffer(
-			self.gpu_vertices().as_ref().unwrap(), 0,
-			self.transfer_buffer.borrow().as_ref().unwrap(), 0,
-			buffer_size,
-		);
-		let command_buffer = encoder.finish(); //Finish the compilation.
-		GPU.queue.submit([command_buffer]); //Execute the commands.
+		if self.gpu_buffer.borrow().is_none() {
+			self.vertices.borrow_mut().clear();
+		} else {
+			let buffer_size = self.gpu_vertices().as_ref().expect("The GPU needs to have data before we can synchronise it to the host.").size();
+			self.transfer_buffer.borrow_mut().replace(GPU.device.create_buffer(&BufferDescriptor {
+				label: None,
+				size: buffer_size,
+				usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+				mapped_at_creation: false,
+			}));
+			encoder.copy_buffer_to_buffer(
+				self.gpu_vertices().as_ref().unwrap(), 0,
+				self.transfer_buffer.borrow().as_ref().unwrap(), 0,
+				buffer_size,
+			);
+			let command_buffer = encoder.finish(); //Finish the compilation.
+			GPU.queue.submit([command_buffer]); //Execute the commands.
 
-		self.transfer_buffer.borrow().as_ref().unwrap().slice(..).map_async(MapMode::Read, |_| {});
-		let _ = GPU.device.poll(PollType::wait_indefinitely());
-		let slice: &[u8] = &self.transfer_buffer.borrow().as_ref().unwrap().slice(..).get_mapped_range();
-		*self.vertices.borrow_mut() = bytemuck::cast_slice(slice).to_vec();
+			self.transfer_buffer.borrow().as_ref().unwrap().slice(..).map_async(MapMode::Read, |_| {});
+			let _ = GPU.device.poll(PollType::wait_indefinitely());
+			let slice: &[u8] = &self.transfer_buffer.borrow().as_ref().unwrap().slice(..).get_mapped_range();
+			*self.vertices.borrow_mut() = bytemuck::cast_slice(slice).to_vec();
+		}
 		*self.sync_status.borrow_mut() = SyncStatus::SYNCED;
 	}
 
@@ -642,7 +650,7 @@ impl Polygon {
 					visibility: ShaderStages::COMPUTE,
 					ty: BindingType::Buffer {
 						ty: BufferBindingType::Storage { read_only: false },
-						min_binding_size: Some(NonZeroU64::new(8).unwrap()),
+						min_binding_size: None,
 						has_dynamic_offset: false,
 					},
 					count: None,
@@ -650,6 +658,14 @@ impl Polygon {
 			],
 		});
 		//Then bind the actual buffers according to the layout above.
+		//If there is no data, create a dummy array, because WGPU doesn't allow zero-length buffers.
+		//Hopefully the compiler can manage to safely move this into the if-statement.
+		let dummy_buffer = GPU.device.create_buffer_init(&BufferInitDescriptor {
+			label: None,
+			contents: &[0u8; 8],
+			usage: BufferUsages::STORAGE | BufferUsages::COPY_SRC, //Both reading and writing.
+		});
+		let gpu_vertices = self.gpu_vertices();
 		let bind_group = GPU.device.create_bind_group(&BindGroupDescriptor {
 			label: Some("Bind Group"),
 			layout: &bind_group_layout,
@@ -660,7 +676,11 @@ impl Polygon {
 				},
 				BindGroupEntry {
 					binding: 1,
-					resource: self.gpu_vertices().as_ref().expect("Failed to upload the polygon to the GPU.").as_entire_binding(),
+					resource: if gpu_vertices.is_none() {
+						&dummy_buffer
+					} else {
+						gpu_vertices.as_ref().expect("Upload the polygon to the GPU first.")
+					}.as_entire_binding(),
 				},
 			],
 		});
