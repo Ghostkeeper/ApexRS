@@ -16,8 +16,12 @@ struct TranslationVector {
 }
 @group(0) @binding(0) var<uniform> translation_vector: TranslationVector;
 
+/// One corner of the polygon.
 struct Vertex {
+	/// The X coordinate of the vertex.
 	x: i32,
+
+	/// The Y coordinate of the vertex.
 	y: i32,
 }
 

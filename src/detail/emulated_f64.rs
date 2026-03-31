@@ -155,6 +155,7 @@ impl EmulatedF64 {
 	/// loss of accuracy, so we must execute it with proper accuracy of double-accuracy floats. At
 	/// the end of this, we end up with an accurate number that we must truncate rather than a
 	/// number that we must round, labelled `halfup`.
+	///
 	/// The second step is splitting the single-precision components into an integer and fractional
 	/// part. This step doesn't lose any precision: Casting to integer and computing the modulo are
 	/// using single-precision floating point operations which are precise according to the IEEE 754
@@ -163,10 +164,12 @@ impl EmulatedF64 {
 	/// original: The integer component is 0, which takes up no part of the mantissa. After the
 	/// split, the proper accurate number `halfup` is represented by the sum of the four components,
 	/// `high_int`, `high_frac`, `low_int` and `low_frac`.
+	///
 	/// The third step performs the actual truncation. The two fractional parts are added together,
 	/// which incurs a loss of precision again, this time with single-precision accuracy. However
 	/// the rounding in this sum can never flow over to the next integer. Since we floor the result
 	/// afterwards, the result is always the correct integer.
+	///
 	/// In the final step, we only add integers together, which incurs no loss of precision.
 	pub fn round(self) -> i32 {
 		let halfup = self + EmulatedF64::from(0.5_f32); //So that we can merely truncate.
@@ -411,6 +414,9 @@ impl EmulatedF64 {
 	/// The number is split such that multiplying the components of two split numbers individually
 	/// will not cause any round-off errors.
 	///
+	/// # Arguments
+	/// * `value` - The number to split.
+	///
 	/// # Implementation
 	/// The number is multiplied by 2^12 + 1, which causes a round-off error of the least
 	/// significant 12 bits in the `f32`'s 23-bit mantissa. This effectively splits the original 23
@@ -429,6 +435,10 @@ impl EmulatedF64 {
 	///
 	/// The multiplied result together with the round-off error are returned as an `EmulatedF64`.
 	/// This result represents the same value as the input.
+	///
+	/// # Arguments
+	/// * `a` - One of the numbers to multiply.
+	/// * `b` - The other number to multiply.
 	///
 	/// # Implementation
 	/// The multiplication is calculated with a simple multiply of the two numbers. The round-off
@@ -458,6 +468,9 @@ impl EmulatedF64 {
 	/// This version can be implemented slightly faster. Instead of splitting the two operands, we
 	/// only need to split the one. And two terms in the error calculation become the same, so we
 	/// can simply multiply one of them by two and leave out the other.
+	///
+	/// # Arguments
+	/// * `value` - The value to square.
 	fn two_square(value: f32) -> EmulatedF64 {
 		let product = value * value;
 		let value_split = Self::split(value);
@@ -501,6 +514,10 @@ impl EmulatedF64 {
 	/// The `two_sum` algorithm does not use this quick variant, because comparing the two exponents
 	/// and swapping the values if needed still uses more operations than the original `two_sum`
 	/// algorithm.
+	///
+	/// # Arguments
+	/// * `a` - The higher of the numbers to sum.
+	/// * `b` - The lower of the numbers to sum.
 	fn two_sum_quick(a: f32, b: f32) -> EmulatedF64 {
 		let rounded_sum = a + b;
 		let error = b - (rounded_sum - a);
