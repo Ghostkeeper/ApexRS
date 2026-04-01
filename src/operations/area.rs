@@ -175,6 +175,7 @@ pub fn area_polygon_mt(polygon: &Polygon) -> Area {
 mod tests {
 	use super::*;
 	use crate::test::data::polygon;
+	use std::f64::consts::{PI, TAU}; //To calculate the area of regular polygons.
 	use test_case::test_case;
 
 	/// Test getting the area of an empty polygon.
@@ -230,5 +231,25 @@ mod tests {
 		let poly = polygon::hourglass(); //The hourglass is a self-intersecting shape.
 		assert_eq!(area_polygon_st(&poly), 0, "The positive areas cancel out the negative areas.");
 		assert_eq!(area_polygon_mt(&poly), 0, "The positive areas cancel out the negative areas.");
+	}
+
+	/// Test getting the area of a regular polygon that approximates a circle.
+	///
+	/// The test involves many vertices, which tests cases where we break up the polygon into
+	/// multiple chunks and have to connect those together.
+	///
+	/// The testing polygon approximates a circle. The ground truth for the area is calculated with
+	/// the formula for a regular polygon. For a regular polygon with N sides and outer radius r,
+	/// the area is exactly: ½N ⋅ r² ⋅ sin(2π/N).
+	#[test]
+	fn area_polygon_circle() {
+		const NUM_VERTICES: usize = 1000_000;
+		let poly = polygon::regular(NUM_VERTICES);
+		let radius = poly.vertex(0).x as Area;
+		let ground_truth = ((NUM_VERTICES as Area * radius * radius) as f64 * ((TAU / NUM_VERTICES as f64).sin() / 2.0)).round() as Area;
+		let error_margin = ((NUM_VERTICES as f64).sqrt() / NUM_VERTICES as f64 / 6.0 * (PI * (radius * radius) as f64 - PI * ((radius - 1) * (radius - 1)) as f64)) as Area;
+
+		assert!((area_polygon_st(&poly) - ground_truth).abs() <= error_margin, "The area is equal to the ground truth (with an allowed error margin).");
+		assert!((area_polygon_mt(&poly) - ground_truth).abs() <= error_margin, "The area is equal to the ground truth (with an allowed error margin).");
 	}
 }

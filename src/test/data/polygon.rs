@@ -12,6 +12,9 @@
 //! because SVG files can easily be observed to understand what the polygon's shape really is, and
 //! external tools handle SVG files well.
 
+use std::f64::consts::TAU; //To construct regular polygons.
+
+use crate::coordinate::round; //To accurately round when creating polygons.
 use crate::Coordinate; //To parse coordinates from SVG files.
 use crate::Point2D; //To parse coordinates from SVG files.
 use crate::Polygon; //We're loading polygons here.
@@ -103,6 +106,20 @@ pub fn degenerate_point() -> Polygon {
 	load_polygon(include_str!("polygon/degenerate_point.svg"))
 }
 
+/// A regular polygon, centred around the coordinate origin.
+///
+/// To allow for its variability, it is generated rather than loaded from SVG.
+pub fn regular(num_vertices: usize) -> Polygon {
+	const RADIUS: Coordinate = 1000_000; //Prevent getting equal vertices by making them space out far enough.
+	let mut result = Polygon::with_capacity(num_vertices);
+	for vertex in 0..num_vertices {
+		let x = round((TAU / num_vertices as f64 * vertex as f64).cos() * RADIUS as f64);
+		let y = round((TAU / num_vertices as f64 * vertex as f64).sin() * RADIUS as f64);
+		result.push(Point2D { x: x, y: y });
+	}
+	result
+}
+
 /// Parse an SVG file to load a polygon from it.
 ///
 /// This will find the first `<polygon>` tag in the file, and take the `points` attribute from it to
@@ -120,7 +137,7 @@ pub fn degenerate_point() -> Polygon {
 /// # Examples
 /// ```
 /// let poly = load_polygon(include_str!("polygon/square_1000.svg")); //Statically load this polygon.
-/// assert_eq!(poly.area(), 1000000);
+/// assert_eq!(poly.area(), 1000_000);
 /// ```
 fn load_polygon(svg: &str) -> Polygon {
 	let tag_start = svg.find("<polygon ").expect("The <polygon> tag is missing.") + 9;
