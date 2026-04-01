@@ -75,8 +75,11 @@ use crate::Polygon; //Get the area of polygons.
 #[embed_doc_image("shoelace_algorithm_rectangle_overlay", "doc/images/shoelace_algorithm_rectangle_overlay.svg")]
 #[embed_doc_image("shoelace_algorithm_multiple_rectangles", "doc/images/shoelace_algorithm_multiple_rectangles.svg")]
 pub fn area_polygon_st(polygon: &Polygon) -> Area {
-	let mut area: Area = 0;
 	let vertices = polygon.host_vertices();
+	if vertices.len() < 3 {
+		return 0;
+	}
+	let mut area: Area = 0;
 	let mut previous = vertices.len() - 1;
 	for vertex in 0..vertices.len() {
 		area += vertices[previous].x as Area * vertices[vertex].y as Area - vertices[previous].y as Area * vertices[vertex].x as Area;
@@ -145,6 +148,9 @@ pub fn area_polygon_st(polygon: &Polygon) -> Area {
 #[embed_doc_image("shoelace_algorithm_multiple_rectangles", "doc/images/shoelace_algorithm_multiple_rectangles.svg")]
 pub fn area_polygon_mt(polygon: &Polygon) -> Area {
 	let vertices = polygon.host_vertices();
+	if vertices.len() < 3 {
+		return 0;
+	}
 	//Create chunks of contiguous vertices that are fast to access in sequence by one thread.
 	//We'll compute the area sum of each chunk in parallel.
 	let chunk_size = cmp::max(1000, vertices.len() / current_num_threads());
