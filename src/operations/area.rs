@@ -170,3 +170,65 @@ pub fn area_polygon_mt(polygon: &Polygon) -> Area {
 	result += vertices[vertices.len() - 1].x as Area * vertices[0].y as Area - vertices[vertices.len() - 1].y as Area * vertices[0].x as Area;
 	result / 2
 }
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use crate::test::data::polygon;
+	use test_case::test_case;
+
+	/// Test getting the area of an empty polygon.
+	#[test]
+	fn area_polygon_empty() {
+		let poly = Polygon::new();
+		assert_eq!(area_polygon_st(&poly), 0, "An empty polygon has no area.");
+		assert_eq!(area_polygon_mt(&poly), 0, "An empty polygon has no area.");
+	}
+
+	/// Test getting the area of a 1000x1000 square.
+	#[test_case(polygon::square_1000(); "Basic")]
+	#[test_case(polygon::square_1000_negative_x(); "Negative X")]
+	#[test_case(polygon::square_1000_negative_y(); "Negative Y")]
+	#[test_case(polygon::square_1000_negative_xy(); "Negative X and Y")]
+	#[test_case(polygon::square_1000_centred(); "Centred")]
+	fn area_polygon_square(poly: Polygon) {
+		assert_eq!(area_polygon_st(&poly), 1000 * 1000, "A 1000 by 1000 square");
+		assert_eq!(area_polygon_mt(&poly), 1000 * 1000, "A 1000 by 1000 square");
+	}
+
+	/// Test getting the area of a triangle.
+	#[test]
+	fn area_polygon_triangle() {
+		let poly = polygon::triangle_1000();
+		assert_eq!(area_polygon_st(&poly), 1000 * 1000 / 2, "A triangle with base 1000, height 1000");
+		assert_eq!(area_polygon_mt(&poly), 1000 * 1000 / 2, "A triangle with base 1000, height 1000");
+	}
+
+	/// Test getting the area of a concave shape.
+	#[test]
+	fn area_polygon_concave() {
+		let poly = polygon::arrowhead(); //The arrowhead is a concave shape.
+		assert_eq!(area_polygon_st(&poly), 1000 * 1000 / 2 - 1000 * 500 / 2, "The 1000x1000 triangle with a 1000x500 triangle cut out");
+		assert_eq!(area_polygon_mt(&poly), 1000 * 1000 / 2 - 1000 * 500 / 2, "The 1000x1000 triangle with a 1000x500 triangle cut out");
+	}
+
+	/// Test getting the area of various degenerate shapes.
+	///
+	/// This tests how it deals with these degeneracies, and also whether it won't crash on such
+	/// inputs.
+	#[test_case(polygon::zero_width(); "Zero width")]
+	#[test_case(polygon::degenerate_line(); "Line")]
+	#[test_case(polygon::degenerate_point(); "Point")]
+	fn area_polygon_degenerate(poly: Polygon) {
+		assert_eq!(area_polygon_st(&poly), 0, "Degenerate shapes have no surface area.");
+		assert_eq!(area_polygon_mt(&poly), 0, "Degenerate shapes have no surface area.");
+	}
+
+	/// Test getting the area of a self-intersecting shape with both positive and negative regions.
+	#[test]
+	fn area_polygon_self_intersecting() {
+		let poly = polygon::hourglass(); //The hourglass is a self-intersecting shape.
+		assert_eq!(area_polygon_st(&poly), 0, "The positive areas cancel out the negative areas.");
+		assert_eq!(area_polygon_mt(&poly), 0, "The positive areas cancel out the negative areas.");
+	}
+}
