@@ -19,10 +19,10 @@ use apex::test::polygon;
 
 fn bench_translate_polygon_st(runner: &mut Criterion) {
 	let mut group = runner.benchmark_group("translate_polygon_st");
-	for size in [10, 50, 100, 500, 1000, 5000, 10_000, 50_000, 100_000, 500_000, 1000_000, 5000_000, 10_000_000, 50_000_000, 100_000_000, 500_000_000] {
+	for size in [10, 50, 100, 500, 1000, 5000, 10_000, 50_000, 100_000, 500_000, 1000_000, 5000_000, 10_000_000, 50_000_000, 100_000_000, 200_000_000] {
 		let mut poly = polygon::regular(size);
 		group.bench_with_input(
-			BenchmarkId::from_parameter(size), &size, 
+			BenchmarkId::from_parameter(size), &size,
 			|bencher, &size| bencher.iter(
 				|| translate_polygon_st(&mut poly, 100, 100)
 			)
@@ -30,5 +30,31 @@ fn bench_translate_polygon_st(runner: &mut Criterion) {
 	}
 }
 
-criterion_group!(benches, bench_translate_polygon_st);
+fn bench_translate_polygon_mt(runner: &mut Criterion) {
+	let mut group = runner.benchmark_group("translate_polygon_mt");
+	for size in [10, 50, 100, 500, 1000, 5000, 10_000, 50_000, 100_000, 500_000, 1000_000, 5000_000, 10_000_000, 50_000_000, 100_000_000, 200_000_000] {
+		let mut poly = polygon::regular(size);
+		group.bench_with_input(
+			BenchmarkId::from_parameter(size), &size,
+			|bencher, &size| bencher.iter(
+				|| translate_polygon_mt(&mut poly, 100, 100)
+			)
+		);
+	}
+}
+
+fn bench_translate_polygon_gpu(runner: &mut Criterion) {
+	let mut group = runner.benchmark_group("translate_polygon_gpu");
+	for size in [10, 50, 100, 500, 1000, 5000, 10_000, 50_000, 100_000, 500_000, 1000_000, 5000_000, 10_000_000, 50_000_000, 100_000_000, 200_000_000] {
+		let mut poly = polygon::regular(size);
+		group.bench_with_input(
+			BenchmarkId::from_parameter(size), &size,
+			|bencher, &size| bencher.iter(
+				|| translate_polygon_gpu(&mut poly, 100, 100)
+			)
+		);
+	}
+}
+
+criterion_group!(benches, bench_translate_polygon_st, bench_translate_polygon_mt, bench_translate_polygon_gpu);
 criterion_main!(benches);
