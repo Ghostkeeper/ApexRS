@@ -37,5 +37,10 @@ pub use two_dimensional::*;
 mod detail;
 
 //For testing only.
-#[cfg(test)]
 pub mod test;
+
+#[cfg(any(test, feature = "benchmark_internals"))]
+pub mod _internal {
+	pub use super::operations;
+	pub use super::test;
+}
