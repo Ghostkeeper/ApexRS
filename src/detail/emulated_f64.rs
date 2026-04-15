@@ -15,7 +15,7 @@ use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, Su
 
 /// A structure that mimics the behaviour of a 64-bit floating point by using two 32-bit floats.
 ///
-/// Many compute devices, in particular GPUs and FPGA's don't have 64-bit floating point units.
+/// Many compute devices, in particular GPUs and FPGA's, don't have 64-bit floating point units.
 /// Their processing cores consist of many parallel floating point units for 32-bit floats, but most
 /// of them don't have any 64-bit units and the ones that do have very few of them. We don't want to
 /// incur the performance hit of using those anyway. But we do need the accuracy of 64-bit floating
@@ -531,7 +531,7 @@ impl fmt::Debug for EmulatedF64 {
 	/// In debugging, this number is formatted as the sum of its two components. For instance, the
 	/// number `0.8000000001` gets formatted as `0.8+0.0000000001`.
 	///
-	/// # Arguments:
+	/// # Arguments
 	/// * `formatter` - The formatter used to write the output.
 	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
 		write!(formatter, "{}+{}", self.high, self.low)
@@ -544,11 +544,11 @@ impl fmt::Display for EmulatedF64 {
 	/// This shows the number that this emulated `f64` represents. First it calculates the `f64`
 	/// itself, and then it simply formats that number in the result.
 	///
-	/// # Arguments:
+	/// # Arguments
 	/// * `formatter` - The formatter used to write the output.
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
 		let as_f64: f64 = (*self).into();
-		write!(f, "{}", as_f64)
+		write!(formatter, "{}", as_f64)
 	}
 }
 
@@ -559,7 +559,7 @@ impl From<f64> for EmulatedF64 {
 	/// Since `EmulatedF64` does not quite have the same accuracy as a real `f64`, the number may
 	/// get slightly rounded, but it will not get rounded nearly as much as rounding it to an `f32`.
 	///
-	/// # Arguments:
+	/// # Arguments
 	/// * `value` - The `f64` value that needs to be transformed to an `EmulatedF64`.
 	///
 	/// # Implementation
@@ -583,7 +583,7 @@ impl From<f32> for EmulatedF64 {
 	/// The resulting `EmulatedF64` represents exactly the same number. It will use more memory
 	/// though, and operations will be more expensive on it.
 	///
-	/// # Arguments:
+	/// # Arguments
 	/// * `value` - The `f32` value that needs to be transformed to an `EmulatedF64`.
 	fn from(value: f32) -> EmulatedF64 {
 		EmulatedF64 { high: value, low: 0.0 }
@@ -596,7 +596,7 @@ impl From<i32> for EmulatedF64 {
 	/// The resulting `EmulatedF64` represents exactly the same number. The `EmulatedF64` can
 	/// represent every `i32` value.
 	///
-	/// # Arguments:
+	/// # Arguments
 	/// * `value` - The `i32` value that needs to be transformed to an `EmulatedF64`.
 	fn from(value: i32) -> EmulatedF64 {
 		let high = value as f32;
