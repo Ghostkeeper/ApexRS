@@ -14,11 +14,14 @@ I am properly overengineering this. I'm giving it a 95% chance that it will neve
 
 The goal of eventually maybe having a useable library is only secondary, but it serves as a motivator to keep working on the project.
 
-Requirements
+Development
 ----
-Apex has a requirements list specified in its Cargo file, but those are not the only requirements. There is an additional requirement outside of the Rust ecosystem: ArrayFire.
+Currently, this project is not open to online collaboration since I'm using it to practice developing in Rust and developing for the GPU. The rest of the instructions here are currently mostly for myself, but should serve as a good starting point should you want to work on Apex' code yourself.
 
-To properly compile your application with this library, the following steps need to be undertaken:
-* Download the ArrayFire library binaries from their website: https://arrayfire.com/binaries/
-* Run their installer to unpack the library.
-* Compile using: `AF_PATH=/path/to/ArrayFire LD_LIBRARY_PATH=$AF_PATH/lib64 cargo test`.
+To get started, first download and install [Cargo](https://rust-lang.org/), the Rust build system and package manager. Usually this is done by installing `rustup` and using that to install Cargo. When Cargo is installed, navigate a terminal to the directory with Rust's source code and run the following commands:
+
+```
+cargo test
+```
+
+This causes Apex' dependencies to be downloaded, Apex to be compiled and the automated tests to be ran.
