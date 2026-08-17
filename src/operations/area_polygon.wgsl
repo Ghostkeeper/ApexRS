@@ -119,7 +119,7 @@ fn multiply_i32(lhs: i32, rhs: i32) -> EmulatedI64 {
 	//Calculate the lowest 32 bits of the result, and whether it overflows.
 	let middle = low_high + high_low;
 	let low_result = low_low + (middle << 16); //Only add the lowest 16 bits.
-	let carry = u32(low_result < low_low);
+	let carry = select(0u, 1u, low_result < low_low);
 
 	//Calculate the highest 32 bits of the result, and carry that overflow if it happened.
 	let high_result = high_high + (middle >> 16) + carry;
@@ -127,7 +127,8 @@ fn multiply_i32(lhs: i32, rhs: i32) -> EmulatedI64 {
 	var result = EmulatedI64(high_result, low_result);
 	if (lhs < 0 && rhs > 0) || (rhs < 0 && lhs > 0) { //Result needs to be negative.
 		let low = (~low_result) + 1; //Invert using two's complement method to prevent overflow of inverting the minimum i32.
-		let high = (~high_result) + u32(low == 0);
+		let carry_low = select(0u, 1u, low == 0);
+		let high = (~high_result) + carry_low;
 		result = EmulatedI64(low, high);
 	}
 	return result;
@@ -143,12 +144,12 @@ fn multiply_i32(lhs: i32, rhs: i32) -> EmulatedI64 {
 /// * `value` - The value to get the absolute number of.
 fn abs_i32(value: i32) -> u32 {
 	if value >= 0 { //Already positive
-		return u32(value);
+		return bitcast<u32>(value);
 	} else { //Is negative, needs to be inverted.
-		//We can't just take the negative `(-value) as u32` due to integer underflow at the minimum value.
+		//We can't just take the negative `u32(-value)` due to integer underflow at the minimum value.
 		//So we'll implement the two's complement method of inverting:
-		//Find the inverted binary representation (!value) and add 1.
-		return ~u32(value) + 1;
+		//Find the inverted binary representation (~value) and add 1.
+		return ~bitcast<u32>(value) + 1;
 	}
 }
 
@@ -160,7 +161,7 @@ fn abs_i32(value: i32) -> u32 {
 /// * `lhs` - The number to add to the `rhs`.
 /// * `rhs` - The number to add to the `lhs`.
 fn add(lhs: EmulatedI64, rhs: EmulatedI64) -> EmulatedI64 {
-	let carry_low = u32(lhs.low > (4294967295 - rhs.low)); //Check for overflow.
+	let carry_low = select(0u, 1u, lhs.low > (0xFFFFFFFF - rhs.low)); //Check for overflow.
 	let new_low = lhs.low + rhs.low;
 	let new_high = lhs.high + rhs.high + carry_low;
 	return EmulatedI64(new_high, new_low);
@@ -188,9 +189,8 @@ fn sub(lhs: EmulatedI64, rhs: EmulatedI64) -> EmulatedI64 {
 fn neg(value: EmulatedI64) -> EmulatedI64 {
 	var new_low = ~value.low;
 	var new_high = ~value.high;
-	if new_low == 4294967295 { //Adding one causes an overflow, because of the different range in the negative side.
-		new_high += 1;
-	}
+	let carry = select(0u, 1u, new_low == 0xFFFFFFFFu);
+	new_high += carry;
 	new_low += 1;
 	return EmulatedI64(new_high, new_low);
 }
