@@ -34,7 +34,7 @@ use std::ops::{Add, AddAssign}; //Implement arithmetic operators for EmulatedI64
 /// operations, by implementing them without, they can be copied into a kernel that runs on GPUs.
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
-struct EmulatedI64 {
+pub struct EmulatedI64 {
 	/// The high-significance part of the number.
 	///
 	/// This stores the most-significant 32 bits of the 64-bit integer. To obtain the number
