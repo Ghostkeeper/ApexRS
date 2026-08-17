@@ -10,7 +10,7 @@
 
 use bytemuck::{Pod, Zeroable}; //To be able to send the EmulatedI64 struct to the GPU.
 use std::fmt; //To print in debugging.
-use std::ops::{Add, AddAssign}; //Implement arithmetic operators for EmulatedI64.
+use std::ops::{Add, AddAssign, Sub, SubAssign, Neg}; //Implement arithmetic operators for EmulatedI64.
 
 /// A structure that mimics the behaviour of a 64-bit signed integer by using two 32-bit integers.
 ///
@@ -240,6 +240,55 @@ impl AddAssign for EmulatedI64 {
 	/// * `rhs` - The number to add to this number.
 	fn add_assign(&mut self, rhs: Self) {
 		*self = *self + rhs;
+	}
+}
+
+impl Sub for EmulatedI64 {
+	/// The output type of the subtraction.
+	///
+	/// In this case, the subtraction results in the same type as its operands.
+	type Output = Self;
+
+	/// Subtract another integer from this integer.
+	///
+	/// The subtraction is not done in-place. It will return a new number.
+	///
+	/// # Arguments
+	/// * `rhs` - The number to subtract from this number.
+	fn sub(self, rhs: Self) -> Self::Output {
+		self + -rhs
+	}
+}
+
+impl SubAssign for EmulatedI64 {
+	/// Subtract another integer from this integer, in-place.
+	///
+	/// # Arguments
+	/// * `rhs` - The number to subtract from this number.
+	fn sub_assign(&mut self, rhs: Self) {
+		*self = *self - rhs;
+	}
+}
+
+impl Neg for EmulatedI64 {
+	/// The output type when negating.
+	///
+	/// In this case, negating results in the same type as the original.
+	type Output = Self;
+
+	/// Get the negation of this number.
+	///
+	/// The result should equal `0 - x`, where `x` is this number. Negating a negative number
+	/// results in a positive number.
+	///
+	/// # Implementation
+	/// The individual high and low components of this number are negated. This results in no loss
+	/// of precision, since the sign of the number is stored separately.
+	fn neg(self) -> Self::Output {
+		let new_low = !self.low;
+		let new_high = !self.high;
+		let (new_low, carry) = new_low.overflowing_add(1);
+		EmulatedI64 { high: new_high.wrapping_add(carry as u32), low: new_low }
 	}
 }
 
