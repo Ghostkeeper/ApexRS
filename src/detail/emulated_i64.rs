@@ -430,4 +430,81 @@ mod tests {
 		let using_i64 = lhs as i64 * rhs as i64;
 		assert_eq!(using_i64, result.into());
 	}
+
+	/// Test the subtraction operator.
+	///
+	/// The subtraction operator should give the same result as with a real `i64`.
+	#[test_case(0, 0; "Zeroes")]
+	#[test_case(1, 0; "One and zero")]
+	#[test_case(0, 1; "Zero and one")]
+	#[test_case(2_000_000_000, 2_000_000_000; "i32 overflows")]
+	#[test_case(1_000_000_000_000, 1; "Trillion and one")]
+	#[test_case(1, 1_000_000_000_000; "One and trillion")]
+	#[test_case(1_000_000_000_000, 1_000_000_000_000; "Trillions")]
+	#[test_case(2, -4; "Positive and negative")]
+	#[test_case(-2, 4; "Negative and positive")]
+	#[test_case(1_000_000_000_000, -1; "Trillion minus one")]
+	#[test_case(-1_000_000_000_000, 1; "Minus trillion plus one")]
+	#[test_case(-1_000_000_000_000, -1; "Minus trillion minus one")]
+	#[test_case(1_000_000_000_000, -3_000_000_000_000; "Trillion minus three trillion")]
+	#[test_case(-3_000_000_000_000, 1_000_000_000_000; "Minus three trillion plus trillion")]
+	#[test_case(-1_000_000_000_000, -1_000_000_000_000; "Minus trillion minus trillion")]
+	fn sub(lhs: i64, rhs: i64) {
+		let emulated_lhs = EmulatedI64::from(lhs);
+		let emulated_rhs = EmulatedI64::from(rhs);
+		let using_i64 = lhs - rhs;
+		let result = (emulated_lhs - emulated_rhs).into();
+		assert_eq!(using_i64, result);
+	}
+
+	/// Test the subtraction assignment operator.
+	///
+	/// The subtraction assignment operator should give the same result as with a real `i64`.
+	#[test_case(0, 0; "Zeroes")]
+	#[test_case(1, 0; "One and zero")]
+	#[test_case(0, 1; "Zero and one")]
+	#[test_case(2_000_000_000, 2_000_000_000; "i32 overflows")]
+	#[test_case(1_000_000_000_000, 1; "Trillion and one")]
+	#[test_case(1, 1_000_000_000_000; "One and trillion")]
+	#[test_case(1_000_000_000_000, 1_000_000_000_000; "Trillions")]
+	#[test_case(2, -4; "Positive and negative")]
+	#[test_case(-2, 4; "Negative and positive")]
+	#[test_case(1_000_000_000_000, -1; "Trillion minus one")]
+	#[test_case(-1_000_000_000_000, 1; "Minus trillion plus one")]
+	#[test_case(-1_000_000_000_000, -1; "Minus trillion minus one")]
+	#[test_case(1_000_000_000_000, -3_000_000_000_000; "Trillion minus three trillion")]
+	#[test_case(-3_000_000_000_000, 1_000_000_000_000; "Minus three trillion plus trillion")]
+	#[test_case(-1_000_000_000_000, -1_000_000_000_000; "Minus trillion minus trillion")]
+	fn sub_assign(lhs: i64, rhs: i64) {
+		let mut emulated_lhs = EmulatedI64::from(lhs);
+		let emulated_rhs = EmulatedI64::from(rhs);
+		let using_i64 = lhs - rhs;
+		emulated_lhs -= emulated_rhs;
+		assert_eq!(using_i64, emulated_lhs.into());
+	}
+
+	/// Test the negation operator.
+	///
+	/// The negation operator should give the same result as with a real `i64`.
+	#[test_case(0; "Zero")]
+	#[test_case(1; "One")]
+	#[test_case(-1; "Negative one")]
+	#[test_case(2147483647; "Max i32")]
+	#[test_case(2147483648; "i32 overflow")]
+	#[test_case(4294967295; "Max u32")]
+	#[test_case(4294967296; "u32 overflow")]
+	#[test_case(1_000_000_000_000; "Trillion")]
+	#[test_case(9223372036854775807; "Max i64")]
+	#[test_case(-2147483648; "Min i32")]
+	#[test_case(-2147483649; "i32 underflow")]
+	#[test_case(-4294967295; "Negative min u32")]
+	#[test_case(-4294967296; "u32 underflow")]
+	#[test_case(-1_000_000_000_000; "Negative trillion")]
+	#[test_case(-9223372036854775807; "Min negateable i64")]
+	fn neg(value: i64) {
+		let emulated = EmulatedI64::from(value);
+		let using_i64 = -value;
+		let result = (-emulated).into();
+		assert_eq!(using_i64, result);
+	}
 }
