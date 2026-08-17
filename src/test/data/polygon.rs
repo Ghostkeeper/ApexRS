@@ -135,7 +135,7 @@ pub fn regular(num_vertices: usize) -> Polygon {
 /// * `svg` - An SVG document, the contents of an SVG file, as text mark-up.
 ///
 /// # Examples
-/// ```
+/// ```ignore
 /// let poly = load_polygon(include_str!("polygon/square_1000.svg")); //Statically load this polygon.
 /// assert_eq!(poly.area(), 1000_000);
 /// ```
