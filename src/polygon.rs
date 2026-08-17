@@ -604,11 +604,15 @@ impl Polygon {
 		*self.sync_status.borrow_mut() = SyncStatus::SYNCED;
 	}
 
-	/// Execute a compute kernel on the GPU that would mutate the polygon.
+	/// Execute a compute kernel on the GPU.
 	///
 	/// This creates a uniform buffer for the parameters, a binding group layout, a binding group,
 	/// a pipeline layout, a pipeline, an encoder and a compute pass. It then uses that encoder to
 	/// gather up all of these instructions for the GPU and submits that to the device.
+	///
+	/// The operations in this function may modify the polygon through updating the vertex buffer by
+	/// mapping it to the GPU output. This is technically unsafe, but since it happens through the
+	/// WGPU library is not detectable for the users of this library.
 	///
 	/// The kernel is a bit restricted, for the purpose of calling this function easier:
 	/// * The entrypoint of the kernel must be called `main`. That's the function we'll call from
@@ -620,7 +624,7 @@ impl Polygon {
 	/// * `shader_module` - The kernel to execute on the GPU.
 	/// * `uniform_data` - Uniform data to pass to the GPU in order to configure parameters to the
 	///   kernel.
-	pub(crate) fn execute_gpu_kernel_mut(&mut self, shader_module: &ShaderModule, uniform_data: &[u8]) {
+	pub(crate) fn execute_gpu_kernel_mut(&self, shader_module: &ShaderModule, uniform_data: &[u8]) {
 		//The parameters of the kernel are communicated via Uniforms, in this uniform buffer.
 		let uniform_buffer = GPU.device.create_buffer_init(&BufferInitDescriptor {
 			label: Some("Uniform"),
@@ -708,12 +712,166 @@ impl Polygon {
 		});
 		compute_pass.set_pipeline(&pipeline);
 		compute_pass.set_bind_group(0, &bind_group, &[]);
-		compute_pass.dispatch_workgroups(64, 1, 1);
+		compute_pass.dispatch_workgroups(256, 1, 1);
 		drop(compute_pass); //Now that we've dispatched the workgroups, we can drop the compute pass so that we can access the encoder again.
 		let command_buffer = encoder.finish(); //Finish the compilation.
 
 		*self.sync_status.borrow_mut() = SyncStatus::GPU; //From here on out, the CPU data may be out of date.
 		GPU.queue.submit([command_buffer]); //Execute the commands.
+	}
+
+	/// Execute a compute kernel on the GPU.
+	///
+	/// This creates a uniform buffer for the parameters, a binding group layout, a binding group,
+	/// a pipeline layout, a pipeline, an encoder and a compute pass. It then uses that encoder to
+	/// gather up all of these instructions for the GPU and submits that to the device.
+	///
+	/// The kernel is a bit restricted, for the purpose of calling this function easier:
+	/// * The entrypoint of the kernel must be called `main`. That's the function we'll call from
+	///   the compute pipeline.
+	/// * The kernel will have two buffers bound to it: binding 0 will be the uniform buffer, and
+	///   binding 1 will be the vertex data of this polygon.
+	///
+	/// # Arguments
+	/// * `shader_module` - The kernel to execute on the GPU.
+	/// * `uniform_data` - Uniform data to pass to the GPU in order to configure parameters to the
+	///   kernel.
+	pub(crate) fn execute_gpu_kernel(&self, shader_module: &ShaderModule, uniform_data: &[u8], output_size: usize) -> Option<Vec<u8>> {
+		//The parameters of the kernel are communicated via Uniforms, in this uniform buffer.
+		let uniform_buffer = GPU.device.create_buffer_init(&BufferInitDescriptor {
+			label: Some("Uniform"),
+			contents: uniform_data,
+			usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+		});
+
+		//All data communicated to execute the kernel is put in buffers.
+		//We need to tell the GPU what these buffers are, where to find them and how to call them in the shader.
+		let mut layout_entries = vec![
+			//In binding position 0: The uniform buffer.
+			BindGroupLayoutEntry {
+				binding: 0,
+				visibility: ShaderStages::COMPUTE,
+				ty: BindingType::Buffer {
+					ty: BufferBindingType::Uniform { },
+					min_binding_size: Some(NonZeroU64::new(uniform_data.len() as u64).unwrap()),
+					has_dynamic_offset: false,
+				},
+				count: None,
+			},
+			//In binding position 1: The vertex data.
+			BindGroupLayoutEntry {
+				binding: 1,
+				visibility: ShaderStages::COMPUTE,
+				ty: BindingType::Buffer {
+					ty: BufferBindingType::Storage { read_only: true },
+					min_binding_size: None,
+					has_dynamic_offset: false,
+				},
+				count: None,
+			},
+		];
+		if output_size > 0 {
+			//In binding position 2: The output buffer.
+			layout_entries.push(BindGroupLayoutEntry {
+				binding: 2,
+				visibility: ShaderStages::COMPUTE,
+				ty: BindingType::Buffer {
+					ty: BufferBindingType::Storage { read_only: false },
+					min_binding_size: None,
+					has_dynamic_offset: false,
+				},
+				count: None,
+			});
+		}
+		let bind_group_layout = GPU.device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+			label: Some("Bind Group Layout"),
+			entries: if output_size == 0 { layout_entries.as_array::<2>().unwrap() } else { layout_entries.as_array::<3>().unwrap() },
+		});
+		//Then bind the actual buffers according to the layout above.
+		let gpu_vertices = self.gpu_vertices();
+		let mut binding_entries = vec![
+			BindGroupEntry {
+				binding: 0,
+				resource: uniform_buffer.as_entire_binding(),
+			},
+		];
+		let dummy_vertex_data = [0u8; 8]; //Hopefully the compiler can manage to safely move this into the if-statement.
+		let dummy_buffer = GPU.device.create_buffer_init(&BufferInitDescriptor {
+			label: Some("Dummy buffer"),
+			contents: &dummy_vertex_data,
+			usage: BufferUsages::STORAGE | BufferUsages::COPY_SRC, //Both reading and writing.
+		});
+		if gpu_vertices.is_none() {
+			//If there is no data, create a dummy array, because WGPU doesn't allow zero-length buffers.
+			binding_entries.push(BindGroupEntry {
+				binding: 1,
+				resource: dummy_buffer.as_entire_binding(),
+			});
+		} else {
+			binding_entries.push(BindGroupEntry {
+				binding: 1,
+				resource: gpu_vertices.as_ref().expect("Upload the polygon to the GPU first.").as_entire_binding(),
+			});
+		};
+		let output_buffer = vec![0; output_size];
+		let output_resource = GPU.device.create_buffer_init(&BufferInitDescriptor {
+			label: Some("Output buffer"),
+			contents: &output_buffer,
+			usage: BufferUsages::STORAGE | BufferUsages::COPY_SRC | BufferUsages::COPY_DST,
+		});
+		let readback_resource = GPU.device.create_buffer(&BufferDescriptor {
+			label: Some("Readback buffer"),
+			size: output_size as u64,
+			usage: BufferUsages::MAP_READ | BufferUsages::COPY_DST,
+			mapped_at_creation: false,
+		});
+		if output_size > 0 {
+			binding_entries.push(BindGroupEntry {
+				binding: 2,
+				resource: output_resource.as_entire_binding(),
+			});
+		}
+		let bind_group = GPU.device.create_bind_group(&BindGroupDescriptor {
+			label: Some("Bind Group"),
+			layout: &bind_group_layout,
+			entries: binding_entries.as_array::<3>().unwrap(),
+		});
+
+		//Also communicated to the GPU is the pipeline: Compiled code telling it what to do.
+		let pipeline_layout = GPU.device.create_pipeline_layout(&PipelineLayoutDescriptor {
+			label: Some("Pipeline Layout"),
+			bind_group_layouts: &[&bind_group_layout],
+			immediate_size: 0,
+		});
+		let pipeline = GPU.device.create_compute_pipeline(&ComputePipelineDescriptor {
+			label: Some("Pipeline"),
+			layout: Some(&pipeline_layout),
+			module: &shader_module,
+			entry_point: Some("main"),
+			compilation_options: PipelineCompilationOptions::default(),
+			cache: None,
+		});
+		let mut encoder = GPU.device.create_command_encoder(&CommandEncoderDescriptor {
+			label: Some("Encoder"),
+		});
+		let mut compute_pass = encoder.begin_compute_pass(&ComputePassDescriptor {
+			label: Some("Compute Pass"),
+			timestamp_writes: None,
+		});
+		compute_pass.set_pipeline(&pipeline);
+		compute_pass.set_bind_group(0, &bind_group, &[]);
+		compute_pass.dispatch_workgroups(64, 1, 1);
+		drop(compute_pass); //Now that we've dispatched the workgroups, we can drop the compute pass so that we can access the encoder again.
+		encoder.copy_buffer_to_buffer(&output_resource, 0, &readback_resource, 0, output_size as u64);
+		let command_buffer = encoder.finish(); //Finish the compilation.
+
+		GPU.queue.submit([command_buffer]); //Execute the commands.
+
+		//Read the output.
+		readback_resource.slice(..).map_async(MapMode::Read, |_| {});
+		let _ = GPU.device.poll(PollType::wait_indefinitely());
+		let slice: &[u8] = &readback_resource.slice(..).get_mapped_range();
+		Some(bytemuck::cast_slice(slice).to_vec())
 	}
 }
 

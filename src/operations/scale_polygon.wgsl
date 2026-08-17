@@ -269,10 +269,7 @@ struct Vertex {
 	y: i32,
 }
 
-/// The structure of the first binding is an array of coordinates.
-///
-/// There should always be an even number of coordinates: one X, Y pair for each vertex of the
-/// polygon to scale.
+/// The structure of the first binding is an array of vertices, forming the polygon.
 @group(0) @binding(1)
 var<storage, read_write> vertices: array<Vertex>;
 
