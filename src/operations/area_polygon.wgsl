@@ -6,10 +6,6 @@
  * You should have received a copy of the GNU Affero General Public License along with this library. If not, see <https://gnu.org/licenses/>.
  */
 
-/// The uniform buffer is used as a seqlock.
-@group(0) @binding(0)
-var<storage, read> seqlock: i32;
-
 /// One corner of the polygon.
 struct Vertex {
 	/// The X coordinate of the vertex.
@@ -18,6 +14,8 @@ struct Vertex {
 	/// The Y coordinate of the vertex.
 	y: i32,
 }
+
+//The uniform buffer (binding 0) is unused in this one.
 
 /// The structure of the first binding is an array of coordinates, forming the polygon.
 @group(0) @binding(1)
@@ -229,4 +227,17 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>, @builtin(local_invo
 	if index_in_workgroup == 0 {
 		output[workgroup_id.x] = EmulatedI64(calculated_areas[0].high, calculated_areas[0].low);
 	}
+}
+
+//Testing code.
+
+/// Testing input and output for abs_i32.
+@group(0) @binding(3)
+var<uniform> test_i32_input: i32;
+@group(0) @binding(4)
+var<storage, read_write> test_u32_output: u32;
+
+@compute @workgroup_size(1)
+fn test_abs_i32() {
+	test_u32_output = abs_i32(test_i32_input);
 }

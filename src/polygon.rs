@@ -860,7 +860,7 @@ impl Polygon {
 		});
 		compute_pass.set_pipeline(&pipeline);
 		compute_pass.set_bind_group(0, &bind_group, &[]);
-		compute_pass.dispatch_workgroups(64, 1, 1);
+		compute_pass.dispatch_workgroups(256, 1, 1);
 		drop(compute_pass); //Now that we've dispatched the workgroups, we can drop the compute pass so that we can access the encoder again.
 		encoder.copy_buffer_to_buffer(&output_resource, 0, &readback_resource, 0, output_size as u64);
 		let command_buffer = encoder.finish(); //Finish the compilation.
