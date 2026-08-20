@@ -127,7 +127,7 @@ fn multiply_i32(lhs: i32, rhs: i32) -> EmulatedI64 {
 		let low = (~low_result) + 1; //Invert using two's complement method to prevent overflow of inverting the minimum i32.
 		let carry_low = select(0u, 1u, low == 0);
 		let high = (~high_result) + carry_low;
-		result = EmulatedI64(low, high);
+		result = EmulatedI64(high, low);
 	}
 	return result;
 }
