@@ -688,6 +688,7 @@ impl Polygon {
 				},
 			],
 		});
+		let num_vertices = if gpu_vertices.is_none() { 1 } else { gpu_vertices.as_ref().unwrap().size() / 8 } as u32;
 
 		//Also communicated to the GPU is the pipeline: Compiled code telling it what to do.
 		let pipeline_layout = GPU.device.create_pipeline_layout(&PipelineLayoutDescriptor {
@@ -712,7 +713,7 @@ impl Polygon {
 		});
 		compute_pass.set_pipeline(&pipeline);
 		compute_pass.set_bind_group(0, &bind_group, &[]);
-		compute_pass.dispatch_workgroups(256, 1, 1);
+		compute_pass.dispatch_workgroups((num_vertices + 255) / 256, 1, 1);
 		drop(compute_pass); //Now that we've dispatched the workgroups, we can drop the compute pass so that we can access the encoder again.
 		let command_buffer = encoder.finish(); //Finish the compilation.
 
@@ -836,6 +837,7 @@ impl Polygon {
 			layout: &bind_group_layout,
 			entries: binding_entries.as_array::<3>().unwrap(),
 		});
+		let num_vertices = if gpu_vertices.is_none() { 1 } else { gpu_vertices.as_ref().unwrap().size() / 8 } as u32;
 
 		//Also communicated to the GPU is the pipeline: Compiled code telling it what to do.
 		let pipeline_layout = GPU.device.create_pipeline_layout(&PipelineLayoutDescriptor {
@@ -860,7 +862,7 @@ impl Polygon {
 		});
 		compute_pass.set_pipeline(&pipeline);
 		compute_pass.set_bind_group(0, &bind_group, &[]);
-		compute_pass.dispatch_workgroups(256, 1, 1);
+		compute_pass.dispatch_workgroups((num_vertices + 255) / 256, 1, 1);
 		drop(compute_pass); //Now that we've dispatched the workgroups, we can drop the compute pass so that we can access the encoder again.
 		encoder.copy_buffer_to_buffer(&output_resource, 0, &readback_resource, 0, output_size as u64);
 		let command_buffer = encoder.finish(); //Finish the compilation.
