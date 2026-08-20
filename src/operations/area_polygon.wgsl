@@ -231,10 +231,21 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>, @builtin(local_invo
 
 //Testing code.
 
-/// Testing input and output for abs_i32.
+/// Testing input and output for multiply_i32.
 @group(0) @binding(3)
-var<uniform> test_i32_input: i32;
+var<uniform> test_pair_of_i32_input: vec2<i32>;
 @group(0) @binding(4)
+var<storage, read_write> test_emulatedi64_output: EmulatedI64;
+
+@compute @workgroup_size(1)
+fn test_multiply_i32() {
+	test_emulatedi64_output = multiply_i32(test_pair_of_i32_input.x, test_pair_of_i32_input.y);
+}
+
+/// Testing input and output for abs_i32.
+@group(0) @binding(5)
+var<uniform> test_i32_input: i32;
+@group(0) @binding(6)
 var<storage, read_write> test_u32_output: u32;
 
 @compute @workgroup_size(1)
@@ -242,13 +253,13 @@ fn test_abs_i32() {
 	test_u32_output = abs_i32(test_i32_input);
 }
 
-/// Testing input and output for multiply_i32.
-@group(0) @binding(5)
-var<uniform> test_pair_of_i32_input: vec2<i32>;
-@group(0) @binding(6)
-var<storage, read_write> test_emulatedi64_output: EmulatedI64;
+/// Testing input for add. Output of the correct type already exists at binding 4.
+@group(0) @binding(7)
+var<uniform> test_pair_of_emulatedi64_input: vec4<u32>;
 
 @compute @workgroup_size(1)
-fn test_multiply_i32() {
-	test_emulatedi64_output = multiply_i32(test_pair_of_i32_input.x, test_pair_of_i32_input.y);
+fn test_add() {
+	let lhs = EmulatedI64(test_pair_of_emulatedi64_input.x, test_pair_of_emulatedi64_input.y);
+	let rhs = EmulatedI64(test_pair_of_emulatedi64_input.z, test_pair_of_emulatedi64_input.w);
+	test_emulatedi64_output = add(lhs, rhs);
 }

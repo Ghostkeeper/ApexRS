@@ -220,6 +220,12 @@ impl Into<i64> for EmulatedI64 {
 	}
 }
 
+impl Into<Vec<u8>> for EmulatedI64 {
+	fn into(self) -> Vec<u8> {
+		[self.high.to_le_bytes(), self.low.to_le_bytes()].concat().to_owned()
+	}
+}
+
 impl Add for EmulatedI64 {
 	/// The output type of the sum.
 	///
