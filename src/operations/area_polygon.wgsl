@@ -241,3 +241,14 @@ var<storage, read_write> test_u32_output: u32;
 fn test_abs_i32() {
 	test_u32_output = abs_i32(test_i32_input);
 }
+
+/// Testing input and output for multiply_i32.
+@group(0) @binding(5)
+var<uniform> test_pair_of_i32_input: vec2<i32>;
+@group(0) @binding(6)
+var<storage, read_write> test_emulatedi64_output: EmulatedI64;
+
+@compute @workgroup_size(1)
+fn test_multiply_i32() {
+	test_emulatedi64_output = multiply_i32(test_pair_of_i32_input.x, test_pair_of_i32_input.y);
+}

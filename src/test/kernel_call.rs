@@ -32,18 +32,17 @@ use wgpu::util::{BufferInitDescriptor, DeviceExt};
 
 use crate::detail::gpu::GPU; //To perform calculations on the GPU.
 
-pub fn kernel_call(module: &ShaderModule, main_function: &str, input: i32, input_binding_index: u32, output_binding_index: u32) -> u32 {
-
+pub fn kernel_call(module: &ShaderModule, main_function: &str, input: &[u8], input_binding_index: u32, output_binding_index: u32, output_size: u64) -> Vec<u8> {
 	//The input buffer.
 	let input_buffer = GPU.device.create_buffer_init(&BufferInitDescriptor {
 		label: Some("input"),
-		contents: &input.to_ne_bytes(),
+		contents: input,
 		usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
 	});
 	//The output buffer.
-	let output_buffer = vec![0; 4];
+	let output_buffer = vec![0; output_size as usize];
 	let output_resource = GPU.device.create_buffer_init(&BufferInitDescriptor {
-		label: Some("Output buffer"),
+		label: Some("output"),
 		contents: &output_buffer,
 		usage: BufferUsages::STORAGE | BufferUsages::COPY_SRC | BufferUsages::COPY_DST,
 	});
@@ -54,7 +53,7 @@ pub fn kernel_call(module: &ShaderModule, main_function: &str, input: i32, input
 			visibility: ShaderStages::COMPUTE,
 			ty: BindingType::Buffer {
 				ty: BufferBindingType::Uniform { },
-				min_binding_size: Some(NonZeroU64::new(4).unwrap()),
+				min_binding_size: Some(NonZeroU64::new(input.len() as u64).unwrap()),
 				has_dynamic_offset: false,
 			},
 			count: None,
@@ -65,7 +64,7 @@ pub fn kernel_call(module: &ShaderModule, main_function: &str, input: i32, input
 			visibility: ShaderStages::COMPUTE,
 			ty: BindingType::Buffer {
 				ty: BufferBindingType::Storage { read_only: false },
-				min_binding_size: Some(NonZeroU64::new(4).unwrap()),
+				min_binding_size: Some(NonZeroU64::new(output_size).unwrap()),
 				has_dynamic_offset: false,
 			},
 			count: None,
@@ -94,7 +93,7 @@ pub fn kernel_call(module: &ShaderModule, main_function: &str, input: i32, input
 
 	let readback_resource = GPU.device.create_buffer(&BufferDescriptor {
 		label: Some("Readback buffer"),
-		size: 4,
+		size: output_size,
 		usage: BufferUsages::MAP_READ | BufferUsages::COPY_DST,
 		mapped_at_creation: false,
 	});
@@ -124,7 +123,7 @@ pub fn kernel_call(module: &ShaderModule, main_function: &str, input: i32, input
 	compute_pass.set_bind_group(0, &bind_group, &[]);
 	compute_pass.dispatch_workgroups(1, 1, 1);
 	drop(compute_pass); //Now that we've dispatched the workgroups, we can drop the compute pass so that we can access the encoder again.
-	encoder.copy_buffer_to_buffer(&output_resource, 0, &readback_resource, 0, 4);
+	encoder.copy_buffer_to_buffer(&output_resource, 0, &readback_resource, 0, output_size);
 	let command_buffer = encoder.finish(); //Finish the compilation.
 
 	GPU.queue.submit([command_buffer]); //Execute the commands.
@@ -132,6 +131,5 @@ pub fn kernel_call(module: &ShaderModule, main_function: &str, input: i32, input
 	//Read the output.
 	readback_resource.slice(..).map_async(MapMode::Read, |_| {});
 	let _ = GPU.device.poll(PollType::wait_indefinitely());
-	let slice: &[u8] = &readback_resource.slice(..).get_mapped_range();
-	u32::from_ne_bytes(slice.try_into().expect("Should be 4 bytes of output."))
+	readback_resource.slice(..).get_mapped_range().to_owned()
 }

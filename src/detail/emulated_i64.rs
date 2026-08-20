@@ -205,6 +205,14 @@ impl From<i32> for EmulatedI64 {
 	}
 }
 
+impl From<Vec<u8>> for EmulatedI64 {
+	fn from(value: Vec<u8>) -> EmulatedI64 {
+		let high = u32::from_le_bytes(value[0..4].try_into().unwrap());
+		let low = u32::from_le_bytes(value[4..8].try_into().unwrap());
+		EmulatedI64 { high: high, low: low }
+	}
+}
+
 impl Into<i64> for EmulatedI64 {
 	/// Calculate the `i64` number that is represented by this emulation.
 	fn into(self) -> i64 {

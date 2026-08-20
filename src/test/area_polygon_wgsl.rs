@@ -14,6 +14,7 @@
 mod tests {
 	use test_case::test_case;
 	use wgpu::include_wgsl;
+	use crate::detail::emulated_i64::EmulatedI64;
 	use crate::detail::gpu::GPU;
 	use crate::test::kernel_call::kernel_call;
 
@@ -22,6 +23,7 @@ mod tests {
 	/// The conversion is not allowed to lose any range.
 	#[test_case(0; "Zero")]
 	#[test_case(1; "One")]
+	#[test_case(4; "Four")]
 	#[test_case(-1; "Negative one")]
 	#[test_case(1000; "Thousand")]
 	#[test_case(-1000; "Negative thousand")]
@@ -30,7 +32,32 @@ mod tests {
 	fn abs_i32(value: i32) {
 		let ground_truth = (value as i64).abs() as u32;
 		let module = GPU.device.create_shader_module(include_wgsl!("../../src/operations/area_polygon.wgsl"));
-		let result = kernel_call(&module, "test_abs_i32", value, 3, 4);
+		let result_bytes = kernel_call(&module, "test_abs_i32", &value.to_le_bytes(), 3, 4, 4);
+		let result = u32::from_le_bytes(result_bytes.try_into().expect("Should be 4 bytes of output."));
 		assert_eq!(result, ground_truth);
+	}
+
+	#[test_case(0, 0; "Zeroes")]
+	#[test_case(1, 0; "One and zero")]
+	#[test_case(0, 1; "Zero and one")]
+	#[test_case(2_000_000_000, 2_000_000_000; "Two billions")]
+	#[test_case(1_000_000_000, 10; "Billion and ten")]
+	#[test_case(2, -4; "Positive and negative")]
+	#[test_case(-2, 4; "Negative and positive")]
+	#[test_case(1_000_000_000, -10; "Billion times minus ten")]
+	#[test_case(-1_000_000_000, 10; "Minus billion times ten")]
+	#[test_case(-1_000_000_000, -10; "Minus billion times minus ten")]
+	#[test_case(1_000_000_000, -2_000_000_000; "Billion minus two billion")]
+	#[test_case(-2_000_000_000, 1_000_000_000; "Minus two billion times billion")]
+	#[test_case(-1_000_000_000, -1_000_000_000; "Minus billion times minus billion")]
+	#[test_case(2147483647, 2147483647; "Maximums")]
+	#[test_case(-2147483648, -2147483648; "Minimums")]
+	fn multiply_i32(lhs: i32, rhs: i32) {
+		let using_i64 = lhs as i64 * rhs as i64;
+		let module = GPU.device.create_shader_module(include_wgsl!("../../src/operations/area_polygon.wgsl"));
+		println!("Inputting {} ({:?}) and {} ({:?})", lhs, lhs.to_le_bytes(), rhs, rhs.to_le_bytes());
+		let result = kernel_call(&module, "test_multiply_i32", &[lhs.to_le_bytes(), rhs.to_le_bytes()].concat(), 5, 6, 8);
+		let emulated_result = EmulatedI64::from(result);
+		assert_eq!(using_i64, emulated_result.into());
 	}
 }

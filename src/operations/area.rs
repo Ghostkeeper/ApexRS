@@ -239,7 +239,6 @@ pub fn area_polygon_gpu(polygon: &Polygon) -> Area {
 	let uniform_buffer = bytemuck::cast_slice(&parameters);
 	let result_bytes = polygon.execute_gpu_kernel(&AREA_POLYGON_SHADER, uniform_buffer, uniform_buffer.len());
 	let binding = result_bytes.unwrap();
-	println!("{:?}", bytemuck::cast_slice::<u8, EmulatedI64>(&binding.as_slice()));
 	let output = bytemuck::cast_slice::<u8, EmulatedI64>(&binding.as_slice());
 	<EmulatedI64 as Into<i64>>::into(output[0]) / 2
 }
