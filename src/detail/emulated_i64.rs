@@ -106,11 +106,10 @@ impl EmulatedI64 {
 
 		//Calculate the lowest 32 bits of the result, and whether it overflows.
 		let middle = low_high.wrapping_add(high_low);
-		let low_result = low_low.wrapping_add(middle << 16); //Only add the lowest 16 bits.
-		let carry = (low_result < low_low) as u32;
+		let (low_result, carry) = low_low.overflowing_add(middle << 16); //Only add the lowest 16 bits.
 
 		//Calculate the highest 32 bits of the result, and carry that overflow if it happened.
-		let high_result = high_high + (middle >> 16) + carry;
+		let high_result = high_high + (middle >> 16) + carry as u32;
 
 		let mut result = EmulatedI64 { high: high_result, low: low_result };
 		if (lhs < 0) ^ (rhs < 0) { //Result needs to be negative.
