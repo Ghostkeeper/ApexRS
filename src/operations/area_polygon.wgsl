@@ -253,7 +253,7 @@ fn test_abs_i32() {
 	test_u32_output = abs_i32(test_i32_input);
 }
 
-/// Testing input for add. Output of the correct type already exists at binding 4.
+/// Testing input for add and sub. Output of the correct type already exists at binding 4.
 @group(0) @binding(7)
 var<uniform> test_pair_of_emulatedi64_input: vec4<u32>;
 
@@ -262,4 +262,21 @@ fn test_add() {
 	let lhs = EmulatedI64(test_pair_of_emulatedi64_input.x, test_pair_of_emulatedi64_input.y);
 	let rhs = EmulatedI64(test_pair_of_emulatedi64_input.z, test_pair_of_emulatedi64_input.w);
 	test_emulatedi64_output = add(lhs, rhs);
+}
+
+@compute @workgroup_size(1)
+fn test_sub() {
+	let lhs = EmulatedI64(test_pair_of_emulatedi64_input.x, test_pair_of_emulatedi64_input.y);
+	let rhs = EmulatedI64(test_pair_of_emulatedi64_input.z, test_pair_of_emulatedi64_input.w);
+	test_emulatedi64_output = sub(lhs, rhs);
+}
+
+/// Testing input for neg. Output of the correct type already exists at binding 4.
+@group(0) @binding(8)
+var<uniform> test_emulatedi64_input: vec2<u32>;
+
+@compute @workgroup_size(1)
+fn test_neg() {
+	let input = EmulatedI64(test_emulatedi64_input.x, test_emulatedi64_input.y);
+	test_emulatedi64_output = neg(input);
 }
