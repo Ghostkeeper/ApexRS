@@ -232,6 +232,9 @@ impl Polygon {
 	/// This struct represents simple polygons, so the number of sides is equal to the number of
 	/// vertices.
 	///
+	/// This implementation uses either the information on the CPU or the GPU, depending on where
+	/// the information is currently stored. As such, it doesn't cause a new synchronization.
+	///
 	/// # Examples
 	/// ```
 	/// use apex::{Point2D, Polygon};
@@ -253,7 +256,11 @@ impl Polygon {
 	/// assert_eq!(pentagon.len(), 5, "A pentagon has 5 sides.");
 	/// ```
 	pub fn len(&self) -> usize {
-		self.host_vertices().len()
+		if self.sync_status.borrow().ne(&SyncStatus::GPU) { //Already on CPU, so easy to get the information here.
+			self.host_vertices().len()
+		} else if self.gpu_vertices().as_ref() != None {
+			(self.gpu_vertices().as_ref().unwrap().size() / 8) as usize
+		} else { 0 }
 	}
 
 	/// Get a reference to a vertex in the polygon.
@@ -625,6 +632,7 @@ impl Polygon {
 	/// * `uniform_data` - Uniform data to pass to the GPU in order to configure parameters to the
 	///   kernel.
 	pub(crate) fn execute_gpu_kernel_mut(&self, shader_module: &ShaderModule, uniform_data: &[u8]) {
+		let num_vertices = self.len();
 		//The parameters of the kernel are communicated via Uniforms, in this uniform buffer.
 		let uniform_buffer = GPU.device.create_buffer_init(&BufferInitDescriptor {
 			label: Some("Uniform"),
@@ -688,7 +696,6 @@ impl Polygon {
 				},
 			],
 		});
-		let num_vertices = if gpu_vertices.is_none() { 1 } else { gpu_vertices.as_ref().unwrap().size() / 8 } as u32;
 
 		//Also communicated to the GPU is the pipeline: Compiled code telling it what to do.
 		let pipeline_layout = GPU.device.create_pipeline_layout(&PipelineLayoutDescriptor {
@@ -713,7 +720,7 @@ impl Polygon {
 		});
 		compute_pass.set_pipeline(&pipeline);
 		compute_pass.set_bind_group(0, &bind_group, &[]);
-		compute_pass.dispatch_workgroups((num_vertices + 255) / 256, 1, 1);
+		compute_pass.dispatch_workgroups((num_vertices as u32 + 255) / 256, 1, 1);
 		drop(compute_pass); //Now that we've dispatched the workgroups, we can drop the compute pass so that we can access the encoder again.
 		let command_buffer = encoder.finish(); //Finish the compilation.
 
@@ -738,6 +745,7 @@ impl Polygon {
 	/// * `uniform_data` - Uniform data to pass to the GPU in order to configure parameters to the
 	///   kernel.
 	pub(crate) fn execute_gpu_kernel(&self, shader_module: &ShaderModule, uniform_data: &[u8], output_size: usize) -> Option<Vec<u8>> {
+		let num_vertices = self.len();
 		//The parameters of the kernel are communicated via Uniforms, in this uniform buffer.
 		let uniform_buffer = GPU.device.create_buffer_init(&BufferInitDescriptor {
 			label: Some("Uniform"),
@@ -786,7 +794,7 @@ impl Polygon {
 		}
 		let bind_group_layout = GPU.device.create_bind_group_layout(&BindGroupLayoutDescriptor {
 			label: Some("Bind Group Layout"),
-			entries: if output_size == 0 { layout_entries.as_array::<2>().unwrap() } else { layout_entries.as_array::<3>().unwrap() },
+			entries: if output_size > 0 { layout_entries.as_array::<3>().unwrap() } else { layout_entries.as_array::<2>().unwrap() },
 		});
 		//Then bind the actual buffers according to the layout above.
 		let gpu_vertices = self.gpu_vertices();
@@ -802,7 +810,7 @@ impl Polygon {
 			contents: &dummy_vertex_data,
 			usage: BufferUsages::STORAGE | BufferUsages::COPY_SRC, //Both reading and writing.
 		});
-		if gpu_vertices.is_none() {
+		if num_vertices == 0 {
 			//If there is no data, create a dummy array, because WGPU doesn't allow zero-length buffers.
 			binding_entries.push(BindGroupEntry {
 				binding: 1,
@@ -835,9 +843,8 @@ impl Polygon {
 		let bind_group = GPU.device.create_bind_group(&BindGroupDescriptor {
 			label: Some("Bind Group"),
 			layout: &bind_group_layout,
-			entries: binding_entries.as_array::<3>().unwrap(),
+			entries: if output_size > 0 { binding_entries.as_array::<3>().unwrap() } else { binding_entries.as_array::<2>().unwrap() },
 		});
-		let num_vertices = if gpu_vertices.is_none() { 1 } else { gpu_vertices.as_ref().unwrap().size() / 8 } as u32;
 
 		//Also communicated to the GPU is the pipeline: Compiled code telling it what to do.
 		let pipeline_layout = GPU.device.create_pipeline_layout(&PipelineLayoutDescriptor {
@@ -862,18 +869,27 @@ impl Polygon {
 		});
 		compute_pass.set_pipeline(&pipeline);
 		compute_pass.set_bind_group(0, &bind_group, &[]);
-		compute_pass.dispatch_workgroups((num_vertices + 255) / 256, 1, 1);
+		println!("Number of workgroups: {}", (num_vertices + 255) / 256);
+		compute_pass.dispatch_workgroups((num_vertices as u32 + 255) / 256, 1, 1);
 		drop(compute_pass); //Now that we've dispatched the workgroups, we can drop the compute pass so that we can access the encoder again.
-		encoder.copy_buffer_to_buffer(&output_resource, 0, &readback_resource, 0, output_size as u64);
+		if output_size > 0 {
+			encoder.copy_buffer_to_buffer(&output_resource, 0, &readback_resource, 0, output_size as u64);
+		}
 		let command_buffer = encoder.finish(); //Finish the compilation.
 
 		GPU.queue.submit([command_buffer]); //Execute the commands.
 
 		//Read the output.
-		readback_resource.slice(..).map_async(MapMode::Read, |_| {});
+		if output_size > 0 {
+			readback_resource.slice(..).map_async(MapMode::Read, |_| {});
+		}
 		let _ = GPU.device.poll(PollType::wait_indefinitely());
-		let slice: &[u8] = &readback_resource.slice(..).get_mapped_range();
-		Some(bytemuck::cast_slice(slice).to_vec())
+		if output_size > 0 {
+			let slice: &[u8] = &readback_resource.slice(..).get_mapped_range();
+			Some(bytemuck::cast_slice(slice).to_vec())
+		} else {
+			Some(vec![])
+		}
 	}
 }
 

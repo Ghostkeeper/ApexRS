@@ -235,9 +235,10 @@ static AREA_POLYGON_SHADER: LazyLock<ShaderModule> = LazyLock::new(|| {
 /// parallel using the massive concurrency of the GPU. The areas are then summed using a
 /// tree-reduction in the GPU to arrive at a single summed area.
 pub fn area_polygon_gpu(polygon: &Polygon) -> Area {
+	let num_vertices = polygon.len().max(1);
 	let parameters = [0 as Area];
 	let uniform_buffer = bytemuck::cast_slice(&parameters);
-	let result_bytes = polygon.execute_gpu_kernel(&AREA_POLYGON_SHADER, uniform_buffer, uniform_buffer.len());
+	let result_bytes = polygon.execute_gpu_kernel(&AREA_POLYGON_SHADER, uniform_buffer, uniform_buffer.len() * num_vertices);
 	let binding = result_bytes.unwrap();
 	let output = bytemuck::cast_slice::<u8, EmulatedI64>(&binding.as_slice());
 	<EmulatedI64 as Into<i64>>::into(output[0]) / 2

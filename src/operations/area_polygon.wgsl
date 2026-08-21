@@ -204,10 +204,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>, @builtin(local_invo
 	if(index >= num_verts) {
 		return;
 	}
-	var previous = index - 1;
-	if index == 0 {
-		previous = num_verts - 1;
-	}
+	var previous = select(index - 1, num_verts - 1, index == 0);
 
 	//Shoestring formula: vₙ₋₁.x * vₙ.y - vₙ₋₁.y * vₙ.x
 	calculated_areas[index_in_workgroup] = sub(multiply_i32(vertices[previous].x, vertices[index].y), multiply_i32(vertices[previous].y, vertices[index].x));
