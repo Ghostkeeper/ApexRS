@@ -241,7 +241,9 @@ pub fn area_polygon_gpu(polygon: &Polygon) -> Area {
 	let result_bytes = polygon.execute_gpu_kernel(&AREA_POLYGON_SHADER, uniform_buffer, uniform_buffer.len() * num_vertices);
 	let binding = result_bytes.unwrap();
 	let output = bytemuck::cast_slice::<u8, EmulatedI64>(&binding.as_slice());
-	<EmulatedI64 as Into<i64>>::into(output[0]) / 2
+	//TODO: Tree-reduction using multiple GPU passes.
+	let sum: i64 = output.iter().map(|x| <EmulatedI64 as Into<i64>>::into(*x)).sum();
+	sum / 2
 }
 
 #[cfg(test)]
