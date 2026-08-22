@@ -869,7 +869,6 @@ impl Polygon {
 		});
 		compute_pass.set_pipeline(&pipeline);
 		compute_pass.set_bind_group(0, &bind_group, &[]);
-		println!("Number of workgroups: {}", (num_vertices + 255) / 256);
 		compute_pass.dispatch_workgroups((num_vertices as u32 + 255) / 256, 1, 1);
 		drop(compute_pass); //Now that we've dispatched the workgroups, we can drop the compute pass so that we can access the encoder again.
 		if output_size > 0 {

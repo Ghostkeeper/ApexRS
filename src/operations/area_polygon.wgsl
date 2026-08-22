@@ -198,7 +198,6 @@ fn neg(value: EmulatedI64) -> EmulatedI64 {
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>, @builtin(local_invocation_id) local_id: vec3<u32>, @builtin(workgroup_id) workgroup_id: vec3<u32>) {
 	let index = global_id.x;
 	let index_in_workgroup = local_id.x;
-	let num_workgroups = arrayLength(&vertices) / 256;
 
 	let num_verts = arrayLength(&vertices);
 	if(index >= num_verts) {
@@ -209,14 +208,13 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>, @builtin(local_invo
 	//Shoestring formula: vₙ₋₁.x * vₙ.y - vₙ₋₁.y * vₙ.x
 	calculated_areas[index_in_workgroup] = sub(multiply_i32(vertices[previous].x, vertices[index].y), multiply_i32(vertices[previous].y, vertices[index].x));
 
+	workgroupBarrier();
 	var stride = 1u;
 	while stride < 256 {
 		let me = index_in_workgroup * stride * 2;
-		if me < 256 {
-			let them = me + stride;
-			if index_in_workgroup == me {
-				calculated_areas[me] = add(calculated_areas[me], calculated_areas[them]);
-			}
+		let them = me + stride;
+		if them < 256 {
+			calculated_areas[me] = add(calculated_areas[me], calculated_areas[them]);
 		}
 		stride *= 2;
 		workgroupBarrier();
