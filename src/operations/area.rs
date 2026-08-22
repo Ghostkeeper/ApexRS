@@ -259,6 +259,7 @@ mod tests {
 		let poly = Polygon::new();
 		assert_eq!(area_polygon_st(&poly), 0, "An empty polygon has no area.");
 		assert_eq!(area_polygon_mt(&poly), 0, "An empty polygon has no area.");
+		assert_eq!(area_polygon_gpu(&poly), 0, "An empty polygon has no area.");
 	}
 
 	/// Test getting the area of a 1000x1000 square.
@@ -270,6 +271,7 @@ mod tests {
 	fn area_polygon_square(poly: Polygon) {
 		assert_eq!(area_polygon_st(&poly), 1000 * 1000, "A 1000 by 1000 square");
 		assert_eq!(area_polygon_mt(&poly), 1000 * 1000, "A 1000 by 1000 square");
+		assert_eq!(area_polygon_gpu(&poly), 1000 * 1000, "A 1000 by 1000 square");
 	}
 
 	/// Test getting the area of a triangle.
@@ -278,6 +280,7 @@ mod tests {
 		let poly = polygon::triangle_1000();
 		assert_eq!(area_polygon_st(&poly), 1000 * 1000 / 2, "A triangle with base 1000, height 1000");
 		assert_eq!(area_polygon_mt(&poly), 1000 * 1000 / 2, "A triangle with base 1000, height 1000");
+		assert_eq!(area_polygon_gpu(&poly), 1000 * 1000 / 2, "A triangle with base 1000, height 1000");
 	}
 
 	/// Test getting the area of a concave shape.
@@ -286,6 +289,7 @@ mod tests {
 		let poly = polygon::arrowhead(); //The arrowhead is a concave shape.
 		assert_eq!(area_polygon_st(&poly), 1000 * 1000 / 2 - 1000 * 500 / 2, "The 1000x1000 triangle with a 1000x500 triangle cut out");
 		assert_eq!(area_polygon_mt(&poly), 1000 * 1000 / 2 - 1000 * 500 / 2, "The 1000x1000 triangle with a 1000x500 triangle cut out");
+		assert_eq!(area_polygon_gpu(&poly), 1000 * 1000 / 2 - 1000 * 500 / 2, "The 1000x1000 triangle with a 1000x500 triangle cut out");
 	}
 
 	/// Test getting the area of various degenerate shapes.
@@ -298,6 +302,7 @@ mod tests {
 	fn area_polygon_degenerate(poly: Polygon) {
 		assert_eq!(area_polygon_st(&poly), 0, "Degenerate shapes have no surface area.");
 		assert_eq!(area_polygon_mt(&poly), 0, "Degenerate shapes have no surface area.");
+		assert_eq!(area_polygon_gpu(&poly), 0, "Degenerate shapes have no surface area.");
 	}
 
 	/// Test getting the area of a self-intersecting shape with both positive and negative regions.
@@ -306,6 +311,7 @@ mod tests {
 		let poly = polygon::hourglass(); //The hourglass is a self-intersecting shape.
 		assert_eq!(area_polygon_st(&poly), 0, "The positive areas cancel out the negative areas.");
 		assert_eq!(area_polygon_mt(&poly), 0, "The positive areas cancel out the negative areas.");
+		assert_eq!(area_polygon_gpu(&poly), 0, "The positive areas cancel out the negative areas.");
 	}
 
 	/// Test getting the area of a regular polygon that approximates a circle.
@@ -326,5 +332,6 @@ mod tests {
 
 		assert!((area_polygon_st(&poly) - ground_truth).abs() <= error_margin, "The area is equal to the ground truth (with an allowed error margin).");
 		assert!((area_polygon_mt(&poly) - ground_truth).abs() <= error_margin, "The area is equal to the ground truth (with an allowed error margin).");
+		assert!((area_polygon_gpu(&poly) - ground_truth).abs() <= error_margin, "The area is equal to the ground truth (with an allowed error margin).");
 	}
 }
