@@ -36,7 +36,7 @@ mod tests {
 	fn multiply_i32(lhs: i32, rhs: i32) {
 		let using_i64 = lhs as i64 * rhs as i64;
 		let module = GPU.device.create_shader_module(include_wgsl!("../../src/operations/area_polygon.wgsl"));
-		let result = kernel_call(&module, "test_multiply_i32", &[lhs.to_le_bytes(), rhs.to_le_bytes()].concat(), 3, 4, 8);
+		let result = kernel_call(&module, "test_multiply_i32", &[lhs.to_le_bytes(), rhs.to_le_bytes()].concat(), 2, 3, 8);
 		let emulated_result = EmulatedI64::from(result);
 		assert_eq!(using_i64, emulated_result.into());
 	}
@@ -55,7 +55,7 @@ mod tests {
 	fn abs_i32(value: i32) {
 		let using_i64 = (value as i64).abs() as u32;
 		let module = GPU.device.create_shader_module(include_wgsl!("../../src/operations/area_polygon.wgsl"));
-		let result_bytes = kernel_call(&module, "test_abs_i32", &value.to_le_bytes(), 5, 6, 4);
+		let result_bytes = kernel_call(&module, "test_abs_i32", &value.to_le_bytes(), 4, 5, 4);
 		let result = u32::from_le_bytes(result_bytes.try_into().expect("Should be 4 bytes of output."));
 		assert_eq!(using_i64, result);
 	}
@@ -85,7 +85,7 @@ mod tests {
 		let mut combined: Vec<u8> = emulated_lhs.into();
 		combined.append(&mut emulated_rhs.into());
 		let module = GPU.device.create_shader_module(include_wgsl!("../../src/operations/area_polygon.wgsl"));
-		let result = kernel_call(&module, "test_add", &combined, 7, 4, 8);
+		let result = kernel_call(&module, "test_add", &combined, 6, 3, 8);
 		let emulated_result = EmulatedI64::from(result);
 		assert_eq!(using_i64, emulated_result.into());
 	}
@@ -115,7 +115,7 @@ mod tests {
 		let mut combined: Vec<u8> = emulated_lhs.into();
 		combined.append(&mut emulated_rhs.into());
 		let module = GPU.device.create_shader_module(include_wgsl!("../../src/operations/area_polygon.wgsl"));
-		let result = kernel_call(&module, "test_sub", &combined, 7, 4, 8);
+		let result = kernel_call(&module, "test_sub", &combined, 6, 3, 8);
 		let emulated_result = EmulatedI64::from(result);
 		assert_eq!(using_i64, emulated_result.into());
 	}
@@ -142,7 +142,7 @@ mod tests {
 		let using_i64 = -value;
 		let emulated_value: Vec<u8> = EmulatedI64::from(value).into();
 		let module = GPU.device.create_shader_module(include_wgsl!("../../src/operations/area_polygon.wgsl"));
-		let result = kernel_call(&module, "test_neg", &emulated_value, 8, 4, 8);
+		let result = kernel_call(&module, "test_neg", &emulated_value, 7, 3, 8);
 		let emulated_result = EmulatedI64::from(result);
 		assert_eq!(using_i64, emulated_result.into());
 	}

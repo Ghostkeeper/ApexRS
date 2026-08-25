@@ -13,13 +13,14 @@ use rayon::iter::ParallelIterator; //For multi-threaded implementations.
 use rayon::prelude::ParallelSliceMut; //For multi-threaded implementations.
 use std::cmp;
 use std::sync::LazyLock;
-use wgpu::{include_wgsl, ShaderModule}; //For loading the rotate GPU kernel.
+use wgpu::{BufferUsages, ShaderModule, include_wgsl}; //For loading the rotate GPU kernel.
+use wgpu::util::{DeviceExt, BufferInitDescriptor}; //For creating the uniform buffer for GPU operations.
 
 use crate::Angle; //To measure how much to rotate objects.
 use crate::coordinate::round; //To accurately round coordinates after rotating them.
 use crate::Polygon; //Rotate polygons.
 use crate::detail::emulated_f64::EmulatedF64; //To get greater accuracy on the GPU.
-use crate::detail::gpu::GPU; //To perform calculations on the GPU.
+use crate::detail::gpu::{execute_kernel, GPU}; //To perform calculations on the GPU.
 
 /// Rotate a polygon around the coordinate origin by a certain angle.
 ///
@@ -147,11 +148,23 @@ static ROTATE_POLYGON_SHADER: LazyLock<ShaderModule> = LazyLock::new(|| {
 /// assert_eq!(*poly.vertex(2), Point2D { x: -23, y: 118 });
 /// ```
 pub fn rotate_polygon_gpu(polygon: &mut Polygon, angle: Angle) {
+	let num_vertices = polygon.len();
+	if num_vertices == 0 {
+		return;
+	}
+
 	let cosine = EmulatedF64::from(angle.cos());
 	let sine = EmulatedF64::from(angle.sin());
 	let parameters = [sine, cosine];
-	let uniform_buffer = bytemuck::cast_slice(&parameters);
-	polygon.execute_gpu_kernel_mut(&ROTATE_POLYGON_SHADER, uniform_buffer);
+	let uniform_bytes = bytemuck::cast_slice(&parameters);
+	let uniform_buffer = GPU.device.create_buffer_init(&BufferInitDescriptor {
+		label: Some("Uniform buffer"),
+		contents: &uniform_bytes,
+		usage: BufferUsages::UNIFORM,
+	});
+
+	execute_kernel(&ROTATE_POLYGON_SHADER, &[&uniform_buffer, polygon.gpu_vertices().as_ref().unwrap()], None, num_vertices as u64);
+	polygon.invalidate_host_vertices(); //From here on out, the CPU data may be out of date.
 }
 
 #[cfg(test)]

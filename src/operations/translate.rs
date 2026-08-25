@@ -11,12 +11,13 @@
 use std::cmp;
 use std::sync::LazyLock; //For storing shaders in a cache.
 use rayon::prelude::*; //For multi-threaded implementations.
-use wgpu::{include_wgsl, ShaderModule}; //For loading the translate GPU kernel.
+use wgpu::{BufferUsages, ShaderModule, include_wgsl}; //For loading the translate GPU kernel.
+use wgpu::util::{DeviceExt, BufferInitDescriptor}; //For creating the uniform buffer for GPU operations.
 
 use crate::Coordinate; //As parameter for how far to translate.
 use crate::Polygon; //Translate polygons.
 use crate::TwoDimensional; //The translate operation is part of TwoDimensional.
-use crate::detail::gpu::GPU; //To perform calculations on the GPU.
+use crate::detail::gpu::{execute_kernel, GPU}; //To perform calculations on the GPU.
 
 /// Move a polygon by a certain delta coordinate.
 ///
@@ -119,9 +120,21 @@ static TRANSLATE_POLYGON_SHADER: LazyLock<ShaderModule> = LazyLock::new(|| {
 /// assert_eq!(*poly.vertex(2), Point2D { x: 167, y: -50 });
 /// ```
 pub fn translate_polygon_gpu(polygon: &mut Polygon, dx: Coordinate, dy: Coordinate) {
+	let num_vertices = polygon.len();
+	if num_vertices == 0 {
+		return;
+	}
+
 	let parameters = [dx, dy];
-	let uniform_buffer = bytemuck::cast_slice(&parameters);
-	polygon.execute_gpu_kernel_mut(&TRANSLATE_POLYGON_SHADER, uniform_buffer);
+	let uniform_bytes = bytemuck::cast_slice(&parameters);
+	let uniform_buffer = GPU.device.create_buffer_init(&BufferInitDescriptor {
+		label: Some("Uniform buffer"),
+		contents: &uniform_bytes,
+		usage: BufferUsages::UNIFORM,
+	});
+
+	execute_kernel(&TRANSLATE_POLYGON_SHADER, &[&uniform_buffer, polygon.gpu_vertices().as_ref().unwrap()], None, num_vertices as u64);
+	polygon.invalidate_host_vertices(); //From here on out, the CPU data may be out of date.
 }
 
 #[cfg(test)]

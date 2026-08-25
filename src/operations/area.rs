@@ -15,12 +15,13 @@ use rayon::iter::ParallelIterator; //For multi-threaded implementations.
 use rayon::prelude::ParallelSlice; //For multi-threaded implementations.
 use std::cmp;
 use std::sync::LazyLock;
-use wgpu::{include_wgsl, ShaderModule}; //For loading the area GPU kernel.
+use wgpu::{BufferUsages, include_wgsl, ShaderModule}; //For loading the area GPU kernel.
+use wgpu::util::{BufferInitDescriptor, DeviceExt}; //For creating buffers for the area output on the GPU.
 
 use crate::Area; //Outputting the area gives this Area object.
 use crate::Polygon; //Get the area of polygons.
 use crate::detail::emulated_i64::EmulatedI64;
-use crate::detail::gpu::GPU; //To perform calculations on the GPU.
+use crate::detail::gpu::{execute_kernel, GPU}; //To perform calculations on the GPU.
 
 /// Calculate the area of a polygon.
 ///
@@ -235,14 +236,22 @@ static AREA_POLYGON_SHADER: LazyLock<ShaderModule> = LazyLock::new(|| {
 /// parallel using the massive concurrency of the GPU. The areas are then summed using a
 /// tree-reduction in the GPU to arrive at a single summed area.
 pub fn area_polygon_gpu(polygon: &Polygon) -> Area {
-	let num_vertices = polygon.len().max(1);
-	let parameters = [0 as Area];
-	let uniform_buffer = bytemuck::cast_slice(&parameters);
-	let result_bytes = polygon.execute_gpu_kernel(&AREA_POLYGON_SHADER, uniform_buffer, uniform_buffer.len() * num_vertices);
-	let binding = result_bytes.unwrap();
-	let output = bytemuck::cast_slice::<u8, EmulatedI64>(&binding.as_slice());
+	let num_vertices = polygon.len();
+	if num_vertices == 0 {
+		return 0;
+	}
+
+	let output_size = (num_vertices + 255) / 256 * 8; //For each workgroup (256 vertices), one output.
+	let output_bytes = vec![0; output_size];
+	let output_buffer = GPU.device.create_buffer_init(&BufferInitDescriptor {
+		label: Some("Output buffer"),
+		contents: &output_bytes,
+		usage: BufferUsages::STORAGE | BufferUsages::COPY_SRC | BufferUsages::COPY_DST,
+	});
+	let output = execute_kernel(&AREA_POLYGON_SHADER, &[polygon.gpu_vertices().as_ref().unwrap(), &output_buffer], Some(&output_buffer), num_vertices as u64).unwrap();
+	let areas = bytemuck::cast_slice::<u8, EmulatedI64>(&output.as_slice());
 	//TODO: Tree-reduction using multiple GPU passes.
-	let sum: i64 = output.iter().map(|x| <EmulatedI64 as Into<i64>>::into(*x)).sum();
+	let sum: i64 = areas.iter().map(|x| <EmulatedI64 as Into<i64>>::into(*x)).sum();
 	sum / 2
 }
 
