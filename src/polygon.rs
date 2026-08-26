@@ -96,7 +96,7 @@ pub struct Polygon {
 	/// the GPU.
 	///
 	/// Before the first time that the polygon gets synced to the GPU, this will be `None`.
-	gpu_buffer: Rc<RefCell<Option<Buffer>>>,
+	gpu_buffer: Rc<RefCell<Option<Vec<Buffer>>>>,
 
 	/// A WGPU buffer used to transfer the vertex data between the CPU (host) and the GPU.
 	///
@@ -246,7 +246,7 @@ impl Polygon {
 		if self.sync_status.borrow().ne(&SyncStatus::GPU) { //Already on CPU, so easy to get the information here.
 			self.host_vertices().len()
 		} else if self.gpu_vertices().as_ref() != None {
-			(self.gpu_vertices().as_ref().unwrap().size() / 8) as usize
+			self.gpu_vertices().as_ref().unwrap().iter().map(|b| b.size()).sum::<u64>() as usize / 8
 		} else { 0 }
 	}
 
@@ -537,7 +537,7 @@ impl Polygon {
 	/// There is no mutable version of this function because the GPU buffers are detached from this
 	/// polygon in CPU memory. Mutability has to be enforced through the operations that may modify
 	/// the polygonal data.
-	pub(crate) fn gpu_vertices<'a>(&'a self) -> Ref<'a, Option<Buffer>> {
+	pub(crate) fn gpu_vertices<'a>(&'a self) -> Ref<'a, Option<Vec<Buffer>>> {
 		if self.sync_status.borrow().eq(&SyncStatus::HOST) { //GPU is outdated.
 			self.sync_host_to_gpu();
 		}
@@ -558,14 +558,24 @@ impl Polygon {
 	/// ``sync_status`` is set to ``HOST``. If the ``sync_status`` is set to ``GPU`` or ``SYNCED``,
 	/// it will have no effect.
 	fn sync_host_to_gpu(&self) {
-		if self.host_vertices().is_empty() {
+		if self.vertices.borrow().is_empty() {
 			*self.gpu_buffer.borrow_mut() = None;
 		} else {
-			self.gpu_buffer.borrow_mut().replace(GPU.device.create_buffer_init(&BufferInitDescriptor {
-				label: None,
-				contents: bytemuck::cast_slice(self.host_vertices().as_slice()),
-				usage: BufferUsages::STORAGE | BufferUsages::COPY_SRC, //Both reading and writing.
-			}));
+			let bytes_per_vertex = 8;
+			let bytes_per_buffer = GPU.device.limits().max_storage_buffer_binding_size;
+			let vertices_per_buffer = (bytes_per_buffer / bytes_per_vertex) as usize;
+
+			let mut buffers = vec!();
+			while buffers.len() * vertices_per_buffer < self.vertices.borrow().len() {
+				let offset = buffers.len() * vertices_per_buffer;
+				let endpoint = (offset + vertices_per_buffer).min(self.host_vertices().len());
+				buffers.push(GPU.device.create_buffer_init(&BufferInitDescriptor {
+					label: Some(format!("Offset {}", offset).as_str()),
+					contents: bytemuck::cast_slice(&self.host_vertices().as_slice()[offset..endpoint]),
+					usage: BufferUsages::STORAGE | BufferUsages::COPY_SRC,
+				}));
+			}
+			self.gpu_buffer.borrow_mut().replace(buffers);
 		}
 		*self.sync_status.borrow_mut() = SyncStatus::SYNCED;
 	}
@@ -577,31 +587,33 @@ impl Polygon {
 	/// ``sync_status`` is set to ``GPU``. If the ``sync_status`` is set to ``HOST`` or ``SYNCED``,
 	/// it will have no effect.
 	fn sync_gpu_to_host(&self) {
-		let mut encoder = GPU.device.create_command_encoder(&CommandEncoderDescriptor {
-			label: None,
-		});
 		if self.gpu_buffer.borrow().is_none() {
 			self.vertices.borrow_mut().clear();
 		} else {
-			let buffer_size = self.gpu_vertices().as_ref().expect("The GPU needs to have data before we can synchronise it to the host.").size();
-			self.transfer_buffer.borrow_mut().replace(GPU.device.create_buffer(&BufferDescriptor {
-				label: None,
-				size: buffer_size,
-				usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-				mapped_at_creation: false,
-			}));
-			encoder.copy_buffer_to_buffer(
-				self.gpu_vertices().as_ref().unwrap(), 0,
-				self.transfer_buffer.borrow().as_ref().unwrap(), 0,
-				buffer_size,
-			);
-			let command_buffer = encoder.finish(); //Finish the compilation.
-			GPU.queue.submit([command_buffer]); //Execute the commands.
+			for buffer in self.gpu_buffer.borrow().as_ref().expect("The GPU needs to have data before we can synchronize it to the host.") {
+				let buffer_size = buffer.size();
+				self.transfer_buffer.borrow_mut().replace(GPU.device.create_buffer(&BufferDescriptor {
+					label: Some("Transfer"),
+					size: buffer_size,
+					usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+					mapped_at_creation: false,
+				}));
+				let mut encoder = GPU.device.create_command_encoder(&CommandEncoderDescriptor {
+					label: Some("TransferCommandEncoder"),
+				});
+				encoder.copy_buffer_to_buffer(
+					buffer, 0,
+					self.transfer_buffer.borrow().as_ref().unwrap(), 0,
+					buffer_size,
+				);
+				let command_buffer = encoder.finish(); //Finish the compilation.
+				GPU.queue.submit([command_buffer]);
 
-			self.transfer_buffer.borrow().as_ref().unwrap().slice(..).map_async(MapMode::Read, |_| {});
-			let _ = GPU.device.poll(PollType::wait_indefinitely());
-			let slice: &[u8] = &self.transfer_buffer.borrow().as_ref().unwrap().slice(..).get_mapped_range();
-			*self.vertices.borrow_mut() = bytemuck::cast_slice(slice).to_vec();
+				self.transfer_buffer.borrow().as_ref().unwrap().slice(..).map_async(MapMode::Read, |_| {});
+				let _ = GPU.device.poll(PollType::wait_indefinitely());
+				let slice: &[u8] = &self.transfer_buffer.borrow().as_ref().unwrap().slice(..).get_mapped_range();
+				*self.vertices.borrow_mut() = bytemuck::cast_slice(slice).to_vec();
+			}
 		}
 		*self.sync_status.borrow_mut() = SyncStatus::SYNCED;
 	}
