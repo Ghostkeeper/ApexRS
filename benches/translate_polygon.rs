@@ -14,7 +14,7 @@
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion}; //To run the benchmark.
 
-use apex::_internal::operations::translate::{translate_polygon_st, translate_polygon_mt, translate_polygon_gpu}; //The functions being benchmarked.
+use apex::operations::translate::{translate_polygon_st, translate_polygon_mt, translate_polygon_gpu}; //The functions being benchmarked.
 use apex::test::polygon;
 
 fn bench_translate_polygon_st(runner: &mut Criterion) {
