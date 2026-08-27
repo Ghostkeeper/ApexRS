@@ -563,7 +563,9 @@ impl Polygon {
 		} else {
 			let bytes_per_vertex = 8;
 			let bytes_per_buffer = GPU.device.limits().max_storage_buffer_binding_size;
-			let vertices_per_buffer = (bytes_per_buffer / bytes_per_vertex) as usize;
+			let workgroup_limit = 65535u32; //Can't dispatch more than this amount of workgroups.
+			let thread_limit = workgroup_limit * 256;
+			let vertices_per_buffer = (bytes_per_buffer / bytes_per_vertex).min(thread_limit) as usize;
 
 			let mut buffers = vec!();
 			while buffers.len() * vertices_per_buffer < self.vertices.borrow().len() {
