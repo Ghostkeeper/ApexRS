@@ -573,7 +573,7 @@ impl Polygon {
 				let endpoint = (offset + vertices_per_buffer).min(self.host_vertices().len());
 				buffers.push(GPU.device.create_buffer_init(&BufferInitDescriptor {
 					label: Some(format!("Offset {}", offset).as_str()),
-					contents: bytemuck::cast_slice(&self.host_vertices().as_slice()[offset..endpoint]),
+					contents: bytemuck::cast_slice(&self.vertices.borrow().as_slice()[offset..endpoint]),
 					usage: BufferUsages::STORAGE | BufferUsages::COPY_SRC,
 				}));
 			}
@@ -592,8 +592,10 @@ impl Polygon {
 		if self.gpu_buffer.borrow().is_none() {
 			self.vertices.borrow_mut().clear();
 		} else {
+			let mut offset = 0;
 			for buffer in self.gpu_buffer.borrow().as_ref().expect("The GPU needs to have data before we can synchronize it to the host.") {
 				let buffer_size = buffer.size();
+				let num_vertices = (buffer_size / 8) as usize;
 				self.transfer_buffer.borrow_mut().replace(GPU.device.create_buffer(&BufferDescriptor {
 					label: Some("Transfer"),
 					size: buffer_size,
@@ -614,7 +616,11 @@ impl Polygon {
 				self.transfer_buffer.borrow().as_ref().unwrap().slice(..).map_async(MapMode::Read, |_| {});
 				let _ = GPU.device.poll(PollType::wait_indefinitely());
 				let slice: &[u8] = &self.transfer_buffer.borrow().as_ref().unwrap().slice(..).get_mapped_range();
-				*self.vertices.borrow_mut() = bytemuck::cast_slice(slice).to_vec();
+				let new_vertices: Vec<Point2D> = bytemuck::cast_slice(slice).to_vec();
+				let end = offset + num_vertices;
+				let end_in_original = end.min(self.vertices.borrow().len());
+				self.vertices.borrow_mut().splice(offset..end_in_original, new_vertices).for_each(drop);
+				offset += num_vertices;
 			}
 		}
 		*self.sync_status.borrow_mut() = SyncStatus::SYNCED;
