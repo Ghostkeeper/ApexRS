@@ -164,7 +164,7 @@ pub fn rotate_polygon_gpu(polygon: &mut Polygon, angle: Angle) {
 	});
 
 	for vertex_buffer in polygon.gpu_vertices().as_ref().unwrap() {
-		execute_kernel(&ROTATE_POLYGON_SHADER, &[&uniform_buffer, vertex_buffer], None, num_vertices as u64);
+		execute_kernel(&ROTATE_POLYGON_SHADER, &[&uniform_buffer, vertex_buffer], None, (vertex_buffer.size() / 8) as u64);
 	}
 	polygon.invalidate_host_vertices(); //From here on out, the CPU data may be out of date.
 }

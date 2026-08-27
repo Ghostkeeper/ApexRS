@@ -251,7 +251,7 @@ pub fn area_polygon_gpu(polygon: &Polygon) -> Area {
 
 	let mut sum = 0;
 	for vertex_buffer in polygon.gpu_vertices().as_ref().unwrap() {
-		let output = execute_kernel(&AREA_POLYGON_SHADER, &[vertex_buffer, &output_buffer], Some(&output_buffer), num_vertices as u64).unwrap();
+		let output = execute_kernel(&AREA_POLYGON_SHADER, &[vertex_buffer, &output_buffer], Some(&output_buffer), (vertex_buffer.size() / 8) as u64).unwrap();
 		let areas = bytemuck::cast_slice::<u8, EmulatedI64>(&output.as_slice());
 		//TODO: Tree-reduction using multiple GPU passes, instead of here on the CPU.
 		sum += areas.iter().map(|x| <EmulatedI64 as Into<i64>>::into(*x)).sum::<i64>();
