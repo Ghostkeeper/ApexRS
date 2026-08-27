@@ -291,7 +291,7 @@ struct Vertex {
 var<storage, read_write> vertices: array<Vertex>;
 
 /// Perform the rotate operation on the polygon in-place.
-@compute @workgroup_size(64)
+@compute @workgroup_size(256)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 	let index = global_id.x;
 	let num_verts = arrayLength(&vertices);

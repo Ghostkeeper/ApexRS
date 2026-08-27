@@ -15,7 +15,7 @@ struct Vertex {
 	y: i32,
 }
 
-//The uniform buffer (binding 0) is unused in this one.
+//TODO: When the polygon is too big for memory so it gets broken up in batches, it uses the wrong looparound vertex!
 
 /// The structure of the first binding is an array of coordinates, forming the polygon.
 @group(0) @binding(0)
