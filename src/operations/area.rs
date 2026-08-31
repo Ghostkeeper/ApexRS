@@ -241,20 +241,23 @@ pub fn area_polygon_gpu(polygon: &Polygon) -> Area {
 		return 0;
 	}
 
-	let output_size = (num_vertices + 255) / 256 * 8; //For each workgroup (256 vertices), one output.
-	let output_bytes = vec![0; output_size];
-	let output_buffer = GPU.device.create_buffer_init(&BufferInitDescriptor {
-		label: Some("Output buffer"),
-		contents: &output_bytes,
-		usage: BufferUsages::STORAGE | BufferUsages::COPY_SRC | BufferUsages::COPY_DST,
-	});
-
 	let mut sum = 0;
-	for vertex_buffer in polygon.gpu_vertices().as_ref().unwrap() {
-		let output = execute_kernel(&AREA_POLYGON_SHADER, &[vertex_buffer, &output_buffer], Some(&output_buffer), (vertex_buffer.size() / 8) as u64).unwrap();
+	let vertex_binding = polygon.gpu_vertices();
+	let mut previous_buffer = vertex_binding.as_ref().unwrap().last().unwrap();
+	for vertex_buffer in vertex_binding.as_ref().unwrap() {
+		let output_size = (vertex_buffer.size() as usize / 8 + 255) / 256 * 8; //For each workgroup (256 vertices), one output.
+		let output_bytes = vec![0; output_size];
+		let output_buffer = GPU.device.create_buffer_init(&BufferInitDescriptor {
+			label: Some("Output buffer"),
+			contents: &output_bytes,
+			usage: BufferUsages::STORAGE | BufferUsages::COPY_SRC | BufferUsages::COPY_DST,
+		});
+		let output = execute_kernel(&AREA_POLYGON_SHADER, &[vertex_buffer, previous_buffer, &output_buffer], Some(&output_buffer), (vertex_buffer.size() / 8) as u64).unwrap();
 		let areas = bytemuck::cast_slice::<u8, EmulatedI64>(&output.as_slice());
 		//TODO: Tree-reduction using multiple GPU passes, instead of here on the CPU.
-		sum += areas.iter().map(|x| <EmulatedI64 as Into<i64>>::into(*x)).sum::<i64>();
+		let this_sum = areas.iter().map(|x| <EmulatedI64 as Into<i64>>::into(*x)).sum::<i64>();
+		sum += this_sum;
+		previous_buffer = vertex_buffer;
 	}
 	sum / 2
 }

@@ -48,6 +48,13 @@ impl Point2D {
 	pub fn new(x: Coordinate, y: Coordinate) -> Point2D {
 		Point2D { x, y }
 	}
+
+	/// Get the squared distance of this point to the coordinate origin.
+	///
+	/// This is equal to the length of the vector from the coordinate origin to the point.
+	pub fn vector_length_squared(self) -> Area {
+		self.x as Area * self.x as Area + self.y as Area * self.y as Area
+	}
 }
 
 impl Shape2D for Point2D {

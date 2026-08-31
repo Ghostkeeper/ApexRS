@@ -21,7 +21,12 @@ struct Vertex {
 @group(0) @binding(0)
 var<storage, read_write> vertices: array<Vertex>;
 
+/// If the vertices are too big to keep in one buffer, this is a buffer containing the previous set
+/// of vertices, in order to get the previous vertex correctly.
 @group(0) @binding(1)
+var<storage, read_write> previous_vertices: array<Vertex>;
+
+@group(0) @binding(2)
 var<storage, read_write> output: array<EmulatedI64>; //One slot per workgroup.
 
 var<workgroup> calculated_areas: array<EmulatedI64, 256>; //One slot per worker in the workgroup.
@@ -203,10 +208,17 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>, @builtin(local_invo
 	if(index >= num_verts) {
 		return;
 	}
-	var previous = select(index - 1, num_verts - 1, index == 0);
+	let this_vertex = vertices[index];
+	var previous_vertex: Vertex;
+	let num_verts_previous = arrayLength(&previous_vertices);
+	if index == 0 {
+		previous_vertex = previous_vertices[num_verts_previous - 1];
+	} else {
+		previous_vertex = vertices[index - 1];
+	}
 
 	//Shoestring formula: vₙ₋₁.x * vₙ.y - vₙ₋₁.y * vₙ.x
-	calculated_areas[index_in_workgroup] = sub(multiply_i32(vertices[previous].x, vertices[index].y), multiply_i32(vertices[previous].y, vertices[index].x));
+	calculated_areas[index_in_workgroup] = sub(multiply_i32(previous_vertex.x, this_vertex.y), multiply_i32(previous_vertex.y, this_vertex.x));
 
 	workgroupBarrier();
 	var stride = 1u;
