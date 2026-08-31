@@ -198,4 +198,32 @@ mod tests {
 			assert_eq!(*(&poly).vertex(i), *(&original).vertex(i) + crate::Point2D { x, y });
 		}
 	}
+
+	/// Test moving a huge polygon.
+	///
+	/// This polygon is typically too large for GPU VRAM, and as such the GPU implementation must
+	/// use multiple passes.
+	#[ignore] //Because it tends to take a long time to compute.
+	#[test]
+	fn translate_polygon_huge() {
+		let test_size = 100_000_000;
+		let original = polygon::regular(test_size);
+		let mut poly = polygon::regular(test_size);
+		translate_polygon_st(&mut poly, 100, 100);
+		for i in 0..poly.len() {
+			assert_eq!(*(&poly).vertex(i), *(&original).vertex(i) + crate::Point2D { x: 100, y: 100 }, "Singlethreaded {}", i);
+		}
+
+		poly = polygon::regular(test_size);
+		translate_polygon_mt(&mut poly, 100, 100);
+		for i in 0..poly.len() {
+			assert_eq!(*(&poly).vertex(i), *(&original).vertex(i) + crate::Point2D { x: 100, y: 100 }, "Multithreaded {}", i);
+		}
+
+		poly = polygon::regular(test_size);
+		translate_polygon_gpu(&mut poly, 100, 100);
+		for i in 0..poly.len() {
+			assert_eq!(*(&poly).vertex(i), *(&original).vertex(i) + crate::Point2D { x: 100, y: 100 }, "GPU {}", i);
+		}
+	}
 }

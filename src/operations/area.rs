@@ -350,4 +350,22 @@ mod tests {
 		assert!((area_polygon_mt(&poly) - ground_truth).abs() <= error_margin, "The area is equal to the ground truth (with an allowed error margin).");
 		assert!((area_polygon_gpu(&poly) - ground_truth).abs() <= error_margin, "The area is equal to the ground truth (with an allowed error margin).");
 	}
+
+	/// Test calculating the area of a huge polygon.
+	///
+	/// This polygon is typically too large for GPU VRAM, and as such the GPU implementation must
+	/// use multiple passes.
+	#[ignore]
+	#[test]
+	fn area_polygon_huge() {
+		let test_size = 100_000_000;
+		let poly = polygon::regular(test_size);
+		let st_answer = area_polygon_st(&poly);
+
+		let mt_answer = area_polygon_mt(&poly);
+		assert_eq!(st_answer, mt_answer);
+
+		let gpu_answer = area_polygon_gpu(&poly);
+		assert_eq!(st_answer, gpu_answer);
+	}
 }

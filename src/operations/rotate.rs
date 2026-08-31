@@ -240,4 +240,40 @@ mod tests {
 			assert_eq!(*(&poly).vertex(i), rotated_vertex);
 		}
 	}
+
+	/// Test rotating a huge polygon.
+	///
+	/// This polygon is typically too large for GPU VRAM, and as such the GPU implementation must
+	/// use multiple passes.
+	#[ignore] //Because it tends to take a long time to compute.
+	#[test]
+	fn rotate_polygon_huge() {
+		let test_size = 100_000_000;
+		let original = polygon::regular(test_size);
+		let mut poly = polygon::regular(test_size);
+		rotate_polygon_st(&mut poly, Angle::radians(1.0));
+		for i in 0..poly.len() {
+			let mut rotated_vertex = original.vertex(i).clone();
+			rotated_vertex.rotate(Angle::radians(1.0));
+			assert_eq!(*(&poly).vertex(i), rotated_vertex, "Singlethreaded {}", i);
+		}
+
+		poly = polygon::regular(test_size);
+		rotate_polygon_mt(&mut poly, Angle::radians(1.0));
+		for i in 0..poly.len() {
+			let mut rotated_vertex = original.vertex(i).clone();
+			rotated_vertex.rotate(Angle::radians(1.0));
+			assert_eq!(*(&poly).vertex(i), rotated_vertex, "Multithreaded {}", i);
+		}
+
+		poly = polygon::regular(test_size);
+		rotate_polygon_gpu(&mut poly, Angle::radians(1.0));
+		for i in 0..poly.len() {
+			let mut rotated_vertex = original.vertex(i).clone();
+			rotated_vertex.rotate(Angle::radians(1.0));
+			let poly_vertex = *(&poly).vertex(i);
+			//TODO: Allowing up to sqrt(2) distance due to rounding errors. Caused by less/different precision on GPU.
+			assert!((poly_vertex - rotated_vertex).vector_length_squared() <= 2, "GPU {}", i);
+		}
+	}
 }

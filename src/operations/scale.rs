@@ -214,4 +214,40 @@ mod tests {
 			assert_eq!(*(&poly).vertex(i), scaled_vertex);
 		}
 	}
+
+	/// Test scaling a huge polygon.
+	///
+	/// This polygon is typically too large for GPU VRAM, and as such the GPU implementation must
+	/// use multiple passes.
+	#[ignore] //Because it tends to take a long time to compute.
+	#[test]
+	fn scale_polygon_huge() {
+		let test_size = 100_000_000;
+		let original = polygon::regular(test_size);
+		let mut poly = polygon::regular(test_size);
+		scale_polygon_st(&mut poly, 1.5, 0.7);
+		for i in 0..poly.len() {
+			let mut scaled_vertex = original.vertex(i).clone();
+			scaled_vertex.scale(1.5, 0.7);
+			assert_eq!(*(&poly).vertex(i), scaled_vertex, "Singlethreaded {}", i);
+		}
+
+		poly = polygon::regular(test_size);
+		scale_polygon_mt(&mut poly, 1.5, 0.7);
+		for i in 0..poly.len() {
+			let mut scaled_vertex = original.vertex(i).clone();
+			scaled_vertex.scale(1.5, 0.7);
+			assert_eq!(*(&poly).vertex(i), scaled_vertex, "Multithreaded {}", i);
+		}
+
+		poly = polygon::regular(test_size);
+		scale_polygon_gpu(&mut poly, 1.5, 0.7);
+		for i in 0..poly.len() {
+			let mut scaled_vertex = original.vertex(i).clone();
+			scaled_vertex.scale(1.5, 0.7);
+			let poly_vertex = *(&poly).vertex(i);
+			//TODO: Allowing up to sqrt(2) distance due to rounding errors. Caused by less/different precision on GPU.
+			assert!((poly_vertex - scaled_vertex).vector_length_squared() <= 2, "GPU {}", i);
+		}
+	}
 }
