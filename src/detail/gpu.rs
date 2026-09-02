@@ -112,7 +112,7 @@ pub(crate) fn execute_kernel(shader_module: &ShaderModule, buffers: &[&Buffer], 
 			visibility: ShaderStages::COMPUTE,
 			ty: BindingType::Buffer {
 				ty: bind_type,
-				min_binding_size: Some(NonZeroU64::new(buffer.size()).unwrap()),
+				min_binding_size: Some(NonZeroU64::new(buffer.size()).expect(format!("The buffer at binding {} must have positive size (>0).", binding).as_str())),
 				has_dynamic_offset: false,
 			},
 			count: None,
