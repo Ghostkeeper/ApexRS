@@ -27,3 +27,15 @@ benchmark_internals = []
 [[bench]]
 name = "translate_polygon"
 harness = false
+
+[[bench]]
+name = "rotate_polygon"
+harness = false
+
+[[bench]]
+name = "scale_polygon"
+harness = false
+
+[[bench]]
+name = "area_polygon"
+harness = false
