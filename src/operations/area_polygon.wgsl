@@ -15,18 +15,23 @@ struct Vertex {
 	y: i32,
 }
 
-//TODO: When the polygon is too big for memory so it gets broken up in batches, it uses the wrong looparound vertex!
-
-/// The structure of the first binding is an array of coordinates, forming the polygon.
+/// The first binding is for the uniforms. In this case we only have a single number, the offset in
+/// the output buffer where we need to write to.
 @group(0) @binding(0)
+var<uniform> output_offset: u32;
+
+/// The structure of the second binding is an array of coordinates, forming the polygon.
+@group(0) @binding(1)
 var<storage, read_write> vertices: array<Vertex>;
 
 /// If the vertices are too big to keep in one buffer, this is a buffer containing the previous set
 /// of vertices, in order to get the previous vertex correctly.
-@group(0) @binding(1)
+@group(0) @binding(2)
 var<storage, read_write> previous_vertices: array<Vertex>;
 
-@group(0) @binding(2)
+/// Finally the output. We only write to a part of this buffer if there need to be multiple
+/// dispatches.
+@group(0) @binding(3)
 var<storage, read_write> output: array<EmulatedI64>; //One slot per workgroup.
 
 var<workgroup> calculated_areas: array<EmulatedI64, 256>; //One slot per worker in the workgroup.
@@ -239,9 +244,9 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>, @builtin(local_invo
 //Testing code.
 
 /// Testing input and output for multiply_i32.
-@group(0) @binding(2)
+@group(0) @binding(4)
 var<uniform> test_pair_of_i32_input: vec2<i32>;
-@group(0) @binding(3)
+@group(0) @binding(5)
 var<storage, read_write> test_emulatedi64_output: EmulatedI64;
 
 @compute @workgroup_size(1)
@@ -250,9 +255,9 @@ fn test_multiply_i32() {
 }
 
 /// Testing input and output for abs_i32.
-@group(0) @binding(4)
+@group(0) @binding(6)
 var<uniform> test_i32_input: i32;
-@group(0) @binding(5)
+@group(0) @binding(7)
 var<storage, read_write> test_u32_output: u32;
 
 @compute @workgroup_size(1)
@@ -261,7 +266,7 @@ fn test_abs_i32() {
 }
 
 /// Testing input for add and sub. Output of the correct type already exists at binding 4.
-@group(0) @binding(6)
+@group(0) @binding(8)
 var<uniform> test_pair_of_emulatedi64_input: vec4<u32>;
 
 @compute @workgroup_size(1)
@@ -279,7 +284,7 @@ fn test_sub() {
 }
 
 /// Testing input for neg. Output of the correct type already exists at binding 4.
-@group(0) @binding(7)
+@group(0) @binding(9)
 var<uniform> test_emulatedi64_input: vec2<u32>;
 
 @compute @workgroup_size(1)
