@@ -117,6 +117,9 @@ impl Polygon {
 	/// Create a new, empty polygon, without any vertices.
 	///
 	/// The polygon will be degenerate, since it has no vertices.
+	///
+	/// # Returns
+	/// An empty polygon, with zero vertices.
 	pub fn new() -> Self {
 		Polygon {
 			vertices: Rc::new(RefCell::new(vec!())),
@@ -138,6 +141,9 @@ impl Polygon {
 	/// # Arguments
 	/// * `capacity` - The amount of vertices that this polygon needs to be able to contain without
 	/// needing to allocate more memory.
+	///
+	/// # Returns
+	/// An empty polygon, with zero vertices.
 	///
 	/// # Examples
 	/// ```
@@ -165,6 +171,9 @@ impl Polygon {
 	/// This is the number of vertices that the polygon could hold without needing to allocate more
 	/// memory. Allocating more memory would require the geometric data to be copied, which takes
 	/// additional computational resources.
+	///
+	/// # Returns
+	/// The number of vertices that the polygon could hold without needing to allocate more memory.
 	///
 	/// # Examples
 	/// ```
@@ -219,8 +228,8 @@ impl Polygon {
 	/// This struct represents simple polygons, so the number of sides is equal to the number of
 	/// vertices.
 	///
-	/// This implementation uses either the information on the CPU or the GPU, depending on where
-	/// the information is currently stored. As such, it doesn't cause a new synchronization.
+	/// # Returns
+	/// The number of vertices of the polygon.
 	///
 	/// # Examples
 	/// ```
@@ -242,6 +251,10 @@ impl Polygon {
 	/// assert_eq!(triangle.len(), 3, "A triangle has 3 sides.");
 	/// assert_eq!(pentagon.len(), 5, "A pentagon has 5 sides.");
 	/// ```
+	///
+	/// # Implementation
+	/// This implementation uses either the information on the CPU or the GPU, depending on where
+	/// the information is currently stored. As such, it doesn't cause a new synchronization.
 	pub fn len(&self) -> usize {
 		if self.sync_status.borrow().ne(&SyncStatus::GPU) { //Already on CPU, so easy to get the information here.
 			self.host_vertices().len()
@@ -260,6 +273,9 @@ impl Polygon {
 	///
 	/// # Arguments
 	/// * `index` - The index of the vertex to address.
+	///
+	/// # Returns
+	/// A reference to the given vertex.
 	///
 	/// # Examples
 	/// ```
@@ -291,6 +307,9 @@ impl Polygon {
 	///
 	/// # Arguments
 	/// * `index` - The index of the vertex to address.
+	///
+	/// # Returns
+	/// A reference to the given vertex which allows modifying the vertex in-place.
 	///
 	/// # Examples
 	/// ```
@@ -345,6 +364,9 @@ impl Polygon {
 	/// form a new edge.
 	///
 	/// If the polygon is already empty, return `None`.
+	///
+	/// # Returns
+	/// The last vertex that got removed, or `None` if there were no more vertices.
 	///
 	/// # Examples
 	/// ```
@@ -412,6 +434,9 @@ impl Polygon {
 	/// # Arguments
 	/// * `index` - The index of the vertex to remove.
 	///
+	/// # Returns
+	/// The removed vertex.
+	///
 	/// # Examples
 	/// ```
 	/// use apex::{Point2D, Polygon};
@@ -454,6 +479,9 @@ impl Polygon {
 	/// The iterator will enumerate all of the vertices of this polygon in order. The order will be
 	/// counter-clockwise if the polygon is a positive shape, starting from the seam.
 	///
+	/// # Returns
+	/// An iterator over the vertices of the polygon.
+	///
 	/// # Examples
 	/// ```
 	/// use apex::{Point2D, Polygon};
@@ -478,6 +506,9 @@ impl Polygon {
 	///
 	/// The iterator will enumerate all of the vertices of this polygon in order. The order will be
 	/// counter-clockwise if the polygon is a positive shape, starting from the seam.
+	///
+	/// # Returns
+	/// An iterator over the vertices of the polygon, which allows in-place modification.
 	///
 	/// # Examples
 	/// ```
@@ -506,6 +537,9 @@ impl Polygon {
 	/// If the latest version of the vertices is in the GPU rather than the host, it will be copied
 	/// to the host's RAM. If the latest version of the vertices is on the CPU (or they are in
 	/// sync), it will simply give a reference to those.
+	///
+	/// # Returns
+	/// A reference to the internal vector holding the vertices of the polygon on the CPU.
 	pub(crate) fn host_vertices<'a>(&'a self) -> Ref<'a, Vec<Point2D>> {
 		if self.sync_status.borrow().eq(&SyncStatus::GPU) { //Host is outdated.
 			self.sync_gpu_to_host();
@@ -518,6 +552,10 @@ impl Polygon {
 	/// If the latest version of the vertices is in the GPU rather than the host, it will be copied
 	/// to the host's RAM. If the latest version of the vertices is on the CPU (or they are in
 	/// sync), it will simply give a reference to those.
+	///
+	/// # Returns
+	/// A reference to the internal vector holding the vertices of the polygon on the CPU, which
+	/// allows modification.
 	pub(crate) fn host_vertices_mut<'a>(&'a mut self) -> RefMut<'a, Vec<Point2D>> {
 		if self.sync_status.borrow().eq(&SyncStatus::GPU) { //Host is outdated.
 			self.sync_gpu_to_host();
@@ -526,6 +564,10 @@ impl Polygon {
 	}
 
 	/// Obtain the vertices of this polygon on the GPU.
+	///
+	/// Since buffers on the GPU often have a limited size, and the memory needs to be able to swap
+	/// in and out, sufficiently large polygons will be split up into multiple buffers. This method
+	/// returns a list of all of them.
 	///
 	/// If the latest version of the vertices is in the host rather than the GPU, it will be copied
 	/// to the GPU first. If the latest version of the vertices is in the GPU (or they are in sync),
@@ -537,6 +579,9 @@ impl Polygon {
 	/// There is no mutable version of this function because the GPU buffers are detached from this
 	/// polygon in CPU memory. Mutability has to be enforced through the operations that may modify
 	/// the polygonal data.
+	///
+	/// # Returns
+	/// A reference to the list of buffers holding the vertices of the polygon on the GPU.
 	pub(crate) fn gpu_vertices<'a>(&'a self) -> Ref<'a, Option<Vec<Buffer>>> {
 		if self.sync_status.borrow().eq(&SyncStatus::HOST) { //GPU is outdated.
 			self.sync_host_to_gpu();
@@ -579,7 +624,7 @@ impl Polygon {
 			}
 			self.gpu_buffer.borrow_mut().replace(buffers);
 		}
-		*self.sync_status.borrow_mut() = SyncStatus::SYNCED;
+		*self.sync_status.borrow_mut() = SyncStatus::SYNCED; //After synchronising, both buffers are up to date.
 	}
 
 	/// Synchronise the vertex data of this polygon from the GPU's memory to the host.
@@ -623,7 +668,7 @@ impl Polygon {
 				offset += num_vertices;
 			}
 		}
-		*self.sync_status.borrow_mut() = SyncStatus::SYNCED;
+		*self.sync_status.borrow_mut() = SyncStatus::SYNCED; //After synchronising, both buffers are up to date.
 	}
 }
 
@@ -729,8 +774,45 @@ impl TwoDimensional for Polygon {
 }
 
 impl Shape2D for Polygon {
+	/// Return the surface area of the polygon.
+	///
+	/// The surface area is a measure of the polygon's size on a plane. The unit of this measure is
+	/// in squared coordinate units.
+	///
+	/// If the polygon is a simple polygon (there being no self-intersections), the area is simply
+	/// the area that the polygon would cover on a plane. However if the polygon self-intersects,
+	/// some regions of the polygon may be counted double or more according to the local _density_
+	/// of the polygon. Polygons (or in the case of self-intersecting polygons, regions thereof)
+	/// that are counter-clockwise winding, will be counted as having a positive area. Polygons or
+	/// regions that are clockwise-winding are counted as having a negative area. In order to
+	/// prevent multiplying the area of the polygons by its regional density, the polygon must first
+	/// be simplified.
+	///
+	/// # Returns
+	/// The area of the polygon.
+	///
+	/// # Examples
+	/// ```
+	/// use apex::{Point2D, Polygon, Shape2D};
+	/// //Create a triangular polygon.
+	/// let poly = Polygon::from_iter([
+	/// 	Point2D { x: 0, y: 0 },
+	/// 	Point2D { x: 100, y: 0 },
+	/// 	Point2D { x: 67, y: 100 },
+	/// ]);
+	/// //Get the area of it.
+	/// let area = poly.area();
+	/// assert_eq!(area, 5000);
+	/// ```
 	fn area(&self) -> Area {
-		area::area_polygon_st(self)
+		let num_vertices = self.len();
+		if num_vertices < 555 {
+			area::area_polygon_st(self)
+		} else if num_vertices < 8_207_380 {
+			area::area_polygon_mt(self)
+		} else {
+			area::area_polygon_gpu(self)
+		}
 	}
 
 	fn convexity(&self) -> Convexity {
@@ -747,6 +829,9 @@ impl FromIterator<Point2D> for Polygon {
 	/// * `iter` - An object that can be converted into an iterator. In other words, an iterable
 	/// object. The elements of the objects must be `Point2D` instances which will become the
 	/// vertices of the new polygon.
+	///
+	/// # Returns
+	/// A polygon formed from the vertices in the given iterator.
 	///
 	/// # Examples
 	/// ```
@@ -778,6 +863,12 @@ impl fmt::Debug for Polygon {
 	///
 	/// The resulting formatting looks something like this:
 	/// `Polygon { vertices: [Point2D { x: 0, y: 0 }, Point2D { x: 100, y: 0 }, Point2D { x: 50, y: 100 }] }`
+	///
+	/// # Arguments
+	/// * `f` - The formatter to use to format the polygon.
+	///
+	/// # Returns
+	/// The resulting format, containing the coordinates of each vertex.
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		f.debug_struct("Polygon")
 			.field("vertices", &self.host_vertices().as_slice())
@@ -803,6 +894,9 @@ impl<'a> Iterator for PolygonIterator<'a> {
 	type Item = Ref<'a, Point2D>;
 
 	/// Get the next item of the iteration.
+	///
+	/// # Returns
+	/// The next vertex.
 	fn next(&mut self) -> Option<Self::Item> {
 		if self.vertices_ref.is_none() {
 			return None;
@@ -841,6 +935,9 @@ impl<'a> Iterator for PolygonIteratorMut<'a> {
 	type Item = RefMut<'a, Point2D>;
 
 	/// Get the next item of the iteration.
+	///
+	/// # Returns
+	/// The next vertex.
 	fn next(&mut self) -> Option<Self::Item> {
 		if self.vertices_ref.is_none() {
 			return None;
