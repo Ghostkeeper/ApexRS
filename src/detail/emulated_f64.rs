@@ -92,6 +92,9 @@ impl EmulatedF64 {
 	///
 	/// The number can end up NaN if it is the result of a calculation that is not defined, such as
 	/// division by zero or the square root of a non-positive number.
+	///
+	/// # Returns
+	/// `true` if the number emulates NaN, or `false` if it is a proper number.
 	pub fn is_nan(self) -> bool {
 		self.high.is_nan() || self.low.is_nan()
 	}
@@ -100,6 +103,9 @@ impl EmulatedF64 {
 	///
 	/// If the number was negative, it will be made positive. If it was positive or zero, it will be
 	/// left as it was.
+	///
+	/// # Returns
+	/// The absolute magnitude of the number.
 	pub fn abs(self) -> EmulatedF64 {
 		let signum = self.signum();
 		EmulatedF64 { high: self.high * signum, low: self.low * signum }
@@ -109,6 +115,9 @@ impl EmulatedF64 {
 	///
 	/// The signum is +1.0 if the number is positive, -1.0 if the number is negative, and 0.0 if the
 	/// number is zero or NaN.
+	///
+	/// # Returns
+	/// The signum of this number.
 	pub fn signum(self) -> f32 {
 		self.high.signum()
 	}
@@ -119,10 +128,8 @@ impl EmulatedF64 {
 	/// positive, it is rounded down (towards zero). If the number is negative, it is rounded up
 	/// (towards zero).
 	///
-	/// # TODO
-	/// While the truncation returns an accurate result for most numbers, if the number is just
-	/// below an integer (such that a `f32` component is above that integer), the wrong integer is
-	/// returned.
+	/// # Returns
+	/// The truncated number.
 	pub fn trunc(self) -> EmulatedF64 {
 		let signum = self.signum();
 		let absolute = EmulatedF64 { high: self.high * signum, low: self.low * signum };
@@ -131,6 +138,9 @@ impl EmulatedF64 {
 		let low_int = absolute.low.div_euclid(1.0);
 		let low_frac = absolute.low.rem_euclid(1.0);
 		let remainders = low_int + (high_frac + low_frac).floor();
+		/* TODO: While the truncation returns an accurate result for most numbers, if the number is
+		just below an integer (such that a `f32` component is above that integer), the wrong integer
+		is returned. */
 		EmulatedF64::two_sum(signum * high_int, signum * remainders)
 	}
 
@@ -139,6 +149,9 @@ impl EmulatedF64 {
 	/// In case of ties, this rounding will always round up, towards positive infinity. This is
 	/// different from most rounding methods (which are usually rounded away-from-zero or rounded to
 	/// the nearest even number in case of ties).
+	///
+	/// # Returns
+	/// The nearest integer to this number, as a simple `i32`.
 	///
 	/// # Implementation
 	/// The rounding algorithm works as follows:
@@ -189,6 +202,9 @@ impl EmulatedF64 {
 	///
 	/// The square root of a negative number is undefined. The result should then display as NaN.
 	///
+	/// # Returns
+	/// The square root of this number.
+	///
 	/// # Implementation
 	/// The square root is estimated with
 	/// [Newton's Method](https://en.wikipedia.org/wiki/Newton's_method), which is then enhanced to
@@ -231,6 +247,9 @@ impl EmulatedF64 {
 	/// derivative. The function maps ƒ(x) = eˣ where e is Euler's number, a mathematical constant
 	/// equal to the limit with n → ∞ of (1 + ¹⁄ₙ)ⁿ, or approximately 2.7182818284590452353602874714.
 	/// It is also the inverse of the natural logarithm function `ln`, such that `exp(ln(x)) == x`.
+	///
+	/// # Returns
+	/// The natural exponent of this number.
 	///
 	/// # Implementation
 	/// The exponential function is calculated with the power series ∑(xⁿ/n!). However, calculating
@@ -290,6 +309,9 @@ impl EmulatedF64 {
 	/// Euler's number here is a mathematical constant equal to the limit with n → ∞ of (1 + ¹⁄ₙ)ⁿ,
 	/// or approximately 2.7182818284590452353602874714. It is also the inverse of the natural
 	/// exponential function `ln`, such that `ln(exp(x)) == x`.
+	///
+	/// # Returns
+	/// The natural logarithm of this number.
 	///
 	/// # Implementation
 	/// The natural logarithm is estimated with
