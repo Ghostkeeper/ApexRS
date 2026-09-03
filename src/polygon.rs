@@ -816,7 +816,7 @@ impl Shape2D for Polygon {
 	}
 
 	fn convexity(&self) -> Convexity {
-		return Convexity::UNKNOWN; //TODO: Implement.
+		return Convexity::DEGENERATE; //TODO: Implement.
 	}
 }
 
