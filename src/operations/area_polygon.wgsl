@@ -237,7 +237,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>, @builtin(local_invo
 		workgroupBarrier();
 	}
 	if index_in_workgroup == 0 {
-		output[workgroup_id.x] = EmulatedI64(calculated_areas[0].high, calculated_areas[0].low);
+		output[workgroup_id.x + output_offset] = EmulatedI64(calculated_areas[0].high, calculated_areas[0].low);
 	}
 }
 
