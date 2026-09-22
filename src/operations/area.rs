@@ -275,7 +275,6 @@ pub fn area_polygon_gpu(polygon: &Polygon) -> Area {
 
 		let num_vertices_this_dispatch = vertex_buffer.size() / 8;
 		let num_outputs = ((num_vertices_this_dispatch + 255) / 256) as u32;
-		println!("About to execute kernel for areas.");
 		execute_kernel(&AREA_POLYGON_SHADER, &[&uniform_buffer, vertex_buffer, previous_buffer, &output_buffer], None, num_vertices_this_dispatch as u64);
 
 		previous_buffer = vertex_buffer;
@@ -290,7 +289,6 @@ pub fn area_polygon_gpu(polygon: &Polygon) -> Area {
 			contents: &uniform_bytes,
 			usage: BufferUsages::UNIFORM,
 		});
-		println!("About to execute kernel for summing many.");
 		execute_kernel(&SUM_I64_SHADER, &[&uniform_buffer, &output_buffer], None, output_buffer.size() / 8 / step as u64);
 		step *= 256;
 	}
@@ -300,7 +298,6 @@ pub fn area_polygon_gpu(polygon: &Polygon) -> Area {
 		contents: &uniform_bytes,
 		usage: BufferUsages::UNIFORM,
 	});
-	println!("About to execute kernel for summing final.");
 	let output = execute_kernel(&SUM_I64_SHADER, &[&uniform_buffer, &output_buffer], Some(&output_buffer), output_buffer.size() / 8 / step as u64).unwrap();
 	let areas = bytemuck::cast_slice::<u8, EmulatedI64>(&output.as_slice());
 	<EmulatedI64 as Into<i64>>::into(areas[0]) / 2
