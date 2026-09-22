@@ -27,6 +27,9 @@ pub use point2d::*;
 pub mod polygon;
 pub use polygon::*;
 
+pub mod ray2d;
+pub use ray2d::*;
+
 pub mod shape2d;
 pub use shape2d::*;
 
