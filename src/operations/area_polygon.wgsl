@@ -34,6 +34,8 @@ var<storage, read_write> previous_vertices: array<Vertex>;
 @group(0) @binding(3)
 var<storage, read_write> output: array<EmulatedI64>; //One slot per workgroup.
 
+/// Each edge results in one calculated area that needs to be summed together. The sums for each
+/// edge are temporarily stored here before they get added together for the whole workgroup.
 var<workgroup> calculated_areas: array<EmulatedI64, 256>; //One slot per worker in the workgroup.
 
 /// A structure that mimics the behaviour of a 64-bit signed integer by using two 32-bit integers.
@@ -210,20 +212,21 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>, @builtin(local_invo
 	let index_in_workgroup = local_id.x;
 
 	let num_verts = arrayLength(&vertices);
-	if(index >= num_verts) {
-		return;
-	}
-	let this_vertex = vertices[index];
-	var previous_vertex: Vertex;
-	let num_verts_previous = arrayLength(&previous_vertices);
-	if index == 0 {
-		previous_vertex = previous_vertices[num_verts_previous - 1];
-	} else {
-		previous_vertex = vertices[index - 1];
-	}
+	if index < num_verts {
+		let this_vertex = vertices[index];
+		var previous_vertex: Vertex;
+		let num_verts_previous = arrayLength(&previous_vertices);
+		if index == 0 {
+			previous_vertex = previous_vertices[num_verts_previous - 1];
+		} else {
+			previous_vertex = vertices[index - 1];
+		}
 
-	//Shoestring formula: vₙ₋₁.x * vₙ.y - vₙ₋₁.y * vₙ.x
-	calculated_areas[index_in_workgroup] = sub(multiply_i32(previous_vertex.x, this_vertex.y), multiply_i32(previous_vertex.y, this_vertex.x));
+		//Shoestring formula: vₙ₋₁.x * vₙ.y - vₙ₋₁.y * vₙ.x
+		calculated_areas[index_in_workgroup] = sub(multiply_i32(previous_vertex.x, this_vertex.y), multiply_i32(previous_vertex.y, this_vertex.x));
+	} else {
+		calculated_areas[index_in_workgroup] = EmulatedI64(0, 0);
+	}
 
 	workgroupBarrier();
 	var stride = 1u;

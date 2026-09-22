@@ -91,7 +91,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>, @builtin(local_invo
 
 	let num_numbers = (arrayLength(&numbers) + skip - 1) / skip;
 	if(index >= num_numbers) {
-		return;
+		numbers[index] = EmulatedI64(0, 0);
 	}
 
 	let offset = index - index_in_workgroup; //Where the data for this workgroup starts.
