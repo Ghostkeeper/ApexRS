@@ -27,6 +27,9 @@ pub type Coordinate = i32;
 /// # Arguments
 /// * `coordinate` - The coordinate to round, representing as a floating-point value.
 ///
+/// # Returns
+/// The coordinate point closest to the given number.
+///
 /// # Examples
 /// ```
 /// use apex::coordinate::round;

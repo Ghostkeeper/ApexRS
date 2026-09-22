@@ -29,6 +29,10 @@ use crate::coordinate::round; //To properly round after transformations.
 /// useful for certain geometric algorithms. When compared, points with lower X coordinates will be
 /// considered lower. If points have the same X coordinate, points with lower Y coordinates will be
 /// considered lower. Thus the points are compared lexicographically with X before Y.
+///
+/// A point can also be viewed as an Euclidean vector. In this case, the vector has no defined
+/// starting point, so it can be considered a free vector. The struct has methods that help with
+/// using it in this way.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Eq, Ord, PartialEq, PartialOrd, Pod, Zeroable)]
 pub struct Point2D {
@@ -45,13 +49,23 @@ impl Point2D {
 	/// # Arguments
 	/// * `x` - The coordinate along the first dimension where the point will be located.
 	/// * `y` - The coordinate along the second dimension where the point will be located.
+	///
+	/// # Returns
+	/// A point that has the given coordinates.
 	pub fn new(x: Coordinate, y: Coordinate) -> Point2D {
 		Point2D { x, y }
 	}
 
 	/// Get the squared distance of this point to the coordinate origin.
 	///
-	/// This is equal to the length of the vector from the coordinate origin to the point.
+	/// This is equal to the length of the vector from the coordinate origin to the point, squared.
+	///
+	/// The result is returned as an `Area`, because it needs the increased range given by the
+	/// `Area` type and because the square of the vector length is always integer, without rounding.
+	/// It can also be seen as the area formed by a square with the vector as one of its sides.
+	///
+	/// # Returns
+	/// The length of the vector squared.
 	pub fn vector_length_squared(self) -> Area {
 		self.x as Area * self.x as Area + self.y as Area * self.y as Area
 	}
@@ -60,6 +74,7 @@ impl Point2D {
 impl Shape2D for Point2D {
 	/// Get the surface area of the point.
 	///
+	/// # Returns
 	/// Points have no surface area, so this will always return 0.
 	fn area(&self) -> Area {
 		return 0; //A point has no area.
@@ -67,7 +82,8 @@ impl Shape2D for Point2D {
 
 	/// Get the convexity of the point.
 	///
-	/// Points don't have any dimensions or surface area, so they are always degenerate.
+	/// # Returns
+	/// Points don't have any dimensions or surface area, so this always returns `DEGENERATE`.
 	fn convexity(&self) -> Convexity {
 		return Convexity::DEGENERATE; //Points are degenerate shapes.
 	}
@@ -151,6 +167,7 @@ impl TwoDimensional for Point2D {
 
 impl_op_ex!(+ |a: &Point2D, b: &Point2D| -> Point2D { Point2D::new(a.x + b.x, a.y + b.y) });
 impl_op_ex!(- |a: &Point2D, b: &Point2D| -> Point2D { Point2D::new(a.x - b.x, a.y - b.y) });
+impl_op_ex!(- |a: &Point2D| -> Point2D { Point2D::new(-a.x, -a.y) });
 
 #[cfg(test)]
 mod tests {

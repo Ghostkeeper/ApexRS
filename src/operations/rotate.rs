@@ -29,9 +29,6 @@ use crate::detail::gpu::{execute_kernel, GPU}; //To perform calculations on the 
 ///
 /// The polygon is scaled in-place, causing the polygon to be modified.
 ///
-/// # Arguments
-/// * `angle` - How much to rotate the polygon.
-///
 /// This implementation is single-threaded and simply rotates each vertex one by one.
 ///
 /// # Arguments
@@ -69,9 +66,6 @@ pub fn rotate_polygon_st(polygon: &mut Polygon, angle: Angle) {
 /// around the 0,0 coordinate. The polygon is not scaled or deformed in any way.
 ///
 /// The polygon is scaled in-place, causing the polygon to be modified.
-///
-/// # Arguments
-/// * `angle` - How much to rotate the polygon.
 ///
 /// This implementation is multi-threaded and will apply multiple threads to rotate the polygon
 /// quickly.
@@ -121,9 +115,6 @@ static ROTATE_POLYGON_SHADER: LazyLock<ShaderModule> = LazyLock::new(|| {
 /// around the 0,0 coordinate. The polygon is not scaled or deformed in any way.
 ///
 /// The polygon is scaled in-place, causing the polygon to be modified.
-///
-/// # Arguments
-/// * `angle` - How much to rotate the polygon.
 ///
 /// This implementation runs on the GPU to use its massively parallel processing ability to rotate
 /// the polygon quickly.

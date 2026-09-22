@@ -353,6 +353,9 @@ impl EmulatedF64 {
 	/// ![A right triangle with angle α indicated in the lower left, the "adjacent" on the bottom, "opposite" on the right and "hypotenuse" in the slanted edge.][sine_cosine_triangle]
 	/// ![A circle with radius 1, with a line drawn from the centre at angle α, indicating that the line ends on X coordinate cos(α) and Y coordinate sin(α).][sine_cosine_unit_circle]
 	///
+	/// # Returns
+	/// The cosine of this number.
+	///
 	/// # Implementation
 	/// Here we calculate the cosine by using the sine function. Since cos(α) = sin(τ/4 - α), we can
 	/// simply calculate τ/4 - α and then return the sine of that.
@@ -370,6 +373,9 @@ impl EmulatedF64 {
 	///
 	/// ![A right triangle with angle α indicated in the lower left, the "adjacent" on the bottom, "opposite" on the right and "hypotenuse" in the slanted edge.][sine_cosine_triangle]
 	/// ![A circle with radius 1, with a line drawn from the centre at angle α, indicating that the line ends on X coordinate cos(α) and Y coordinate sin(α).][sine_cosine_unit_circle]
+	///
+	/// # Returns
+	/// The sine of this number.
 	///
 	/// # Implementation
 	/// The sine function is calculated using a its Taylor series. Since the input angle α is given
@@ -425,6 +431,9 @@ impl EmulatedF64 {
 	///
 	/// The square of the number is a special case of multiplication. This specialised function
 	/// performs the multiplication slightly faster.
+	///
+	/// # Returns
+	/// The square of this number.
 	pub fn square(self) -> EmulatedF64 {
 		let mut p = Self::two_square(self.high); //Specialised two-sum for squaring.
 		p.low += self.high * self.low * 2.0; //Multiply by 2 instead of adding the same value twice. Multiplying by 2 incurs no loss of precision.
@@ -438,6 +447,9 @@ impl EmulatedF64 {
 	///
 	/// # Arguments
 	/// * `value` - The number to split.
+	///
+	/// # Returns
+	/// An emulated `f64` which has two components which sum up to the given number.
 	///
 	/// # Implementation
 	/// The number is multiplied by 2^12 + 1, which causes a round-off error of the least
@@ -461,6 +473,9 @@ impl EmulatedF64 {
 	/// # Arguments
 	/// * `a` - One of the numbers to multiply.
 	/// * `b` - The other number to multiply.
+	///
+	/// # Returns
+	/// The multiplication of the two numbers, with high accuracy.
 	///
 	/// # Implementation
 	/// The multiplication is calculated with a simple multiply of the two numbers. The round-off
@@ -493,6 +508,9 @@ impl EmulatedF64 {
 	///
 	/// # Arguments
 	/// * `value` - The value to square.
+	///
+	/// # Returns
+	/// The square of the given number, with high accuracy.
 	fn two_square(value: f32) -> EmulatedF64 {
 		let product = value * value;
 		let value_split = Self::split(value);
@@ -519,6 +537,9 @@ impl EmulatedF64 {
 	/// # Arguments
 	/// * `a` - One of the numbers to sum.
 	/// * `b` - The other number to sum.
+	///
+	/// # Returns
+	/// The sum of the two given numbers, with high accuracy.
 	fn two_sum(a: f32, b: f32) -> EmulatedF64 {
 		let rounded_sum = a + b;
 		let b_with_error = rounded_sum - a;
@@ -540,6 +561,9 @@ impl EmulatedF64 {
 	/// # Arguments
 	/// * `a` - The higher of the numbers to sum.
 	/// * `b` - The lower of the numbers to sum.
+	///
+	/// # Returns
+	/// The sum of the two given numbers, with high accuracy.
 	fn two_sum_quick(a: f32, b: f32) -> EmulatedF64 {
 		let rounded_sum = a + b;
 		let error = b - (rounded_sum - a);
@@ -555,6 +579,9 @@ impl fmt::Debug for EmulatedF64 {
 	///
 	/// # Arguments
 	/// * `formatter` - The formatter used to write the output.
+	///
+	/// # Returns
+	/// The resulting format, containing the high and low components.
 	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
 		write!(formatter, "{}+{}", self.high, self.low)
 	}
@@ -568,6 +595,9 @@ impl fmt::Display for EmulatedF64 {
 	///
 	/// # Arguments
 	/// * `formatter` - The formatter used to write the output.
+	///
+	/// # Returns
+	/// The resulting format, shown as the number that this emulation represents.
 	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
 		let as_f64: f64 = (*self).into();
 		write!(formatter, "{}", as_f64)
@@ -583,6 +613,9 @@ impl From<f64> for EmulatedF64 {
 	///
 	/// # Arguments
 	/// * `value` - The `f64` value that needs to be transformed to an `EmulatedF64`.
+	///
+	/// # Returns
+	/// An `EmulatedF64` number representing approximately the given number.
 	///
 	/// # Implementation
 	/// The number is multiplied by 2^29 + 1, which causes a round-off error of the least
@@ -607,6 +640,9 @@ impl From<f32> for EmulatedF64 {
 	///
 	/// # Arguments
 	/// * `value` - The `f32` value that needs to be transformed to an `EmulatedF64`.
+	///
+	/// # Returns
+	/// An `EmulatedF64` number representing the given number.
 	fn from(value: f32) -> EmulatedF64 {
 		EmulatedF64 { high: value, low: 0.0 }
 	}
@@ -620,6 +656,9 @@ impl From<i32> for EmulatedF64 {
 	///
 	/// # Arguments
 	/// * `value` - The `i32` value that needs to be transformed to an `EmulatedF64`.
+	///
+	/// # Returns
+	/// An `EmulatedF64` number representing the given number.
 	fn from(value: i32) -> EmulatedF64 {
 		let high = value as f32;
 		let low = (value - high as i32) as f32;
@@ -632,6 +671,9 @@ impl Into<f64> for EmulatedF64 {
 	///
 	/// The emulation holds that the number represented is the sum of the two `f32` components it
 	/// holds.
+	///
+	/// # Returns
+	/// The number that this `EmulatedF64` represents.
 	fn into(self) -> f64 {
 		self.high as f64 + self.low as f64
 	}
@@ -644,6 +686,9 @@ impl Into<f32> for EmulatedF64 {
 	/// low-significance number, where the range of the low-significance number is entierly
 	/// contained in the high-significance number, this can simply only return the high-significance
 	/// number.
+	///
+	/// # Returns
+	/// The number that this `EmulatedF64` represents, rounded to `f32`-accuracy.
 	fn into(self) -> f32 {
 		self.high
 	}
@@ -658,6 +703,9 @@ impl PartialEq for EmulatedF64 {
 	///
 	/// # Arguments
 	/// * `other` - The number to compare this number to.
+	///
+	/// # Returns
+	/// `true` if the numbers are equal, or `false` if they are not.
 	fn eq(&self, other: &Self) -> bool {
 		self.high == other.high && self.low == other.low
 	}
@@ -670,6 +718,9 @@ impl PartialEq for EmulatedF64 {
 	///
 	/// # Arguments
 	/// * `other` - The number to compare this number to.
+	///
+	/// # Returns
+	/// `true` if the numbers are different or NaN, or `false` if they are not.
 	fn ne(&self, other: &Self) -> bool {
 		self.high != other.high || self.low != other.low
 	}
@@ -683,6 +734,9 @@ impl PartialOrd for EmulatedF64 {
 	///
 	/// # Arguments
 	/// * `other` - The number to compare this number to.
+	///
+	/// # Returns
+	/// The ordering of the two numbers, which can be used to compare them or sort them.
 	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
 		match self.high.partial_cmp(&other.high) {
 			Some(Ordering::Equal) => self.low.partial_cmp(&other.low),
@@ -703,6 +757,9 @@ impl Add for EmulatedF64 {
 	///
 	/// # Arguments
 	/// * `rhs` - The number to add to this number.
+	///
+	/// # Returns
+	/// The sum of the two numbers.
 	fn add(self, rhs: Self) -> Self::Output {
 		let mut sum_highs = Self::two_sum(self.high, rhs.high);
 		let sum_lows = Self::two_sum(self.low, rhs.low);
@@ -735,6 +792,9 @@ impl Mul for EmulatedF64 {
 	///
 	/// # Arguments
 	/// * `rhs` - The number to multiply this number with.
+	///
+	/// # Returns
+	/// The multiplication of the two numbers.
 	fn mul(self, rhs: Self) -> Self::Output {
 		//First we calculate the product and error of the multiplication.
 		let mut product_and_error = Self::two_product(self.high, rhs.high);
@@ -768,6 +828,9 @@ impl Sub for EmulatedF64 {
 	///
 	/// # Arguments
 	/// * `rhs` - The number to subtract from this number.
+	///
+	/// # Returns
+	/// The signed difference between the two numbers.
 	fn sub(self, rhs: Self) -> Self::Output {
 		//Use the add-operation in combination with a negation for this implementation.
 		self + -rhs
@@ -796,6 +859,9 @@ impl Div for EmulatedF64 {
 	///
 	/// # Arguments
 	/// * `rhs` - The number to divide this number by.
+	///
+	/// # Returns
+	/// The division of the two numbers.
 	///
 	/// # Implementation
 	/// The division is estimated with
@@ -854,6 +920,9 @@ impl Neg for EmulatedF64 {
 	/// The result should equal `0 - x`, where `x` is this number. Negating a negative number
 	/// results in a positive number.
 	///
+	/// # Returns
+	/// The negation of this number.
+	///
 	/// # Implementation
 	/// The individual high and low components of this number are negated. This results in no loss
 	/// of precision, since the sign of the number is stored separately.
@@ -885,6 +954,12 @@ impl Rem for EmulatedF64 {
 	/// * Negative 𝒩, positive 𝒟 → negative output
 	/// * Negative 𝒩, negative 𝒟 → negative output
 	/// As a result, the output will be negative if the original number is.
+	///
+	/// # Arguments
+	/// * `rhs` - The number to divide this number by.
+	///
+	/// # Returns
+	/// The remainder of the division between this number and the given number.
 	fn rem(self, rhs: Self) -> Self::Output {
 		self - (self / rhs).trunc() * rhs
 	}

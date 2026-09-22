@@ -79,10 +79,13 @@ impl Angle {
 
 	/// Create a new angle from a number of radians.
 	///
-	/// # Arguments:
+	/// # Arguments
 	/// * `radians` - The angle that needs to be represented, in radians.
 	///
-	/// # Examples:
+	/// # Returns
+	/// The angle that represents the given number of radians.
+	///
+	/// # Examples
 	/// ```
 	/// use std::f64::consts::TAU;
 	/// use apex::Angle;
@@ -105,10 +108,13 @@ impl Angle {
 
 	/// Create a new angle from a number of degrees.
 	///
-	/// # Arguments:
+	/// # Arguments
 	/// * `degrees` - The angle that needs to be represented, in degrees.
 	///
-	/// # Examples:
+	/// # Returns
+	/// The angle that represents the given number of degrees.
+	///
+	/// # Examples
 	/// ```
 	/// use std::f64::consts::TAU;
 	/// use apex::Angle;
@@ -131,7 +137,10 @@ impl Angle {
 	/// ![A right triangle with angle α indicated in the lower left, the "adjacent" on the bottom, "opposite" on the right and "hypotenuse" in the slanted edge.][sine_cosine_triangle]
 	/// ![A circle with radius 1, with a line drawn from the centre at angle α, indicating that the line ends on X coordinate cos(α) and Y coordinate sin(α).][sine_cosine_unit_circle]
 	///
-	/// # Examples:
+	/// # Returns
+	/// The cosine of this angle.
+	///
+	/// # Examples
 	/// ```
 	/// use std::f64::consts::TAU;
 	/// use apex::Angle;
@@ -153,7 +162,10 @@ impl Angle {
 	/// ![A right triangle with angle α indicated in the lower left, the "adjacent" on the bottom, "opposite" on the right and "hypotenuse" in the slanted edge.][sine_cosine_triangle]
 	/// ![A circle with radius 1, with a line drawn from the centre at angle α, indicating that the line ends on X coordinate cos(α) and Y coordinate sin(α).][sine_cosine_unit_circle]
 	///
-	/// # Examples:
+	/// # Returns
+	/// The sine of this angle.
+	///
+	/// # Examples
 	/// ```
 	/// use std::f64::consts::TAU;
 	/// use apex::Angle;
@@ -168,6 +180,9 @@ impl Angle {
 
 impl Into<f64> for Angle {
 	/// Convert an angle into a floating point number, in radians.
+	///
+	/// # Returns
+	/// The magnitude of this angle, in radians.
 	fn into(self) -> f64 {
 		self.value
 	}
@@ -176,10 +191,13 @@ impl Into<f64> for Angle {
 impl From<f64> for Angle {
 	/// Convert a floating point number in radians into an angle.
 	///
-	/// # Arguments:
+	/// # Arguments
 	/// * `radians`: The angle that needs to be represented, in radians.
 	///
-	/// # Examples:
+	/// # Returns
+	/// The angle that represents the given number of radians.
+	///
+	/// # Examples
 	/// ```
 	/// use std::f64::consts::TAU;
 	/// use apex::Angle;
@@ -205,6 +223,12 @@ impl fmt::Debug for Angle {
 	/// A reference string representing the angle.
 	///
 	/// For human-readability, the angle is represented as degrees, rather than radians.
+	///
+	/// # Arguments
+	/// * `formatter` - The formatter to use to format the polygon.
+	///
+	/// # Returns
+	/// The resulting format, containing the number of degrees represented by this angle.
 	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
 		write!(formatter, "{}°", self.value * 360.0 / TAU)
 	}
@@ -215,6 +239,9 @@ impl PartialEq<f64> for Angle {
 	///
 	/// # Arguments
 	/// * `other` - The radian value to compare to.
+	///
+	/// # Returns
+	/// `true` if the two angles are equal in magnitude, or `false` if they are not.
 	///
 	/// # Examples
 	/// ```

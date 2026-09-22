@@ -88,7 +88,7 @@ pub(crate) static GPU: LazyLock<GPUResources> = LazyLock::new(|| {
 ///   if you have 2 million items that can be processed all separately, the thread count can be 2
 ///   million. Each thread will have its own global invocaton ID.
 ///
-/// # Return
+/// # Returns
 /// The contents of the `output_buffer` after executing the kernel, if given.
 pub(crate) fn execute_kernel(shader_module: &ShaderModule, buffers: &[&Buffer], output_buffer: Option<&Buffer>, num_threads: u64) -> Option<Vec<u8>> {
 	let mut layout_entries = vec!();

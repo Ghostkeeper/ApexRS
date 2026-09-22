@@ -58,6 +58,9 @@ impl EmulatedI64 {
 	/// * `lhs` - The number to multiply with the `rhs`.
 	/// * `rhs` - The number to multiply with the `lhs`.
 	///
+	/// # Returns
+	/// The multiplication of the two numbers.
+	///
 	/// # Implementation
 	/// To multiply the numbers R = A ⋅ B without using 64-bit operators, we will use some bit-wise
 	/// tricks. So first we will get rid of the sign of the operands by converting both of them to
@@ -141,6 +144,9 @@ impl EmulatedI64 {
 	///
 	/// # Arguments
 	/// * `value` - The value to get the absolute number of.
+	///
+	/// # Returns
+	/// The absolute magnitude of the given number.
 	fn abs_i32(value: i32) -> u32 {
 		if value >= 0 { //Already positive
 			return value as u32;
@@ -161,6 +167,9 @@ impl fmt::Debug for EmulatedI64 {
 	///
 	/// # Arguments
 	/// * `formatter` - The formatter used to write the output.
+	///
+	/// # Returns
+	/// The resulting format, containing the high and low components.
 	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
 		write!(formatter, "{}|{}", self.high, self.low)
 	}
@@ -174,6 +183,9 @@ impl fmt::Display for EmulatedI64 {
 	///
 	/// # Arguments
 	/// * `formatter` - The formatter used to write the output.
+	///
+	/// # Returns
+	/// The resulting format, shown as the number that this emulation represents.
 	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
 		let as_i64: i64 = (*self).into();
 		write!(formatter, "{}", as_i64)
@@ -185,6 +197,9 @@ impl From<i64> for EmulatedI64 {
 	///
 	/// # Arguments
 	/// * `value` - The `i64` value that needs to be transformed to an `EmulatedI64`.
+	///
+	/// # Returns
+	/// An `EmulatedI64` that represents the given number.
 	fn from(value: i64) -> EmulatedI64 {
 		let low = (value & 0x00000000FFFFFFFF) as u32;
 		let high = ((value as u64 & 0xFFFFFFFF00000000) >> 32) as u32;
@@ -200,27 +215,56 @@ impl From<i32> for EmulatedI64 {
 	///
 	/// # Arguments
 	/// * `value` - The `i32` value that needs to be transformed to an `EmulatedI64`.
+	///
+	/// # Returns
+	/// An `EmulatedI64` that represents the given number.
 	fn from(value: i32) -> EmulatedI64 {
 		EmulatedI64 { high: if value < 0 { 0xFFFFFFFF } else { 0 }, low: value as u32 }
 	}
 }
 
 impl From<Vec<u8>> for EmulatedI64 {
-	fn from(value: Vec<u8>) -> EmulatedI64 {
-		let high = u32::from_le_bytes(value[0..4].try_into().unwrap());
-		let low = u32::from_le_bytes(value[4..8].try_into().unwrap());
+	/// Load an `EmulatedI64` from a binary representation in a `Vec` of bytes.
+	///
+	/// This is useful to load the number from a buffer that was transmitted from the GPU.
+	///
+	/// The binary representation must always be in lower-endian bytes, as specified by the Vulkan
+	/// graphics API. The two components of the number are transmitted in the same low-endian order
+	/// also, with the high-salience number first.
+	///
+	/// # Arguments
+	/// * `bytes` - The binary representation to load as an `EmulatedI64` number.
+	///
+	/// # Returns
+	/// The `EmulatedI64` represented by the given bytes.
+	fn from(bytes: Vec<u8>) -> EmulatedI64 {
+		let high = u32::from_le_bytes(bytes[0..4].try_into().unwrap());
+		let low = u32::from_le_bytes(bytes[4..8].try_into().unwrap());
 		EmulatedI64 { high: high, low: low }
 	}
 }
 
 impl Into<i64> for EmulatedI64 {
 	/// Calculate the `i64` number that is represented by this emulation.
+	///
+	/// # Returns
+	/// The number represented by this emulation.
 	fn into(self) -> i64 {
 		((self.high as i64) << 32) | (self.low as i64)
 	}
 }
 
 impl Into<Vec<u8>> for EmulatedI64 {
+	/// Represent this number as a list of bytes.
+	///
+	/// This is useful to transmit numbers as a buffer to the GPU.
+	///
+	/// The binary representation will be in lower-endian bytes, as specified by the Vulkan graphics
+	/// API. The two components of the number are transmitted in the same low-endian order also,
+	/// with the high-salience number first.
+	///
+	/// # Returns
+	/// Bytes representing this `EmulatedI64` number.
 	fn into(self) -> Vec<u8> {
 		[self.high.to_le_bytes(), self.low.to_le_bytes()].concat().to_owned()
 	}
@@ -238,6 +282,9 @@ impl Add for EmulatedI64 {
 	///
 	/// # Arguments
 	/// * `rhs` - The number to add to this number.
+	///
+	/// # Returns
+	/// The sum of the two numbers.
 	fn add(self, rhs: Self) -> Self::Output {
 		let (new_low, carry_low) = self.low.overflowing_add(rhs.low);
 		let (mut new_high, _) = self.high.overflowing_add(rhs.high);
@@ -268,6 +315,9 @@ impl Sub for EmulatedI64 {
 	///
 	/// # Arguments
 	/// * `rhs` - The number to subtract from this number.
+	///
+	/// # Returns
+	/// The difference between the two numbers.
 	fn sub(self, rhs: Self) -> Self::Output {
 		self + -rhs
 	}
@@ -293,6 +343,9 @@ impl Neg for EmulatedI64 {
 	///
 	/// The result should equal `0 - x`, where `x` is this number. Negating a negative number
 	/// results in a positive number.
+	///
+	/// # Returns
+	/// The negation of this number.
 	///
 	/// # Implementation
 	/// The individual high and low components of this number are negated. This results in no loss
