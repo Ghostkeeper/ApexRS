@@ -11,11 +11,9 @@
 use bytemuck::{Pod, Zeroable}; //Point2D is plain-old-data.
 
 use crate::Angle; //To implement TwoDimensional.
-use crate::Area; //To implement Shape2D.
-use crate::Convexity; //To implement Shape2D.
+use crate::Area; //For the area of a vector represented by this point.
 use crate::Coordinate; //The position of the point is stored with coordinates.
 use crate::TwoDimensional; //This point is in two-dimensional space.
-use crate::Shape2D; //A point is a shape, with a bounded (zero) area.
 use crate::coordinate::round; //To properly round after transformations.
 
 /// Specifies a point in 2D space.
@@ -68,24 +66,6 @@ impl Point2D {
 	/// The length of the vector squared.
 	pub fn vector_length_squared(self) -> Area {
 		self.x as Area * self.x as Area + self.y as Area * self.y as Area
-	}
-}
-
-impl Shape2D for Point2D {
-	/// Get the surface area of the point.
-	///
-	/// # Returns
-	/// Points have no surface area, so this will always return 0.
-	fn area(&self) -> Area {
-		return 0; //A point has no area.
-	}
-
-	/// Get the convexity of the point.
-	///
-	/// # Returns
-	/// Points don't have any dimensions or surface area, so this always returns `DEGENERATE`.
-	fn convexity(&self) -> Convexity {
-		return Convexity::DEGENERATE; //Points are degenerate shapes.
 	}
 }
 
@@ -172,13 +152,6 @@ impl_op_ex!(- |a: &Point2D| -> Point2D { Point2D::new(-a.x, -a.y) });
 #[cfg(test)]
 mod tests {
 	use super::*;
-
-	#[test]
-	/// Test the area of a point.
-	fn point2d_area() {
-		let point = Point2D { x: 10, y: 10 };
-		assert_eq!(point.area(), 0, "Points have no surface area, so it should be 0.");
-	}
 
 	#[test]
 	/// Test moving a point by 0,0. It should not be modified.
@@ -331,12 +304,5 @@ mod tests {
 		let point1 = Point2D { x: 100, y: 200 };
 		let point2 = Point2D { x: 10, y: -20 };
 		assert_eq!(&point1 - &point2, Point2D { x: 100 - 10, y: 200 + 20 }, "We simply subtract the coordinates separately.");
-	}
-
-	#[test]
-	/// Test the convexity of Point2D.
-	fn point2d_convexity() {
-		let point = Point2D { x: 100, y: 200 };
-		assert_eq!(point.convexity(), Convexity::DEGENERATE, "Points are always degenerate convexity.");
 	}
 }
