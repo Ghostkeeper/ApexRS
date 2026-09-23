@@ -111,6 +111,32 @@ pub struct Polygon {
 	///
 	/// If the CPU version is the most up-to-date,
 	sync_status: Rc<RefCell<SyncStatus>>,
+
+	/// Stores descriptive metadata about the polygon.
+	///
+	/// This metadata caches previously determined metrics about the polygon which might speed up
+	/// future calculations. Once calculated, these are cached and re-used. For instance, some
+	/// algorithms may be faster but only work on simple polygons or convex polygons.
+	metadata: Rc<RefCell<PolygonMetadata>>,
+}
+
+/// Properties of a polygon that can be derived from its vertices.
+///
+/// These properties are all derivable from the polygon's vertices, so in essence they are duplicate
+/// information that could become outdated. Because of this, they are all optional. If they are
+/// `None`, the information is outdated. If they have a value, the information is currently known.
+/// Some algorithms may derive this information; for instance, a convex hull algorithm will know
+/// that the output polygon is convex and simple.
+struct PolygonMetadata {
+	/// The current convexity of the polygon, if known.
+	///
+	/// If the convexity is unknown, this should be `None`.
+	pub convexity: Option<Convexity>,
+
+	/// Whether the polygon is simple or not.
+	///
+	/// A polygon is simple if it does not intersect itself and none of its edges overlap another.
+	pub is_simple: Option<bool>,
 }
 
 impl Polygon {
@@ -126,6 +152,10 @@ impl Polygon {
 			gpu_buffer: Rc::new(RefCell::new(None)),
 			transfer_buffer: Rc::new(RefCell::new(None)),
 			sync_status: Rc::new(RefCell::new(SyncStatus::HOST)),
+			metadata: Rc::new(RefCell::new(PolygonMetadata {
+				convexity: Some(Convexity::DEGENERATE), //Since there are no vertices, it's degenerate.
+				is_simple: Some(true), //Since there are no vertices, no edges overlap or intersect.
+			})),
 		}
 	}
 
@@ -163,6 +193,10 @@ impl Polygon {
 			gpu_buffer: Rc::new(RefCell::new(None)),
 			transfer_buffer: Rc::new(RefCell::new(None)),
 			sync_status: Rc::new(RefCell::new(SyncStatus::HOST)),
+			metadata: Rc::new(RefCell::new(PolygonMetadata {
+				convexity: Some(Convexity::DEGENERATE), //Since there are no vertices, it's degenerate.
+				is_simple: Some(true), //Since there are no vertices, no edges overlap or intersect.
+			})),
 		}
 	}
 
@@ -296,20 +330,15 @@ impl Polygon {
 		Ref::map(self.host_vertices(), |verts| &verts[index])
 	}
 
-	/// Get a mutable reference to a vertex in the polygon.
+	/// Change a vertex of the polygon.
 	///
-	/// The vertex is a point where two of the edges meet. The polygon consists of a chain of
-	/// vertices connected by edges. The vertices are addressed by an index, starting from the seam
-	/// of the polygon, numbering from 0.
-	///
-	/// The reference to the vertex is mutable, and changing the contents of the reference will
-	/// cause that vertex of the polygon to change.
+	/// The vertex is a point where two of the edges meet. Modifying it causes the adjacent edges to
+	/// shift towards the new position of the vertex. The vertices are addressed by an index,
+	/// starting from the seam of the polygon, numbering from 0.
 	///
 	/// # Arguments
 	/// * `index` - The index of the vertex to address.
-	///
-	/// # Returns
-	/// A reference to the given vertex which allows modifying the vertex in-place.
+	/// * `new_vertex` - The new position of the vertex.
 	///
 	/// # Examples
 	/// ```
@@ -320,15 +349,19 @@ impl Polygon {
 	/// 	Point2D { x: 100, y: 0 },
 	/// 	Point2D { x: 50, y: 87 },
 	/// ]);
-	/// //Now let's get the vertices.
-	/// assert_eq!(*poly.vertex_mut(0), Point2D{ x: 0, y: 0 }, "This gets the vertex at the seam. Although the reference is mutable, we're not mutating it here.");
-	/// *poly.vertex_mut(1) = Point2D { x: 200, y: 200 }; //We can change the vertices this way.
+	/// //Now let's modify the vertices.
+	/// poly.set_vertex(1, Point2D { x: 200, y: 200 }); //Change the vertex in-place.
 	/// assert_eq!(*poly.vertex(0), Point2D{ x: 0, y: 0 }, "The 0th vertex didn't change.");
 	/// assert_eq!(*poly.vertex(1), Point2D{ x: 200, y: 200 }, "The 1st vertex was mutated.");
 	/// assert_eq!(*poly.vertex(2), Point2D{ x: 50, y: 87 }, "The 2nd vertex didn't change.");
 	/// ```
-	pub fn vertex_mut<'a>(&'a mut self, index: usize) -> RefMut<'a, Point2D> {
-		RefMut::map(self.host_vertices_mut(), |verts| &mut verts[index])
+	pub fn set_vertex(&mut self, index: usize, new_vertex: Point2D) {
+		{
+			let mut metadata = self.metadata.borrow_mut();
+			metadata.convexity = None; //Invalidate this metadata, because anything could have changed.
+			metadata.is_simple = None;
+		}
+		self.host_vertices_mut()[index] = new_vertex;
 	}
 
 	/// Add an extra vertex to this polygon.
@@ -355,6 +388,13 @@ impl Polygon {
 	/// poly.push(Point2D { x: 50, y: 100 });
 	/// ```
 	pub fn push(&mut self, vertex: Point2D) {
+		{
+			let mut metadata = self.metadata.borrow_mut();
+			//Invalidate convexity, because convex polygons might become concave, concave polygons might become degenerate and degenerate polygons might become either.
+			metadata.convexity = None;
+			//Invalidate is_simple, because simple polygons might become complex and complex polygons might become simple.
+			metadata.is_simple = None;
+		}
 		self.host_vertices_mut().push(vertex);
 	}
 
@@ -389,6 +429,13 @@ impl Polygon {
 	/// assert_eq!(removed, None); //Since there is nothing to remove, returns None.
 	/// ```
 	pub fn pop(&mut self) -> Option<Point2D> {
+		{
+			let mut metadata = self.metadata.borrow_mut();
+			//Invalidate convexity, because convex polygons might become concave, concave polygons might become degenerate and degenerate polygons might become either.
+			metadata.convexity = None;
+			//Invalidate is_simple, because simple polygons might become complex and complex polygons might become simple.
+			metadata.is_simple = None;
+		}
 		self.host_vertices_mut().pop()
 	}
 
@@ -423,6 +470,13 @@ impl Polygon {
 	/// assert_eq!(*poly.vertex(4), Point2D { x: 0, y: 1000 });
 	/// ```
 	pub fn insert(&mut self, index: usize, vertex: Point2D) {
+		{
+			let mut metadata = self.metadata.borrow_mut();
+			//Invalidate convexity, because convex polygons might become concave, concave polygons might become degenerate and degenerate polygons might become either.
+			metadata.convexity = None;
+			//Invalidate is_simple, because simple polygons might become complex and complex polygons might become simple.
+			metadata.is_simple = None;
+		}
 		self.host_vertices_mut().insert(index, vertex);
 	}
 
@@ -452,6 +506,13 @@ impl Polygon {
 	/// assert_eq!(*poly.vertex(2), Point2D { x: 0, y: 1000 }); //The last vertex has shifted in its place.
 	/// ```
 	pub fn remove(&mut self, index: usize) -> Point2D {
+		{
+			let mut metadata = self.metadata.borrow_mut();
+			//Invalidate convexity, because convex polygons might become concave, concave polygons might become degenerate and degenerate polygons might become either.
+			metadata.convexity = None;
+			//Invalidate is_simple, because simple polygons might become complex and complex polygons might become simple.
+			metadata.is_simple = None;
+		}
 		self.host_vertices_mut().remove(index)
 	}
 
@@ -471,6 +532,11 @@ impl Polygon {
 	/// assert_eq!(poly.len(), 0); //No more vertices.
 	/// ```
 	pub fn clear(&mut self) {
+		{
+			let mut metadata = self.metadata.borrow_mut();
+			metadata.convexity = Some(Convexity::DEGENERATE);
+			metadata.is_simple = Some(true);
+		}
 		self.host_vertices_mut().clear();
 	}
 
@@ -499,36 +565,6 @@ impl Polygon {
 	pub fn iter<'a>(&'a self) -> PolygonIterator<'a> {
 		PolygonIterator {
 			vertices_ref: Some(Ref::map(self.vertices.borrow(), |v| &v[..])),
-		}
-	}
-
-	/// Create an iterator over the vertices of this polygon that allows modification.
-	///
-	/// The iterator will enumerate all of the vertices of this polygon in order. The order will be
-	/// counter-clockwise if the polygon is a positive shape, starting from the seam.
-	///
-	/// # Returns
-	/// An iterator over the vertices of the polygon, which allows in-place modification.
-	///
-	/// # Examples
-	/// ```
-	/// use apex::{Point2D, Polygon};
-	/// let mut poly = Polygon::from_iter([
-	/// 	Point2D { x: 0, y: 0 },
-	/// 	Point2D { x: 667, y: 0 },
-	/// 	Point2D { x: 333, y: 1000 },
-	/// ]);
-	/// for mut vertex in poly.iter_mut() {
-	/// 	vertex.x *= 2;  // vertex is a RefMut<Point2D> so it can be edited by reference.
-	/// }
-	/// //The X coordinates are now all doubled.
-	/// assert_eq!(*poly.vertex(0), Point2D { x: 0, y: 0});
-	/// assert_eq!(*poly.vertex(1), Point2D { x: 1334, y: 0});
-	/// assert_eq!(*poly.vertex(2), Point2D { x: 666, y: 1000});
-	/// ```
-	pub fn iter_mut<'a>(&'a mut self) -> PolygonIteratorMut<'a> {
-		PolygonIteratorMut {
-			vertices_ref: Some(RefMut::map(self.vertices.borrow_mut(), |v| &mut v[..])),
 		}
 	}
 
@@ -853,6 +889,10 @@ impl FromIterator<Point2D> for Polygon {
 			gpu_buffer: Rc::new(RefCell::new(None)),
 			transfer_buffer: Rc::new(RefCell::new(None)),
 			sync_status: Rc::new(RefCell::new(SyncStatus::HOST)),
+			metadata: Rc::new(RefCell::new(PolygonMetadata {
+				convexity: None, //Metadata is unknown.
+				is_simple: None,
+			})),
 		}
 	}
 }
@@ -910,47 +950,6 @@ impl<'a> Iterator for PolygonIterator<'a> {
 			});
 			self.vertices_ref.replace(tail);
 			return Some(Ref::map(head, |slice| &slice[0]));
-		}
-		None
-	}
-}
-
-/// A mutable iterator over the vertices of a polygon.
-///
-/// This iterator holds a reference to the vertex data in the polygon. The reference is a guard to
-/// borrow the polygon's data. While the iterator is in use, the reference will be kept alive so
-/// that iteration can continue safely.
-///
-/// This iterator requires a mutable polygon, and then returns mutable references.
-pub struct PolygonIteratorMut<'a> {
-	/// A reference to a slice of polygon data.
-	///
-	/// This uses a slice of the vertex data in order to use the slice's built-in ability to get a
-	/// reference to all of its elements.
-	vertices_ref: Option<RefMut<'a, [Point2D]>>,
-}
-
-impl<'a> Iterator for PolygonIteratorMut<'a> {
-	/// The type of element we're iterating over.
-	type Item = RefMut<'a, Point2D>;
-
-	/// Get the next item of the iteration.
-	///
-	/// # Returns
-	/// The next vertex.
-	fn next(&mut self) -> Option<Self::Item> {
-		if self.vertices_ref.is_none() {
-			return None;
-		}
-		if let Some(borrow) = self.vertices_ref.take() {
-			if borrow.is_empty() {
-				return None;
-			}
-			let (head, tail) = RefMut::map_split(borrow, |slice| {
-				slice.split_at_mut(1)
-			});
-			self.vertices_ref.replace(tail);
-			return Some(RefMut::map(head, |slice| &mut slice[0]));
 		}
 		None
 	}
@@ -1144,24 +1143,6 @@ mod tests {
 		assert!(iterator.next().is_none(), "After all vertices are iterated over, it should return None.");
 	}
 
-	/// Test iterating over the polygon while modifying it with `iter_mut()`.
-	#[test]
-	fn iter_mut() {
-		let mut poly = polygon::square_1000();
-		let copy = polygon::square_1000();
-		let mut i = 0;
-		for mut vertex in poly.iter_mut() {
-			assert_eq!(*vertex, *copy.vertex(i), "We must iterate over the polygon in index order.");
-			i += 1;
-			vertex.x += 33;
-			vertex.y += 10;
-		}
-		assert_eq!(*poly.vertex(0), Point2D { x: 33, y: 10 }, "The first vertex is now shifted by 33,10.");
-		assert_eq!(*poly.vertex(1), Point2D { x: 1033, y: 10 }, "The second vertex is now shifted by 33,10.");
-		assert_eq!(*poly.vertex(2), Point2D { x: 1033, y: 1010 }, "The third vertex is now shifted by 33,10.");
-		assert_eq!(*poly.vertex(3), Point2D { x: 33, y: 1010 }, "The fourth vertex is now shifted by 33,10.");
-	}
-
 	/// Test creating a polygon from an iterable object, this time an array.
 	#[test]
 	fn from_iter_array() {
@@ -1233,13 +1214,13 @@ mod tests {
 
 	/// Test modifying a vertex of the polygon.
 	#[test]
-	fn index_mut() {
+	fn set_vertex() {
 		let mut poly = Polygon::from_iter([
 			Point2D { x: 0, y: 0 },
 			Point2D { x: 50, y: 10 },
 			Point2D { x: 10, y: 100 },
 		]);
-		*poly.vertex_mut(1) = Point2D { x: 200, y: 400 };
+		poly.set_vertex(1, Point2D { x: 200, y: 400 });
 		assert_eq!(*poly.vertex(0), Point2D { x: 0, y: 0 }, "The first vertex was not modified.");
 		assert_eq!(*poly.vertex(1), Point2D { x: 200, y: 400 }, "The second vertex was modified.");
 		assert_eq!(*poly.vertex(2), Point2D { x: 10, y: 100 }, "The third vertex was not modified.");
