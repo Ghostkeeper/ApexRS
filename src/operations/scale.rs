@@ -16,6 +16,7 @@ use rayon::prelude::ParallelSliceMut; //For multi-threaded implementations.
 use wgpu::{BufferUsages, ShaderModule, include_wgsl}; //For loading the scale GPU kernel.
 use wgpu::util::{DeviceExt, BufferInitDescriptor}; //For creating the uniform buffer for GPU operations.
 
+use crate::Convexity; //To mark polygons as degenerate if we scale to 0.
 use crate::Polygon; //Scale polygons.
 use crate::TwoDimensional; //The scale operation is part of TwoDimensional.
 use crate::detail::emulated_f64::EmulatedF64; //To get high accuracy on the GPU.
@@ -50,6 +51,11 @@ use crate::detail::gpu::{execute_kernel, GPU}; //To perform calculations on the 
 /// assert_eq!(*poly.vertex(2), Point2D { x: 134, y: 150 });
 /// ```
 pub fn scale_polygon_st(polygon: &mut Polygon, x: f64, y: f64) {
+	if x == 0.0 || y == 0.0 {
+		let mut metadata = polygon.metadata_mut();
+		metadata.convexity = Some(Convexity::DEGENERATE);
+		metadata.is_simple = Some(polygon.host_vertices().len() <= 1);
+	}
 	for vertex in polygon.host_vertices_mut().iter_mut() {
 		vertex.scale(x, y);
 	}
@@ -85,6 +91,11 @@ pub fn scale_polygon_st(polygon: &mut Polygon, x: f64, y: f64) {
 /// assert_eq!(*poly.vertex(2), Point2D { x: 134, y: 150 });
 /// ```
 pub fn scale_polygon_mt(polygon: &mut Polygon, x: f64, y: f64) {
+	if x == 0.0 || y == 0.0 {
+		let mut metadata = polygon.metadata_mut();
+		metadata.convexity = Some(Convexity::DEGENERATE);
+		metadata.is_simple = Some(polygon.host_vertices().len() <= 1);
+	}
 	let chunk_size = cmp::max(10000, polygon.host_vertices().len() / current_num_threads());
 	polygon.host_vertices_mut().par_chunks_mut(chunk_size).for_each(
 		|slice| slice.iter_mut().for_each(
@@ -131,6 +142,11 @@ pub fn scale_polygon_gpu(polygon: &mut Polygon, x: f64, y: f64) {
 	let num_vertices = polygon.len();
 	if num_vertices == 0 {
 		return;
+	}
+	if x == 0.0 || y == 0.0 {
+		let mut metadata = polygon.metadata_mut();
+		metadata.convexity = Some(Convexity::DEGENERATE);
+		metadata.is_simple = Some(num_vertices <= 1);
 	}
 
 	let parameters = [EmulatedF64::from(x), EmulatedF64::from(y)];
@@ -180,13 +196,50 @@ mod tests {
 		assert_eq!(*poly.host_vertices(), *original.host_vertices(), "The polygon's vertices may not have changed by scaling with factor 1,1.");
 	}
 
+	/// Test whether scaling a polygon to zero in at least one direction causes the metadata to
+	/// update.
+	#[test_case(0.0, 10.0; "X zero")]
+	#[test_case(10.0, 0.0; "Y zero")]
+	#[test_case(0.0, 0.0; "Both zero")]
+	fn scale_polygon_zero(x: f64, y: f64) {
+		let original = polygon::square_1000(); //An original to compare to.
+		let mut poly = polygon::square_1000(); //A copy that we can scale.
+
+		scale_polygon_st(&mut poly, x, y);
+		for i in 0..poly.len() {
+			let mut scaled_vertex = original.vertex(i).clone();
+			scaled_vertex.scale(x, y);
+			assert_eq!(*(&poly).vertex(i), scaled_vertex);
+			assert_eq!(poly.metadata().convexity, Some(Convexity::DEGENERATE));
+			assert_eq!(poly.metadata().is_simple, Some(false));
+		}
+
+		poly = polygon::square_1000(); //Reset to original.
+		scale_polygon_mt(&mut poly, x, y);
+		for i in 0..poly.len() {
+			let mut scaled_vertex = original.vertex(i).clone();
+			scaled_vertex.scale(x, y);
+			assert_eq!(*(&poly).vertex(i), scaled_vertex);
+			assert_eq!(poly.metadata().convexity, Some(Convexity::DEGENERATE));
+			assert_eq!(poly.metadata().is_simple, Some(false));
+		}
+
+		poly = polygon::square_1000(); //Reset to original.
+		scale_polygon_gpu(&mut poly, x, y);
+		for i in 0..poly.len() {
+			let mut scaled_vertex = original.vertex(i).clone();
+			scaled_vertex.scale(x, y);
+			assert_eq!(*(&poly).vertex(i), scaled_vertex);
+			assert_eq!(poly.metadata().convexity, Some(Convexity::DEGENERATE));
+			assert_eq!(poly.metadata().is_simple, Some(false));
+		}
+	}
+
 	/// Test scaling a polygon by a certain factor.
 	#[test_case(2.0, 2.0; "Both positive")]
 	#[test_case(-2.0, 2.0; "X negative")]
 	#[test_case(2.0, -2.0; "Y negative")]
 	#[test_case(-2.0, -2.0; "Both negative")]
-	#[test_case(0.0, 0.0; "Zero")]
-	#[test_case(10.0, 0.0; "Y zero")]
 	fn scale_polygon_vector(x: f64, y: f64) {
 		let original = polygon::square_1000(); //An original to compare to.
 		let mut poly = polygon::square_1000(); //A copy that we can scale.

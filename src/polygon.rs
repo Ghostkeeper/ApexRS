@@ -127,7 +127,7 @@ pub struct Polygon {
 /// `None`, the information is outdated. If they have a value, the information is currently known.
 /// Some algorithms may derive this information; for instance, a convex hull algorithm will know
 /// that the output polygon is convex and simple.
-struct PolygonMetadata {
+pub(crate) struct PolygonMetadata {
 	/// The current convexity of the polygon, if known.
 	///
 	/// If the convexity is unknown, this should be `None`.
@@ -357,7 +357,7 @@ impl Polygon {
 	/// ```
 	pub fn set_vertex(&mut self, index: usize, new_vertex: Point2D) {
 		{
-			let mut metadata = self.metadata.borrow_mut();
+			let mut metadata = self.metadata_mut();
 			metadata.convexity = None; //Invalidate this metadata, because anything could have changed.
 			metadata.is_simple = None;
 		}
@@ -389,7 +389,7 @@ impl Polygon {
 	/// ```
 	pub fn push(&mut self, vertex: Point2D) {
 		{
-			let mut metadata = self.metadata.borrow_mut();
+			let mut metadata = self.metadata_mut();
 			//Invalidate convexity, because convex polygons might become concave, concave polygons might become degenerate and degenerate polygons might become either.
 			metadata.convexity = None;
 			//Invalidate is_simple, because simple polygons might become complex and complex polygons might become simple.
@@ -430,7 +430,7 @@ impl Polygon {
 	/// ```
 	pub fn pop(&mut self) -> Option<Point2D> {
 		{
-			let mut metadata = self.metadata.borrow_mut();
+			let mut metadata = self.metadata_mut();
 			//Invalidate convexity, because convex polygons might become concave, concave polygons might become degenerate and degenerate polygons might become either.
 			metadata.convexity = None;
 			//Invalidate is_simple, because simple polygons might become complex and complex polygons might become simple.
@@ -471,7 +471,7 @@ impl Polygon {
 	/// ```
 	pub fn insert(&mut self, index: usize, vertex: Point2D) {
 		{
-			let mut metadata = self.metadata.borrow_mut();
+			let mut metadata = self.metadata_mut();
 			//Invalidate convexity, because convex polygons might become concave, concave polygons might become degenerate and degenerate polygons might become either.
 			metadata.convexity = None;
 			//Invalidate is_simple, because simple polygons might become complex and complex polygons might become simple.
@@ -507,7 +507,7 @@ impl Polygon {
 	/// ```
 	pub fn remove(&mut self, index: usize) -> Point2D {
 		{
-			let mut metadata = self.metadata.borrow_mut();
+			let mut metadata = self.metadata_mut();
 			//Invalidate convexity, because convex polygons might become concave, concave polygons might become degenerate and degenerate polygons might become either.
 			metadata.convexity = None;
 			//Invalidate is_simple, because simple polygons might become complex and complex polygons might become simple.
@@ -533,7 +533,7 @@ impl Polygon {
 	/// ```
 	pub fn clear(&mut self) {
 		{
-			let mut metadata = self.metadata.borrow_mut();
+			let mut metadata = self.metadata_mut();
 			metadata.convexity = Some(Convexity::DEGENERATE);
 			metadata.is_simple = Some(true);
 		}
@@ -631,6 +631,22 @@ impl Polygon {
 	/// that modifies the GPU data, and properly trigger a new sync when needed.
 	pub(crate) fn invalidate_host_vertices(&self) {
 		*self.sync_status.borrow_mut() = SyncStatus::GPU;
+	}
+
+	/// Get the polygon's metadata properties.
+	///
+	/// This can be used to test for certain properties in order to select the optimal algorithms
+	/// that can work with the given properties.
+	pub(crate) fn metadata<'a>(&'a self) -> Ref<'a, PolygonMetadata> {
+		self.metadata.borrow()
+	}
+
+	/// Get the polygon's metadata properties for modification.
+	///
+	/// This is used for external operations to be able to modify the properties if they cause the
+	/// polygon's vertex data to change.
+	pub(crate) fn metadata_mut<'a>(&'a self) -> RefMut<'a, PolygonMetadata> {
+		self.metadata.borrow_mut()
 	}
 
 	/// Synchronise the vertex data of this polygon from the host's memory to the GPU.
