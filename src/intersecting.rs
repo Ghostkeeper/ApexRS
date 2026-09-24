@@ -6,47 +6,19 @@
  * You should have received a copy of the GNU Affero General Public License along with this library. If not, see <https://gnu.org/licenses/>.
  */
 
-//! Importing this module imports all of Apex, making it available for use in your project.
+//! Defines an enum for ways in which geometric objects may intersect with each other.
 
-#[macro_use] extern crate auto_ops;
+/// Ways in which geometric objects can intersect with other objects.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Intersecting {
+	/// The boundaries of the objects cross each other fully.
+	INTERSECTING,
 
-pub mod angle;
-pub use angle::*;
+	/// The geometric objects are not intersecting and fully separated.
+	///
+	/// There is space between the objects.
+	SEPARATE,
 
-pub mod convexity;
-pub use convexity::*;
-
-pub mod coordinate;
-pub use coordinate::*;
-
-pub mod intersecting;
-pub use intersecting::*;
-
-pub mod operations;
-
-pub mod point2d;
-pub use point2d::*;
-
-pub mod polygon;
-pub use polygon::*;
-
-pub mod ray2d;
-pub use ray2d::*;
-
-pub mod shape2d;
-pub use shape2d::*;
-
-pub mod two_dimensional;
-pub use two_dimensional::*;
-
-//Private modules.
-mod detail;
-
-//For testing only.
-pub mod test;
-
-#[cfg(any(test, feature = "benchmark_internals"))]
-pub mod _internal {
-	pub use super::operations;
-	pub use super::test;
+	/// The geometric objects touch, but the boundaries do not fully intersect.
+	EDGE,
 }
