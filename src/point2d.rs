@@ -82,6 +82,45 @@ impl Point2D {
 	pub fn vector_length_squared(self) -> Area {
 		self.x as Area * self.x as Area + self.y as Area * self.y as Area
 	}
+
+	/// Compute the Z-component of the cross product of this 2D vector with another 2D vector.
+	///
+	/// The cross product is normally only defined for 3D vectors. This function takes the cross
+	/// product between two 3D vectors, where the third coordinate is 0 and the first two are the
+	/// two coordinates of this `Point2D`. The cross product would then become the 3D vector that is
+	/// perpendicular to both of these vectors. Since both of these vectors are on the plane of the
+	/// first two dimensions, the cross product will always have X and Y coordinates 0, pointing
+	/// along the Z axis. The dimension along the Z axis is returned here.
+	///
+	/// The direction of the cross product is characterised with the right-hand rule, with the two
+	/// vectors of the input as the index and middle fingers, and the resulting cross product in the
+	/// direction of the thumb. It is anticommutative, meaning that taking the cross product of this
+	/// `Point2D` with another will yield an inverted result (negative) as when the two points are
+	/// swapped.
+	///
+	/// The magnitude of the cross product is the area of the parallelogram containing the two
+	/// vectors as two of its sides. This property can be useful to work with the angle between the
+	/// two vectors. The result of this function is an area, as a result. The result could possibly
+	/// be so big that a normal `Coordinate` couldn't represent it.
+	///
+	/// # Arguments
+	/// * `other` - The X and Y components of the vector to take the cross product with. The Z
+	/// component will be set to 0.
+	///
+	/// # Returns
+	/// The Z component of the resulting cross product of this vector with the given vector. Since
+	/// the X and Y components will be 0, this is also the magnitude of the cross product.
+	///
+	/// # Examples
+	/// ```
+	/// use apex::Point2D;
+	/// let point1 = Point2D { x: 10, y: 0 };
+	/// let point2 = Point2D { x: 10, y: 10 };
+	/// assert_eq!(point1.cross_product_z(&point2), 100); //Forms a parallelogram with area 100.
+	/// ```
+	pub fn cross_product_z(self, other: &Point2D) -> Area {
+		self.x as Area * other.y as Area - self.y as Area * other.x as Area
+	}
 }
 
 impl TwoDimensional for Point2D {
@@ -177,12 +216,37 @@ mod tests {
 	#[test_case(0, 40, 1600; "X zero")]
 	#[test_case(-40, 0, 1600; "Y zero")]
 	#[test_case(0, 0, 0; "Both zero")]
-	#[test_case(Coordinate::MAX, Coordinate::MAX, 9223372028264841218; "Maximum vector")]
+	#[test_case(Coordinate::MAX, Coordinate::MAX, 9223372028264841218; "Maximum vector")] //Minimum vector results in an overflow, but that is accepted as a limitation.
 	fn vector_length_squared(x: Coordinate, y: Coordinate, result: Area) {
 		let point = Point2D { x, y };
 		assert_eq!(point.vector_length_squared(), result);
 	}
 
+	/// Test calculating the Z component of the cross product between two vectors.
+	#[test_case(0, 0, 0, 0, 0; "Zeroes")]
+	#[test_case(4, 3, 0, 0, 0; "RHS zero")]
+	#[test_case(0, 0, 5, 6, 0; "LHS zero")]
+	#[test_case(10, 0, 0, 10, 100; "Perpendicular vectors")]
+	#[test_case(10, 0, 5, 0, 0; "Parallel vectors")]
+	#[test_case(10, 0, -5, 0, 0; "Opposite vectors")]
+	#[test_case(3, 4, 4, 3, -7; "Right winding")]
+	#[test_case(Coordinate::MAX, 0, 0, Coordinate::MAX, 4611686014132420609; "Maximum vector")]
+	#[test_case(Coordinate::MAX, 0, 0, Coordinate::MAX, 4611686014132420609; "Minimum vector")]
+	fn cross_product_z(x1: Coordinate, y1: Coordinate, x2: Coordinate, y2: Coordinate, result: Area) {
+		let vector1 = Point2D { x: x1, y: y1 };
+		let vector2 = Point2D { x: x2, y: y2 };
+		assert_eq!(vector1.cross_product_z(&vector2), result);
+	}
+
+	#[test_case(0, 0, 0, 0; "Zeroes")]
+	#[test_case(10, 0, 0, 10; "Perpendicular vectors")]
+	#[test_case(3, 4, 4, 3; "Right winding")]
+	fn cross_product_z_anticommutative(x1: Coordinate, y1: Coordinate, x2: Coordinate, y2: Coordinate) {
+		let vector1 = Point2D { x: x1, y: y1 };
+		let vector2 = Point2D { x: x2, y: y2 };
+		let result = vector1.cross_product_z(&vector2);
+		assert_eq!(vector2.cross_product_z(&vector1), -result);
+	}
 
 	/// Test moving a point by 0,0. It should not be modified.
 	#[test]
