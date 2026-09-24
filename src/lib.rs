@@ -30,6 +30,9 @@ pub use point2d::*;
 pub mod polygon;
 pub use polygon::*;
 
+pub mod simplicity;
+pub use simplicity::*;
+
 pub mod ray2d;
 pub use ray2d::*;
 
