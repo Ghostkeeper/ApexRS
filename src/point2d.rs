@@ -62,8 +62,23 @@ impl Point2D {
 	/// `Area` type and because the square of the vector length is always integer, without rounding.
 	/// It can also be seen as the area formed by a square with the vector as one of its sides.
 	///
+	/// Computing the squared length of the vector is much faster than computing the actual length,
+	/// since no square root call is involved. The result though is perhaps less useful if multiple
+	/// lengths have to be summed together or for more complex algorithms, but it is still useful
+	/// for comparing distances. Perhaps even more so than the actual length, because the squared
+	/// length does not get rounded.
+	///
 	/// # Returns
 	/// The length of the vector squared.
+	///
+	/// # Examples
+	/// ```
+	/// use apex::Point2D;
+	/// let point1 = Point2D { x: 10, y: 6 };
+	/// assert_eq!(point1.vector_length_squared(), 136); //Actual length: ~11.662.
+	/// let point2 = Point2D { x: -4, y: 3 };
+	/// assert_eq!(point2.vector_length_squared(), 25); //Actual length: 5.
+	/// ```
 	pub fn vector_length_squared(self) -> Area {
 		self.x as Area * self.x as Area + self.y as Area * self.y as Area
 	}
@@ -83,7 +98,7 @@ impl TwoDimensional for Point2D {
 	/// # Examples
 	/// ```
 	/// use apex::{Point2D, TwoDimensional};
-	/// let mut point = Point2D{ x: 100, y: 500 };
+	/// let mut point = Point2D { x: 100, y: 500 };
 	/// point.translate(50, -130);
 	/// assert_eq!(point, Point2D { x: 150, y: 370 });
 	/// ```
@@ -152,37 +167,53 @@ impl_op_ex!(- |a: &Point2D| -> Point2D { Point2D::new(-a.x, -a.y) });
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use test_case::test_case;
 
-	#[test]
+	/// Test getting the squared vector length of a point.
+	#[test_case(4, 3, 25; "Four-three-five triangle")]
+	#[test_case(-10, 20, 500; "X negative")]
+	#[test_case(10, -20, 500; "Y negative")]
+	#[test_case(-20, -10, 500; "Both negative")]
+	#[test_case(0, 40, 1600; "X zero")]
+	#[test_case(-40, 0, 1600; "Y zero")]
+	#[test_case(0, 0, 0; "Both zero")]
+	#[test_case(Coordinate::MAX, Coordinate::MAX, 9223372028264841218; "Maximum vector")]
+	fn vector_length_squared(x: Coordinate, y: Coordinate, result: Area) {
+		let point = Point2D { x, y };
+		assert_eq!(point.vector_length_squared(), result);
+	}
+
+
 	/// Test moving a point by 0,0. It should not be modified.
-	fn point2d_translate_zero() {
+	#[test]
+	fn translate_zero() {
 		let mut point = Point2D { x: 10, y: 20 };
 		point.translate(0, 0);
 		assert_eq!(point.x, 10, "Moving the point by 0,0 should not change it.");
 		assert_eq!(point.y, 20, "Moving the point by 0,0 should not change it.");
 	}
 
-	#[test]
 	/// Test moving a point in a positive direction.
-	fn point2d_translate_positive() {
+	#[test]
+	fn translate_positive() {
 		let mut point = Point2D { x: 100, y: 200 };
 		point.translate(20, 10);
 		assert_eq!(point.x, 100 + 20, "We moved the X coordinate into the positive direction by 20.");
 		assert_eq!(point.y, 200 + 10, "We moved the Y coordinate into the positive direction by 10.");
 	}
 
-	#[test]
 	/// Test moving a point in a negative direction.
-	fn point2d_translate_negative() {
+	#[test]
+	fn translate_negative() {
 		let mut point = Point2D { x: 1000, y: -2000 };
 		point.translate(-400, -500);
 		assert_eq!(point.x, 1000 - 400, "We moved the X coordinate into the negative direction by 400.");
 		assert_eq!(point.y, -2000 - 500, "We moved the Y coordinate into the negative direction by 500.");
 	}
 
-	#[test]
 	/// Test moving a point in a mixed direction.
-	fn point2d_translate_mixed() {
+	#[test]
+	fn translate_mixed() {
 		let mut point = Point2D { x: 20000, y: -10000 };
 		point.translate(100, -200);
 		assert_eq!(point.x, 20000 + 100, "We moved the X coordinate into the positive direction by 100.");
@@ -192,45 +223,45 @@ mod tests {
 		assert_eq!(point.y, -10000 - 200 + 1000, "We further moved the Y coordinate into the positive direction by 1000.");
 	}
 
-	#[test]
 	/// Test scaling a point to be larger.
-	fn point2d_scale_larger() {
+	#[test]
+	fn scale_larger() {
 		let mut point = Point2D { x: 1000, y: -200 };
 		point.scale(2.0, 3.5);
 		assert_eq!(point.x, 2000, "We scaled the X coordinate by 2, so 1000 * 2 = 2000.");
 		assert_eq!(point.y, -700, "We scaled the Y coordinate by 3.5, so -200 * 3.5 = -700.");
 	}
 
-	#[test]
 	/// Test scaling a point to be smaller.
-	fn point2d_scale_smaller() {
+	#[test]
+	fn scale_smaller() {
 		let mut point = Point2D { x: -1000, y: 200 };
 		point.scale(0.5, 0.7);
 		assert_eq!(point.x, -500, "We scaled the X coordinate by 0.5, so -1000 * 0.5 = -500.");
 		assert_eq!(point.y, 140, "We scaled the Y coordinate by 0.7, so 200 * 0.7 = 140.");
 	}
 
-	#[test]
 	/// Test scaling a point to be mirrored around the origin.
-	fn point2d_scale_negative() {
+	#[test]
+	fn scale_negative() {
 		let mut point = Point2D { x: 40000, y: -90 };
 		point.scale(-0.2, -25.0);
 		assert_eq!(point.x, -8000, "We scaled the X coordinate by -0.2, so 40000 * -0.2 = -8000.");
 		assert_eq!(point.y, 2250, "We scaled the Y coordinate by -25, so -90 * -25 = 2250.");
 	}
 
-	#[test]
 	/// Test proper rounding and rounding errors when scaling.
-	fn point2d_scale_rounding() {
+	#[test]
+	fn scale_rounding() {
 		let mut point = Point2D { x: 1, y: 25 };
 		point.scale(4.5, -0.5);
 		assert_eq!(point.x, 5, "1 * 4.5 would be 4.5, which gets rounded up to 5.");
 		assert_eq!(point.y, -12, "25 * -0.5 would be -12.5, which gets rounded up to -12.");
 	}
 
-	#[test]
 	/// Test the equality operator on Point2D.
-	fn point2d_equality() {
+	#[test]
+	fn equality() {
 		let point1 = Point2D { x: 400, y: 600 };
 		let point2 = Point2D { x: 400, y: 600 };
 		let different = Point2D { x: -400, y: 600 }; //Different from the other two.
@@ -241,9 +272,9 @@ mod tests {
 		assert_ne!(different, point1, "Commutative: It doesn't matter in what order points are equated.");
 	}
 
-	#[test]
 	/// Test comparing the order of Point2Ds if they are the same.
-	fn point2d_compare_equal() {
+	#[test]
+	fn compare_equal() {
 		let point1 = Point2D { x: 100, y: 150 };
 		let point2 = Point2D { x: 100, y: 150 };
 		assert!(point1 <= point2, "The points are equal, so they must also be less-than-or-equal.");
@@ -256,9 +287,9 @@ mod tests {
 		assert!(!(point2 > point1), "The points are equal, so one is not greater than the other.");
 	}
 
-	#[test]
 	/// Test comparing the order of Point2Ds if they have different coordinates.
-	fn point2d_compare_different() {
+	#[test]
+	fn compare_different() {
 		let point1 = Point2D { x: 100, y: 150 };
 		let point2 = Point2D { x: 101, y: 100 }; //X is greater, which is more significant, so point2 > point1.
 		assert!(point1 < point2, "The X coordinate is more significant, so point1 is less than point2.");
@@ -271,12 +302,12 @@ mod tests {
 		assert!(point2 >= point1, "Commutative: It doesn't matter in what order the points are compared.");
 	}
 
-	#[test]
 	/// Test comparing the order of Point2Ds if they have the same X coordinate, but different Y
 	/// coordinates.
 	///
 	/// Since X is the same, Y is the less significant comparison, but determines the outcome.
-	fn point2d_compare_same_x() {
+	#[test]
+	fn compare_same_x() {
 		let point1 = Point2D { x: 100, y: 100 };
 		let point2 = Point2D { x: 100, y: 150 }; //X is the same, but Y is greater.
 		assert!(point1 < point2, "The X coordinate is the same, but point1.y < point2.y.");
@@ -289,18 +320,18 @@ mod tests {
 		assert!(point2 >= point1, "Commutative: It doesn't matter in what order the points are compared.");
 	}
 
-	#[test]
 	/// Test summing Point2Ds coordinate-wise.
-	fn point2d_sum() {
+	#[test]
+	fn sum() {
 		let point1 = Point2D { x: 100, y: 200 };
 		let point2 = Point2D { x: 4000, y: 5000 };
 		assert_eq!(&point1 + &point2, Point2D { x: 100 + 4000, y: 200 + 5000 }, "We simply sum the coordinates separately.");
 		assert_eq!(point2 + point1, Point2D { x: 100 + 4000, y: 200 + 5000 }, "Commutative: It doesn't matter in what order the points are summed.");
 	}
 
-	#[test]
 	/// Test subtracting Point2Ds coordinate-wise.
-	fn point2d_subtract() {
+	#[test]
+	fn subtract() {
 		let point1 = Point2D { x: 100, y: 200 };
 		let point2 = Point2D { x: 10, y: -20 };
 		assert_eq!(&point1 - &point2, Point2D { x: 100 - 10, y: 200 + 20 }, "We simply subtract the coordinates separately.");
